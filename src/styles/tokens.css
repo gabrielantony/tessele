@@ -1,12 +1,19 @@
 :root {
 	color-scheme: light;
 
-	--color-canvas: #f7f7f4;
+	--color-canvas: #f9faf5;
 	--color-surface: #ffffff;
-	--color-ink: #161615;
-	--color-muted: #62625d;
-	--color-accent: #161615;
-	--color-border: #d9d9d3;
+	--color-surface-glass: rgb(255 255 255 / 78%);
+	--color-ink: #021208;
+	--color-muted: #526057;
+	--color-accent: #062f16;
+	--color-accent-hover: #0b4823;
+	--color-on-accent: #f9faf5;
+	--color-highlight: #85d02d;
+	--color-accent-soft: rgb(6 47 22 / 5%);
+	--color-highlight-soft: rgb(133 208 45 / 10%);
+	--color-border: #dde2da;
+	--shadow-floating: 0 1.25rem 3rem rgb(2 18 8 / 8%);
 
 	--font-display: ui-serif, Georgia, serif;
 	--font-body: ui-sans-serif, system-ui, sans-serif;
