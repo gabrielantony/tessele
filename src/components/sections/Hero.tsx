@@ -162,7 +162,7 @@ export default function Hero() {
       ref={root}
       className="
         flex
-        min-h-[780px]
+        min-h-[48.75rem]
         w-full
         flex-col
         items-center
@@ -178,7 +178,7 @@ export default function Hero() {
         className="
           flex
           w-full
-          max-w-[48rem]
+          max-w-narrow
           flex-col
           items-center
           gap-space-4
@@ -198,8 +198,7 @@ export default function Hero() {
           <span
             aria-hidden="true"
             className="
-              h-[6px]
-              w-[6px]
+              size-space-1-5
               shrink-0
               rounded-full
               bg-highlight
@@ -208,14 +207,10 @@ export default function Hero() {
 
           <p
             className="
+              text-label
               text-center
-              text-[10px]
-              font-semibold
               uppercase
-              leading-4
-              tracking-[0.06em]
               text-muted
-              sm:text-[12px]
             "
           >
             ESTÚDIO DE MARKETING, DESIGN E DESENVOLVIMENTO EM CURITIBA
@@ -234,22 +229,15 @@ export default function Hero() {
           <h1
             data-reveal
             className="
+              text-display
+              font-display
               w-full
+              text-balance
               text-center
-              text-[38px]
-              font-bold
-              leading-[44px]
-              tracking-[-0.02em]
               text-ink
-              sm:text-[46px]
-              sm:leading-[54px]
-              lg:text-[56px]
-              lg:leading-[64px]
             "
           >
-            Sua empresa não precisa
-            <br className="hidden lg:block" /> fazer mais. Precisa saber o
-            <br className="hidden lg:block" /> que faz{" "}
+            Sua empresa não precisa fazer mais. Precisa saber o que faz{" "}
             <span className="text-highlight">sentido</span> fazer agora.
           </h1>
 
@@ -258,7 +246,7 @@ export default function Hero() {
             className="
               text-lead
               w-full
-              max-w-[42rem]
+              max-w-copy
               text-center
               text-muted
             "
@@ -282,8 +270,9 @@ export default function Hero() {
         onBlur={handleBlur}
         className="
           flex
-          h-[56px]
-          w-[290px]
+          h-[3.5rem]
+          w-[18.125rem]
+          max-w-full
           shrink-0
           select-none
           items-center
@@ -306,8 +295,7 @@ export default function Hero() {
           className="
             flex
             h-full
-            w-[190px]
-            shrink-0
+            flex-1
             items-center
             justify-center
             overflow-visible
@@ -315,10 +303,8 @@ export default function Hero() {
         >
           <span
             className="
+              text-action
               whitespace-nowrap
-              text-[16px]
-              font-bold
-              leading-[19px]
               text-on-accent
             "
           >
@@ -331,8 +317,7 @@ export default function Hero() {
           className="
             ml-space-6
             flex
-            h-[48px]
-            w-[48px]
+            size-space-12
             shrink-0
             items-center
             justify-center

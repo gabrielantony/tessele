@@ -69,6 +69,27 @@ carries no contract tests. If a value you need is missing, add the token to
 The type scale steps up at `48rem` by redefining the tokens in one media query in
 `globals.css`. Sections never need their own breakpoint for type size.
 
+### Building a section from a Figma spec
+
+A Figma frame describes exactly one viewport. Its export carries no responsive
+information at all, so anything handed that export — a model or a person — has to
+invent the small and medium sizes, and will invent them as raw pixels.
+
+The tokens already hold that answer. The design was built on them, so a frame's
+desktop values map back onto tokens directly:
+
+| Figma frame | Token |
+|---|---|
+| `12 / 16 / 600 / 6%` | `text-label` |
+| `56 / 64 / 700 / -2%` | `text-display` |
+| `20 / 30 / 500` | `text-lead` |
+| padding `96` | `px-page` / `py-section` |
+| radius `12` / `8` | `rounded-md` / `rounded-base` |
+
+So translate the frame's values into tokens rather than into pixels: the token
+carries the step down to mobile that the frame never described. When a spec value
+has no token, add the token — do not inline the number.
+
 ## Motion
 
 GSAP with `@gsap/react`. Every animated section must also work with

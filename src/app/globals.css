@@ -109,6 +109,8 @@
      section never needs its own media query just to stop crushing its copy. */
   --spacing-page: clamp(var(--spacing-space-5), 7.5vw, var(--spacing-space-24));
   --spacing-section: clamp(var(--spacing-space-16), 7.5vw, var(--spacing-space-24));
+  --container-copy: 42rem;
+  --container-narrow: 48rem;
   --container-content: 68rem;
   --container-wide: 70rem;
 
