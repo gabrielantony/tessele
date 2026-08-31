@@ -1,5 +1,5 @@
 import ExampleMotionSection from "@/components/sections/ExampleMotionSection";
-import ExampleStaticSection from "@/components/sections/ExampleStaticSection";
+import Hero from "@/components/sections/Hero";
 
 /*
  * This file IS the page. It does nothing but stack sections in order.
@@ -11,13 +11,13 @@ import ExampleStaticSection from "@/components/sections/ExampleStaticSection";
  *
  * Reordering the page = moving one line here.
  *
- * The two Example* sections are scaffolding. Delete both files and their imports
- * once you have written a real section.
+ * ExampleMotionSection is scaffolding — delete the file and its import once you
+ * no longer need it as a reference.
  */
 export default function Home() {
   return (
     <main>
-      <ExampleStaticSection />
+      <Hero />
       <ExampleMotionSection />
     </main>
   );
