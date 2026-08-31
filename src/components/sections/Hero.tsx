@@ -198,10 +198,12 @@ export default function Hero() {
           <span
             aria-hidden="true"
             className="
+              hidden
               size-space-1-5
               shrink-0
               rounded-full
               bg-highlight
+              md:block
             "
           />
 
@@ -213,7 +215,9 @@ export default function Hero() {
               text-muted
             "
           >
-            ESTÚDIO DE MARKETING, DESIGN E DESENVOLVIMENTO EM CURITIBA
+            ESTÚDIO DE MARKETING, DESIGN{" "}
+            <br className="md:hidden" />
+            E DESENVOLVIMENTO EM CURITIBA
           </p>
         </div>
 
@@ -272,7 +276,6 @@ export default function Hero() {
           flex
           h-[3.5rem]
           w-[18.125rem]
-          max-w-full
           shrink-0
           select-none
           items-center
