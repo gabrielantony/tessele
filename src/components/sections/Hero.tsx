@@ -297,6 +297,7 @@ export default function Hero() {
           className="
             flex
             h-full
+            min-w-0
             flex-1
             items-center
             justify-center
@@ -323,7 +324,6 @@ export default function Hero() {
             shrink-0
             items-center
             justify-center
-            overflow-hidden
             rounded-base
             bg-surface
             text-accent

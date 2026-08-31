@@ -94,6 +94,9 @@ export default function OurProcessSection() {
         scrollTrigger: {
           trigger: section,
           start: "top 75%",
+          // Deliberate: scrolling back up above the start plays the entrance in
+          // reverse, so the section re-enters on the way down. Not a bug — do
+          // not "fix" this to "play none none none".
           toggleActions: "play none none reverse",
         },
       });
