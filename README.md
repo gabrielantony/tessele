@@ -90,6 +90,20 @@ So translate the frame's values into tokens rather than into pixels: the token
 carries the step down to mobile that the frame never described. When a spec value
 has no token, add the token — do not inline the number.
 
+`docs/TOKENS.md` is that list, in the form a section author types: utility names
+rather than custom-property names. It is generated, so regenerate it after
+changing a token and re-upload it wherever it is used as a reference — a stale
+copy is worse than none, because nothing announces that it went stale.
+
+```sh
+npm run tokens:doc
+```
+
+Build a per-breakpoint Figma frame only when the mobile layout is **structurally**
+different — a grid that collapses, an element that moves or disappears, a row that
+becomes a carousel. Never for type or spacing scale: the tokens already carry
+that, and a second frame that restates it just creates two values to keep in sync.
+
 ## Motion
 
 GSAP with `@gsap/react`. Every animated section must also work with
