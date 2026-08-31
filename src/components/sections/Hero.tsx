@@ -279,7 +279,6 @@ export default function Hero() {
           shrink-0
           select-none
           items-center
-          overflow-hidden
           rounded-md
           bg-accent
           py-space-1
@@ -324,6 +323,7 @@ export default function Hero() {
             shrink-0
             items-center
             justify-center
+            overflow-hidden
             rounded-base
             bg-surface
             text-accent
