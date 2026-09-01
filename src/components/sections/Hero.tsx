@@ -41,6 +41,7 @@ export default function Hero() {
         flex
         min-h-[48.75rem]
         w-full
+        lg:min-h-screen
         flex-col
         items-center
         justify-center
