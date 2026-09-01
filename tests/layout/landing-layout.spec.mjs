@@ -349,12 +349,23 @@ const CLIPPED_AWAY = () => {
       if (!hides(style.overflowX) && !hides(style.overflowY)) continue;
 
       const clip = node.getBoundingClientRect();
+
+      // A clipper collapsed to nothing on the clipped axis is a closed
+      // disclosure, not a cut: an accordion panel at height 0, a tab panel not
+      // selected yet. That content is reachable -- the reader opens it -- which
+      // is the same reason a scroll container is skipped above. The orbit's
+      // square is 332px tall at 390px, so the defect this probe was written for
+      // does not hide behind this, and `an escaping box is still reported` below
+      // is what keeps that true.
+      const collapsedX = clip.width <= 1;
+      const collapsedY = clip.height <= 1;
+
       const cut = Math.round(
         Math.max(
-          hides(style.overflowX) ? clip.left - box.left : 0,
-          hides(style.overflowX) ? box.right - clip.right : 0,
-          hides(style.overflowY) ? clip.top - box.top : 0,
-          hides(style.overflowY) ? box.bottom - clip.bottom : 0,
+          hides(style.overflowX) && !collapsedX ? clip.left - box.left : 0,
+          hides(style.overflowX) && !collapsedX ? box.right - clip.right : 0,
+          hides(style.overflowY) && !collapsedY ? clip.top - box.top : 0,
+          hides(style.overflowY) && !collapsedY ? box.bottom - clip.bottom : 0,
         ),
       );
       if (cut > 1) {
@@ -378,4 +389,39 @@ test.describe("nothing is clipped away", () => {
       expect(findings, "content the reader has no way to reach").toEqual([]);
     });
   }
+
+  // The probe above skips two things: a scroll container, and a clipper collapsed
+  // to nothing. Both are reachable content, and both are also an easy way for the
+  // probe to stop probing without anyone noticing -- the suite would stay green
+  // by finding nothing anywhere. So pin both halves against a synthetic DOM: the
+  // exemption must hold, and a real cut must still be reported.
+  test("the clipping probe reports a cut and exempts a collapsed panel", async ({ page }) => {
+    await gotoLanding(page, 1280);
+
+    // Built in the live page so the assertion runs the same CLIPPED_AWAY the real
+    // tests run, rather than a copy of it that could drift.
+    await page.evaluate(() => {
+      const host = document.createElement("div");
+      host.innerHTML = `
+        <div id="probe-cut" style="overflow:hidden;width:40px;height:40px">
+          <p style="width:400px">a paragraph far wider than the box holding it</p>
+        </div>
+        <div id="probe-collapsed" style="overflow:hidden;height:0">
+          <p style="height:100px">a paragraph in a panel that is closed</p>
+        </div>
+        <div id="probe-scroller" style="overflow-x:auto;width:40px">
+          <p style="width:400px">a paragraph the reader can scroll to</p>
+        </div>
+      `;
+      document.body.append(host);
+    });
+
+    const findings = await page.evaluate(CLIPPED_AWAY);
+
+    const hit = (id) => findings.filter((f) => f.clippedBy.includes(id));
+
+    expect(hit("probe-cut"), "a genuinely cut paragraph is no longer reported").not.toEqual([]);
+    expect(hit("probe-collapsed"), "a closed panel is reported as if it were cut").toEqual([]);
+    expect(hit("probe-scroller"), "scrollable content is reported as if it were cut").toEqual([]);
+  });
 });
