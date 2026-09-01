@@ -37,8 +37,32 @@ test.describe("foundations", () => {
   // component: green today, and must stay green through the refactor. The same
   // contract is what each section's CTA will be held to as it adopts the
   // component.
+  // Scoped to the hero rather than selecting [data-cta] globally: that attribute
+  // is also hand-written on an anchor in OurProcessSection, so a bare selector
+  // matches two elements and .first() would only find the hero by page order --
+  // silently changing subject if the page is ever reordered.
+  // [data-cta-button] is owned by the shared component; the hero is the first
+  // section, and asserting that is what makes the scoping visible instead of
+  // accidental.
   test("the hero CTA honours the interaction contract", async ({ page }) => {
     await gotoLanding(page, 1280);
-    await assertCtaMechanics(page, "[data-cta]");
+
+    const hero = "main > section:first-of-type";
+    await expect(
+      page.locator(`${hero} [data-cta-button]`),
+      "the hero does not render exactly one shared CTA button",
+    ).toHaveCount(1);
+
+    await assertCtaMechanics(page, `${hero} [data-cta-button]`);
+  });
+
+  // Every CTA the sweep migrates has to be reachable through the component's own
+  // attribute. This starts at 1 (the hero) and each adopting phase raises it, so
+  // a phase that reimplements a button instead of adopting shows up here.
+  test("every shared CTA button carries the component's own attribute", async ({ page }) => {
+    await gotoLanding(page, 1280);
+
+    const count = await page.locator("[data-cta-button]").count();
+    expect(count, "no element carries [data-cta-button]").toBeGreaterThanOrEqual(1);
   });
 });
