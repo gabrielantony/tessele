@@ -3,8 +3,11 @@
 import {
   useEffect,
   useRef,
+  useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+
+import { createPortal } from "react-dom";
 
 import { useGSAP } from "@gsap/react";
 
@@ -139,7 +142,8 @@ const CASES: CaseStudy[] = [
     ],
     media: {
       kind: "video",
-      poster: "images/services-trafego.jpg",
+      src: "videos/testimonial-preview.mp4",
+      poster: "images/testimonial-preview-poster.jpg",
       label: "Depoimento em vídeo",
     },
   },
@@ -205,24 +209,151 @@ function LayoutBoardIcon() {
   );
 }
 
+function ExpandIcon() {
+  return (
+    <svg
+      className="size-space-5 shrink-0"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M7.5 3.33333H4.16667C3.72464 3.33333 3.30072 3.50893 2.98816 3.82149C2.67559 4.13405 2.5 4.55797 2.5 5V8.33333M12.5 3.33333H15.8333C16.2754 3.33333 16.6993 3.50893 17.0118 3.82149C17.3244 4.13405 17.5 4.55797 17.5 5V8.33333M17.5 12.5V15.8333C17.5 16.2754 17.3244 16.6993 17.0118 17.0118C16.6993 17.3244 16.2754 17.5 15.8333 17.5H12.5M2.5 12.5V15.8333C2.5 16.2754 2.67559 16.6993 2.98816 17.0118C3.30072 17.3244 3.72464 17.5 4.16667 17.5H7.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      className="size-space-6 shrink-0"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M15 5L5 15M5 5L15 15"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/*
+ * The lightbox is portaled to <body> rather than rendered in place: the rail's
+ * cards get an inline `transform` from the GSAP reveal (translate on `y`), and
+ * any transform establishes a containing block, so a `fixed` element left
+ * nested inside one would position itself against the card instead of the
+ * viewport.
+ */
+function VideoLightbox({
+  media,
+  onClose,
+}: {
+  media: Extract<CaseMedia, { kind: "video" }>;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/90 p-space-6"
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Fechar vídeo"
+        className="absolute right-space-6 top-space-6 flex size-space-10 items-center justify-center rounded-full bg-accent text-on-accent transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-4 focus-visible:ring-offset-ink"
+      >
+        <CloseIcon />
+      </button>
+
+      <video
+        className="max-h-[90dvh] max-w-[90vw] rounded-2xl"
+        src={media.src}
+        poster={media.poster}
+        aria-label={media.label}
+        controls
+        autoPlay
+        playsInline
+        onClick={(event) => event.stopPropagation()}
+      />
+    </div>,
+    document.body,
+  );
+}
+
 function CaseMedia({ media }: { media: CaseMedia }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   if (media.kind === "video") {
     const hasSource = Boolean(media.src);
 
     return (
-      <video
-        data-case-video
-        className="absolute inset-0 block h-full w-full object-cover object-center"
-        src={media.src}
-        poster={media.poster}
-        aria-label={media.label}
-        autoPlay={hasSource}
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        draggable={false}
-      />
+      <>
+        <video
+          data-case-video
+          /*
+           * object-[50%_30%] rather than object-center: the subject's face
+           * sits in the upper half of the source footage, so a plain centre
+           * crop on the square/portrait frames below lg clips the top of the
+           * head first.
+           */
+          className="absolute inset-0 block h-full w-full object-cover object-[50%_30%]"
+          src={media.src}
+          poster={media.poster}
+          aria-label={media.label}
+          autoPlay={hasSource}
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          draggable={false}
+        />
+
+        {hasSource ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setIsExpanded(true)}
+              aria-label="Ver vídeo em tela cheia"
+              className="absolute bottom-space-3 right-space-3 flex size-space-10 items-center justify-center rounded-full bg-accent text-on-accent transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-4"
+            >
+              <ExpandIcon />
+            </button>
+
+            {isExpanded ? (
+              <VideoLightbox
+                media={media}
+                onClose={() => setIsExpanded(false)}
+              />
+            ) : null}
+          </>
+        ) : null}
+      </>
     );
   }
 
@@ -263,12 +394,14 @@ function CaseCard({ caseStudy }: { caseStudy: CaseStudy }) {
       /*
        * Each variant carries its own width, radius and padding from the design.
        *
-       * The width below lg is not from the design, which was drawn at one size:
-       * the card is held short of the rail so the next one shows at the edge.
-       * That sliver is the only thing telling a phone reader the row continues,
-       * now that the dots are gone.
+       * The width below lg is not from the design, which was drawn at one size.
+       * On phones the card takes the full rail width -- one card per screen,
+       * nothing peeking at the edge to signal more; that sliver read as
+       * cramped rather than a hint to keep scrolling. Tablet-sized cards keep
+       * the sliver: there's enough room for it to read as a hint rather than
+       * a squeeze.
        */
-      className={`w-[85%] shrink-0 snap-center lg:w-full flex flex-col bg-surface shadow-lifted lg:flex-row lg:items-center ${
+      className={`w-full sm:w-[85%] shrink-0 snap-center lg:w-full flex flex-col bg-surface shadow-lifted lg:flex-row lg:items-center ${
         media
           ? "max-w-testimonial rounded-3xl p-space-4"
           : "max-w-testimonial-compact rounded-2xl p-space-8"
@@ -280,19 +413,36 @@ function CaseCard({ caseStudy }: { caseStudy: CaseStudy }) {
           /*
            * A fixed 320px column beside the copy on wide viewports, as designed.
            * Below that the frame the design was drawn in no longer exists, so
-           * the column becomes a square banner above the copy rather than a
-           * sliver next to it.
+           * the column becomes a banner above the copy rather than a sliver
+           * next to it: square on phones, where the card is narrow enough for
+           * that to stay a reasonable height, capped to a fixed height from sm
+           * so it stops growing with the card's width on tablet-sized cards.
+           *
+           * The bottom corners get a deliberately larger 32px radius while
+           * stacked as a banner -- rounded-xl there read as an almost-square
+           * cut against the copy below it. Side-by-side from lg the media has
+           * no bottom edge to soften, so it goes back to matching rounded-xl
+           * on all four corners.
            */
-          className="relative aspect-square min-w-0 shrink-0 overflow-hidden rounded-xl bg-surface-sunken lg:aspect-auto lg:w-80 lg:self-stretch"
+          className="relative aspect-square min-w-0 shrink-0 overflow-hidden rounded-t-xl rounded-b-[2rem] bg-surface-sunken sm:aspect-auto sm:h-64 md:h-72 lg:h-auto lg:w-80 lg:self-stretch lg:rounded-xl"
         >
           <CaseMedia media={media} />
         </div>
       ) : null}
 
       <div
+        /*
+         * Below lg the card's own p-space-4 already insets the whole card, so
+         * this div's padding on top of that was doubling the side/bottom
+         * inset -- px/pb-space-2 brings back just an 8px cushion instead of
+         * doubling up to 16, at every width below lg including phones.
+         * pt-space-4 is unconditional and separate from those: that's the gap
+         * between the media and the copy, which still has to exist with
+         * nothing else to provide it.
+         */
         className={`flex min-w-0 flex-1 flex-col gap-space-8 ${
           media
-            ? "p-space-4 lg:py-space-2 lg:pl-space-8 lg:pr-space-6"
+            ? "pt-space-4 px-space-2 pb-space-2 lg:py-space-2 lg:pl-space-8 lg:pr-space-6"
             : ""
         }`}
       >
@@ -337,7 +487,12 @@ function CaseCard({ caseStudy }: { caseStudy: CaseStudy }) {
 
         <div className="h-px w-full bg-hairline" />
 
-        <div className="flex flex-wrap items-start gap-space-10">
+        {/*
+         * Stacked on phones -- two metrics side by side there squeezed each
+         * value's label into an awkward wrap. From sm up there's room for
+         * them to sit side by side again, as designed.
+         */}
+        <div className="flex flex-col items-start gap-space-4 sm:flex-row sm:flex-wrap sm:gap-space-10">
           {caseStudy.metrics.map((metric) => (
             <div
               key={metric.label}
@@ -606,7 +761,7 @@ export default function CasesSection() {
          * (48 + 16) and 32px below (160 - 128). Changing one half of a pair
          * without the other either moves the section or brings the cut back.
          */
-        className="cases-rail mt-space-12 flex gap-space-8 overflow-x-auto overscroll-x-contain px-page pt-space-4 pb-space-40 -mb-space-32 snap-x snap-mandatory lg:cursor-grab lg:snap-none lg:active:cursor-grabbing"
+        className="cases-rail mt-space-12 flex items-start gap-space-8 overflow-x-auto overscroll-x-contain px-page pt-space-4 pb-space-40 -mb-space-32 snap-x snap-mandatory lg:cursor-grab lg:snap-none lg:active:cursor-grabbing"
       >
         {CASES.map((caseStudy) => (
           <CaseCard
@@ -625,10 +780,12 @@ export default function CasesSection() {
        */}
       <div className="relative z-10 mt-space-16 px-page">
         {/*
-         * Same box as the card above it, at every width: short of the rail and
-         * left-aligned below lg, the card's own width and centred from lg up.
+         * Below lg the stats fill the section's own width instead of tracking
+         * the card above -- cramming 3 columns into the card's 85% cut every
+         * label short. Only from lg up do they narrow to the card's width and
+         * centre, matching it.
          */}
-        <div className="grid w-[85%] max-w-testimonial gap-space-8 md:grid-cols-3 lg:mx-auto lg:w-full">
+        <div className="grid w-full gap-space-8 md:grid-cols-3 lg:mx-auto lg:w-full lg:max-w-testimonial">
           {RELATIONSHIP_METRICS.map((metric) => (
             <div
               key={metric.value}
