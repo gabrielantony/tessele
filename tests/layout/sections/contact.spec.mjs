@@ -68,40 +68,53 @@ test.describe("contact", () => {
    * `docs/failure-archetypes.md`, "Spec transplantada de uma ferramenta de
    * autoria cujo viewport não existe no destino": one trigger governing a region
    * taller than the screen animates its lower half out of sight. Measured -- the
-   * section is 977px tall against a 900px viewport, and the trigger is
-   * `start: "top 75%"`, so it fires with the section top at 675px and everything
-   * below 900px animates where nobody is looking.
+   * section is 977px tall against a 900px viewport with `start: "top 75%"`, so it
+   * fires with the section top at 675px and everything below 900px animates where
+   * nobody is looking.
    *
-   * Asserted as geometry at the firing moment rather than as timing, so it is
-   * deterministic: scroll to exactly the trigger line and check what is on screen.
-   * The fix can be a later start, a trigger per group, or a shorter section --
-   * this does not care which.
+   * The first version of this assertion was wrong, and Codex was right to refuse
+   * it: it scrolled to the OLD trigger line and demanded all five groups be on
+   * screen there, which a 977px section in a 900px viewport can never satisfy no
+   * matter how the reveal is fixed. It asserted the old mechanism instead of the
+   * guarantee, so it defended the defect -- passing it would have required
+   * shortening the section or keeping the single trigger.
+   *
+   * The guarantee is that the reader gets to see each entrance. So: park each
+   * group at the moment it first comes into view, and require it has not already
+   * finished arriving. Per-group triggers satisfy that; one early trigger over a
+   * tall section does not. Nothing here knows how the triggers are configured.
    */
-  test("nothing animates below the fold when the reveal fires", async ({ page }) => {
+  test("each group still has its entrance left when it comes into view", async ({ page }) => {
     await gotoLanding(page, 1280, { motion: true });
 
-    const offscreen = await page.evaluate((groups) => {
-      const section = document.querySelector("section:has(form)");
-      // Put the section top exactly on the trigger line: start "top 75%" fires
-      // when the section top reaches 75% of the viewport height.
-      const target =
-        section.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.75;
-      window.scrollTo(0, Math.max(0, target));
+    const alreadyDone = [];
+    for (const group of GROUPS) {
+      const parked = await page.evaluate((name) => {
+        const el = document.querySelector(`[data-motion="${name}"]`);
+        if (!el) return null;
+        // Put the group's top just inside the bottom edge -- the instant it
+        // becomes visible to someone scrolling down.
+        const target =
+          el.getBoundingClientRect().top + window.scrollY - (window.innerHeight - 8);
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        if (target > max) return { skipped: true };
+        window.scrollTo(0, Math.max(0, target));
+        return { skipped: false };
+      }, group);
 
-      return groups
-        .map((group) => {
-          const el = document.querySelector(`[data-motion="${group}"]`);
-          if (!el) return null;
-          const box = el.getBoundingClientRect();
-          const below = Math.round(box.top - window.innerHeight);
-          return below > 0 ? { group, pxBelowTheFold: below } : null;
-        })
-        .filter(Boolean);
-    }, GROUPS);
+      if (!parked || parked.skipped) continue;
+
+      await page.waitForTimeout(250);
+      const opacity = await page.evaluate(
+        (name) => Number(getComputedStyle(document.querySelector(`[data-motion="${name}"]`)).opacity),
+        group,
+      );
+      if (opacity > 0.99) alreadyDone.push({ group, opacity });
+    }
 
     expect(
-      offscreen,
-      "these groups start animating while they are still off the bottom of the screen",
+      alreadyDone,
+      "these groups had already finished animating before they came into view, so their entrance is never seen",
     ).toEqual([]);
   });
 
