@@ -32,7 +32,6 @@ export default function Home() {
       <QuoteSection />
       <ProblemSection />
       <OurProcessSection />
-      <ExampleMotionSection />
       <ServicesSection />
       <TestimonialsSection />
       <PlansSection />
@@ -41,6 +40,7 @@ export default function Home() {
       <FAQSection />
       <ContactUsSection />
       <FooterSection />
+      <ExampleMotionSection />
     </main>
   );
 }
