@@ -52,6 +52,31 @@ looks like wrong uppercasing" symptom, everywhere at once. Fix at the token leve
 Adoption of CTAButton in the *other* sections happens inside each section's own plan, so the
 foundations diff stays small and the per-section diffs stay attributable.
 
+## Progress
+
+Merged into `feat/landing-sections`, suite **141/141** in chromium, webkit and mobile-safari,
+lint 0 errors / 4 pre-existing warnings:
+
+- **Foundations** — shared `CTAButton` (`src/components/ui/CTAButton.tsx`) with the Hero's
+  mechanics, a discriminated anchor/button union, `ArrowIcon` extracted; `lining-nums` on the
+  body. The extraction surfaced a real Chromium-only bug: Chromium focuses an anchor on
+  mousedown, so the focus handler was overwriting the press tween. Gated on `:focus-visible`.
+- **Services reformat** — 1492 → 1130 lines, 4-space → 2-space, via prettier and verified
+  token-preserving (three inert divergences in 16.5k normalized characters).
+- **Services** — intrinsic item columns replace `md:grid-cols-2`; two authorized spacing steps
+  recover the last 4.5px at 390px; the three Unsplash hotlinks now serve from `public/images/`.
+- **Testimonials** — native scrollbar hidden in both engine families, replaced by dots derived
+  from `CASES.length` whose state follows the rail's scroll position (so a drag updates them, not
+  just a click). `hiddenScrollers` now earns its exemption by finding visible controls rather
+  than by an `ALLOWED` entry.
+
+Open, carried forward:
+
+- `TestimonialsSection.tsx` — `aria-label` on the role-less dots container is ignored by AT;
+  fold the `role="group"` fix into front B's next handoff as a one-line rider.
+- Services at 320px still wraps the longest label; 226px of text cannot fit a 162px column at
+  this type size. Gabriel's call: leave it, shorten the item text, or reduce the type there.
+
 ## The queue
 
 Issues below are measured (Chromium 1280×900 against the static export, plus the widths named),
