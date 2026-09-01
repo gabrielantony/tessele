@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "tokens:doc": "node scripts/generate-tokens-doc.mjs"
+    "tokens:doc": "node scripts/generate-tokens-doc.mjs",
+    "test": "playwright test",
+    "test:layout": "playwright test"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
@@ -17,6 +19,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
