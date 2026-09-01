@@ -352,7 +352,9 @@ function PricingGrid({
       className={[
         "grid w-full grid-cols-1",
         "gap-space-6 pt-space-4",
-        "md:grid-cols-2 lg:grid-cols-3",
+        // Uma coluna até lg, três a partir dali. Duas colunas deixariam o
+        // terceiro plano sozinho numa linha pela metade — pior que a pilha.
+        "lg:grid-cols-3",
       ].join(" ")}
     >
       {plans.map((plan) => (
