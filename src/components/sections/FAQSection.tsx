@@ -262,7 +262,7 @@ export default function FAQSection() {
             id="faq-heading"
             data-reveal
             data-faq-heading
-            className="max-w-copy text-display-2 text-ink"
+            className="max-w-copy text-heading-2 text-ink"
           >
             O que você pode querer saber antes de começar com a Tessele.
           </h2>
