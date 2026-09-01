@@ -10,6 +10,7 @@ import {
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import CTAButton from "@/components/ui/CTAButton";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -53,8 +54,6 @@ const PHI_SQUARED = PHI * PHI;
 const DURATION_PRIMARY = PHI_INVERSE;
 const DURATION_SECONDARY =
   PHI_INVERSE * PHI_INVERSE;
-const OVERLAP =
-  DURATION_SECONDARY * PHI_INVERSE;
 
 function fibonacciEaseOut(progress: number) {
   return 1 - Math.pow(1 - progress, PHI_SQUARED);
@@ -92,35 +91,6 @@ function formatPhone(value: string) {
 
 function looksLikeEmail(value: string) {
   return /[a-zA-Z@]/.test(value);
-}
-
-/* =========================
-   ICON
-========================= */
-
-function ArrowIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className="
-        size-space-5
-        transition-transform
-        duration-(--duration-base)
-        ease-(--ease-out)
-        group-hover/cta:translate-x-space-1
-      "
-    >
-      <path
-        d="M5 12H19M14 7L19 12L14 17"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
 }
 
 /* =========================
@@ -194,7 +164,7 @@ function InputField({
           absolute
           left-space-5
           top-space-4
-          text-body-bold
+          text-small-medium
           text-muted
 
           transition-all
@@ -298,7 +268,7 @@ function ContactInput({
           absolute
           left-space-5
           top-space-4
-          text-body-bold
+          text-small-medium
           text-muted
 
           transition-all
@@ -473,69 +443,6 @@ function MessageField({
 }
 
 /* =========================
-   CTA
-========================= */
-
-function CtaButton() {
-  return (
-    <button
-      type="submit"
-      className="
-        group/cta
-        flex
-        w-full
-        items-center
-        rounded-md
-        bg-accent
-        p-space-1
-        pl-space-6
-        text-on-accent
-
-        transition-all
-        duration-(--duration-base)
-        ease-(--ease-out)
-
-        hover:bg-accent-hover
-        hover:shadow-control
-
-        focus-visible:outline-highlight
-      "
-    >
-      <span
-        className="
-          flex-1
-          text-center
-          text-action
-        "
-      >
-        Quero falar do meu projeto
-      </span>
-
-      <span
-        className="
-          flex
-          size-space-12
-          shrink-0
-          items-center
-          justify-center
-          rounded-base
-          bg-surface
-          text-accent
-
-          transition-colors
-          duration-(--duration-base)
-          ease-(--ease-out)
-
-          group-hover/cta:bg-surface-tint
-        "
-      >
-        <ArrowIcon />
-      </span>
-    </button>
-  );
-}
-
-/* =========================
    FORM
 ========================= */
 
@@ -643,7 +550,7 @@ function ContactForm() {
           gap-space-4
         "
       >
-        <p className="text-body-bold text-ink">
+        <p className="text-body text-ink">
           Como você imagina trabalhar com a
           Tessele?
         </p>
@@ -684,7 +591,10 @@ function ContactForm() {
       </div>
 
       <div data-motion="cta">
-        <CtaButton />
+        <CTAButton
+          label="Quero falar do meu projeto"
+          type="submit"
+        />
       </div>
     </form>
   );
@@ -748,94 +658,46 @@ export default function FormularioDeContato() {
         return;
       }
 
-      const timeline = gsap.timeline({
-        defaults: {
-          ease: fibonacciEaseOut,
+      const reveal = (
+        targets: HTMLElement[],
+        from: gsap.TweenVars,
+        duration: number,
+      ) => {
+        const timeline = gsap.timeline({
+          paused: true,
+          defaults: {
+            ease: fibonacciEaseOut,
+          },
+        });
+
+        timeline.fromTo(targets, from, {
+          autoAlpha: 1,
+          yPercent: 0,
+          scale: 1,
+          duration,
+        });
+
+        ScrollTrigger.create({
+          trigger: targets[0],
+          start: "top bottom",
+          animation: timeline,
+          toggleActions: "play none none reverse",
+        });
+      };
+
+      reveal(heading, { autoAlpha: 0, yPercent: 10 }, DURATION_PRIMARY);
+      reveal(fields, { autoAlpha: 0, yPercent: 8 }, DURATION_SECONDARY);
+      reveal(relationship, { autoAlpha: 0, yPercent: 6 }, DURATION_SECONDARY);
+      reveal(message, { autoAlpha: 0, yPercent: 6 }, DURATION_SECONDARY);
+      reveal(
+        cta,
+        {
+          autoAlpha: 0,
+          yPercent: 4,
+          scale: PHI_INVERSE + DURATION_SECONDARY,
         },
-        scrollTrigger: {
-          trigger: section,
-          start: "top 75%",
-          toggleActions:
-            "play none none reverse",
-        },
-      });
-
-      timeline
-        .fromTo(
-          heading,
-          {
-            autoAlpha: 0,
-            yPercent: 10,
-          },
-          {
-            autoAlpha: 1,
-            yPercent: 0,
-            duration: DURATION_PRIMARY,
-            immediateRender: false,
-          },
-        )
-
-        .fromTo(
-          fields,
-          {
-            autoAlpha: 0,
-            yPercent: 8,
-          },
-          {
-            autoAlpha: 1,
-            yPercent: 0,
-            duration: DURATION_SECONDARY,
-            immediateRender: false,
-          },
-          `-=${OVERLAP}`,
-        )
-
-        .fromTo(
-          relationship,
-          {
-            autoAlpha: 0,
-            yPercent: 6,
-          },
-          {
-            autoAlpha: 1,
-            yPercent: 0,
-            duration: DURATION_SECONDARY,
-            immediateRender: false,
-          },
-          `-=${OVERLAP}`,
-        )
-
-        .fromTo(
-          message,
-          {
-            autoAlpha: 0,
-            yPercent: 6,
-          },
-          {
-            autoAlpha: 1,
-            yPercent: 0,
-            duration: DURATION_SECONDARY,
-            immediateRender: false,
-          },
-          `-=${OVERLAP}`,
-        )
-
-        .fromTo(
-          cta,
-          {
-            autoAlpha: 0,
-            yPercent: 4,
-            scale: PHI_INVERSE + DURATION_SECONDARY,
-          },
-          {
-            autoAlpha: 1,
-            yPercent: 0,
-            scale: 1,
-            duration: DURATION_SECONDARY,
-            immediateRender: false,
-          },
-          `-=${OVERLAP}`,
-        );
+        DURATION_SECONDARY,
+      );
     },
     {
       scope: root,
