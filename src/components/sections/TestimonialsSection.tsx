@@ -479,7 +479,13 @@ export default function CasesSection() {
         ))}
       </div>
 
+      {/*
+       * O role é o que faz o aria-label existir: num div sem role, a maioria dos
+       * leitores de tela descarta o rótulo, e os dots são anunciados como dois
+       * botões soltos sem dizer a que pertencem.
+       */}
       <div
+        role="group"
         className="mt-space-6 flex justify-center gap-space-3"
         aria-label="Navegação dos cases"
       >
