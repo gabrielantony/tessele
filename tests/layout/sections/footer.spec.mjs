@@ -38,6 +38,20 @@ const WORDMARK_DISTORTION = () => {
   const mark = document.querySelector("[data-footer-wordmark]");
   if (!mark) return null;
 
+  // A logotype drawn as vector paths is the cleanest case to check: the viewBox
+  // declares the artwork's true aspect ratio, so any non-uniform scaling shows up
+  // as the rendered box disagreeing with it. No font metrics involved.
+  const svg = mark.querySelector("svg");
+  if (svg && !svg.querySelector("text") && svg.viewBox?.baseVal?.width) {
+    const view = svg.viewBox.baseVal;
+    const box = svg.getBoundingClientRect();
+    return {
+      kind: "paths",
+      ratio: box.width / box.height / (view.width / view.height),
+      detail: `rendered ${Math.round(box.width)}x${Math.round(box.height)} against a ${view.width}x${view.height} viewBox, preserveAspectRatio "${svg.getAttribute("preserveAspectRatio") ?? "(default)"}"`,
+    };
+  }
+
   const svgText = mark.querySelector("text");
   if (svgText) {
     const matrix = svgText.getScreenCTM();
@@ -120,6 +134,83 @@ test.describe("footer", () => {
    * later change that scales it back up to fill the footer would have to distort
    * it again, and the assertion above is what catches that.
    */
+  /*
+   * Gabriel supplied the wordmark as vector paths, and the point of drawing a
+   * logotype rather than setting type is that it stops depending on a webfont: the
+   * shapes are the shapes. So block the fonts and require the geometry not to
+   * move. DOM text would reflow to fallback metrics here; paths cannot.
+   *
+   * This also pins the colour to the design system. The supplied file hardcodes
+   * #142A1E, which is a fifth green next to accent (#112118) and accent-hover
+   * (#1a3224); driving the fill from `currentColor` is what keeps it following the
+   * tokens instead of drifting from them.
+   */
+  test("the wordmark does not depend on the webfont", async ({ page }) => {
+    // Measure what is actually drawn, never the container: the wrapper is
+    // absolutely positioned with fixed insets, so its box is identical either way
+    // and measuring it would make this test pass on anything.
+    const measure = () =>
+      page.evaluate(() => {
+        const mark = document.querySelector("[data-footer-wordmark]");
+        if (!mark) return null;
+        const drawn =
+          mark.querySelector("svg") ??
+          Array.from(mark.querySelectorAll("*")).find(
+            (el) => (el.textContent ?? "").trim() && !el.children.length,
+          );
+        if (!drawn) return null;
+        const box = drawn.getBoundingClientRect();
+        return { width: Math.round(box.width), height: Math.round(box.height) };
+      });
+
+    await gotoLanding(page, 1280);
+    const withFont = await measure();
+    expect(withFont, "the wordmark renders nothing measurable").not.toBeNull();
+
+    await page.route("**/*.woff2", (route) => route.abort());
+    await gotoLanding(page, 1280);
+    const withoutFont = await measure();
+
+    expect(
+      withoutFont,
+      `the wordmark measured ${withFont.width}x${withFont.height} with the webfont and ${withoutFont?.width}x${withoutFont?.height} without it, so its shape still comes from the font`,
+    ).toEqual(withFont);
+  });
+
+  // Gabriel supplied the logotype as vector paths and asked for it to be used, so
+  // this is his requirement rather than a preference of the test's: drawn artwork,
+  // taking its colour from the palette.
+  test("the wordmark is drawn artwork taking its colour from the palette", async ({ page }) => {
+    await gotoLanding(page, 1280);
+
+    const drawn = await page.evaluate(() => {
+      const mark = document.querySelector("[data-footer-wordmark]");
+      if (!mark) return null;
+      const svg = mark.querySelector("svg");
+      const paths = Array.from(mark.querySelectorAll("path"));
+      return {
+        hasViewBox: Boolean(svg?.viewBox?.baseVal?.width),
+        paths: paths.length,
+        // A literal colour in the markup cannot follow a token; currentColor can.
+        hardcoded: [
+          ...new Set(
+            paths
+              .map((path) => path.getAttribute("fill"))
+              .filter((fill) => fill && fill.toLowerCase() !== "currentcolor"),
+          ),
+        ],
+      };
+    });
+
+    expect(drawn, "the wordmark was not found").not.toBeNull();
+    expect(drawn.paths, "the wordmark is not drawn as vector paths").toBeGreaterThan(0);
+    expect(drawn.hasViewBox, "the wordmark svg has no viewBox to scale by").toBe(true);
+    expect(
+      drawn.hardcoded,
+      "these fills are literal colours, so the wordmark cannot follow the palette",
+    ).toEqual([]);
+  });
+
   test("the wordmark is present without filling the footer", async ({ page }) => {
     await gotoLanding(page, 1280);
 
