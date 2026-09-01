@@ -2,6 +2,7 @@
 
 import {
   useRef,
+  useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
@@ -109,6 +110,7 @@ const VIDEO_CASE: CaseStudy = {
 };
 
 const CASES: CaseStudy[] = [BRUNO_CASE, VIDEO_CASE];
+const CASES_RAIL_ID = "cases-rail";
 
 const RELATIONSHIP_METRICS = [
   {
@@ -226,6 +228,7 @@ function CaseCard({ caseStudy }: { caseStudy: CaseStudy }) {
 export default function CasesSection() {
   const root = useRef<HTMLElement>(null);
   const rail = useRef<HTMLDivElement>(null);
+  const [activeCase, setActiveCase] = useState(0);
 
   const dragState = useRef<DragState>({
     pointerId: null,
@@ -383,6 +386,55 @@ export default function CasesSection() {
     dragState.current.pointerId = null;
   }
 
+  function updateActiveCase() {
+    const carousel = rail.current;
+
+    if (!carousel) {
+      return;
+    }
+
+    const railCenter = carousel.scrollLeft + carousel.clientWidth / 2;
+    let closestCase = 0;
+    let closestDistance = Infinity;
+
+    Array.from(carousel.children).forEach((card, index) => {
+      if (!(card instanceof HTMLElement)) {
+        return;
+      }
+
+      const cardCenter = card.offsetLeft + card.clientWidth / 2;
+      const distance = Math.abs(cardCenter - railCenter);
+
+      if (distance < closestDistance) {
+        closestCase = index;
+        closestDistance = distance;
+      }
+    });
+
+    setActiveCase(closestCase);
+  }
+
+  function scrollToCase(index: number) {
+    const carousel = rail.current;
+    const card = carousel?.children.item(index);
+
+    if (!(card instanceof HTMLElement)) {
+      return;
+    }
+
+    const behavior = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches
+      ? "auto"
+      : "smooth";
+
+    card.scrollIntoView({
+      behavior,
+      block: "nearest",
+      inline: "center",
+    });
+  }
+
   return (
     <section
       ref={root}
@@ -408,14 +460,16 @@ export default function CasesSection() {
 
       <div
         ref={rail}
+        id={CASES_RAIL_ID}
         role="region"
         aria-label="Cases de clientes"
         tabIndex={0}
+        onScroll={updateActiveCase}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={finishPointerDrag}
         onPointerCancel={finishPointerDrag}
-        className="mt-space-16 flex gap-space-8 overflow-x-auto overscroll-x-contain px-page pb-space-8 snap-x snap-mandatory lg:cursor-grab lg:snap-none lg:active:cursor-grabbing"
+        className="cases-rail mt-space-16 flex gap-space-8 overflow-x-auto overscroll-x-contain px-page pb-space-8 snap-x snap-mandatory lg:cursor-grab lg:snap-none lg:active:cursor-grabbing"
       >
         {CASES.map((caseStudy) => (
           <CaseCard
@@ -423,6 +477,29 @@ export default function CasesSection() {
             caseStudy={caseStudy}
           />
         ))}
+      </div>
+
+      <div
+        className="mt-space-6 flex justify-center gap-space-3"
+        aria-label="Navegação dos cases"
+      >
+        {CASES.map((caseStudy, index) => {
+          const isActive = activeCase === index;
+
+          return (
+            <button
+              key={caseStudy.id}
+              type="button"
+              aria-controls={CASES_RAIL_ID}
+              aria-current={isActive ? "true" : undefined}
+              aria-label={`Ver case ${index + 1}: ${caseStudy.name}`}
+              className={`h-space-3 w-space-3 rounded-full transition-colors duration-fast focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight ${
+                isActive ? "bg-highlight" : "bg-hairline"
+              }`}
+              onClick={() => scrollToCase(index)}
+            />
+          );
+        })}
       </div>
 
       <div className="mx-auto mt-space-16 grid max-w-wide gap-space-8 px-page md:grid-cols-3">
