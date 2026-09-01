@@ -3,7 +3,10 @@ import { defineConfig, devices } from "@playwright/test";
 // The layout suite runs against the static export, because that is what ships.
 // WebKit is not optional: the defect this suite was written for -- a horizontal
 // scroll that appears and disappears on its own -- was reported on Safari/iPhone.
-export const PREVIEW_PORT = 4610;
+// Overridable so parallel worktrees can run their own suites without reusing
+// (and cross-testing) each other's servers -- reuseExistingServer below makes
+// a shared port silently serve a stale build.
+export const PREVIEW_PORT = Number(process.env.PREVIEW_PORT ?? 4610);
 export const BASE_PATH = "/tessele/";
 
 export default defineConfig({
