@@ -113,10 +113,36 @@ const PROBE = ({ allowOverflow, allowOverlap }) => {
       : [];
     if (controls.length >= 2) continue;
 
+    // The second affordance that earns the exemption: a child straddling one of
+    // the scroller's edges. A card half off the edge says "this row continues"
+    // as plainly as a pair of dots does -- it is the standard carousel peek, and
+    // it is the one the testimonials design uses instead of controls.
+    //
+    // Measured, not declared, and both halves are required: enough of the child
+    // showing to be noticed, and enough of it hidden to read as cut off rather
+    // than as the row simply ending there. A child merely flush with the edge
+    // announces nothing, so it does not count.
+    const PEEK_MIN = 16;
+    const view = {
+      left: el.getBoundingClientRect().left + el.clientLeft,
+      get right() {
+        return this.left + el.clientWidth;
+      },
+    };
+    const peeking = Array.from(el.children).filter((child) => {
+      const box = child.getBoundingClientRect();
+      if (box.width === 0 || box.height === 0) return false;
+      const overRight = box.left < view.right - PEEK_MIN && box.right > view.right + PEEK_MIN;
+      const overLeft = box.right > view.left + PEEK_MIN && box.left < view.left - PEEK_MIN;
+      return overRight || overLeft;
+    });
+    if (peeking.length > 0) continue;
+
     hiddenScrollers.push({
       element: describe(el),
       hiddenPx: el.scrollWidth - el.clientWidth,
       visibleControls: controls.length,
+      peekingChildren: peeking.length,
     });
   }
 

@@ -16,33 +16,6 @@ const RAIL = '[aria-label="Cases de clientes"]';
  * exemption by finding such a control, rather than by an ALLOWED entry.
  */
 
-/*
- * The control count is read off the rail rather than written down, because the
- * guarantee is "one control per case", not "two controls". A literal here would
- * have to be edited every time a case is added -- and an edit that just bumps a
- * number is indistinguishable from an edit that papers over a missing dot.
- */
-const railCounts = async (page) => {
-  const railId = await page.locator(RAIL).getAttribute("id");
-  expect(railId, "the rail needs an id so its controls can reference it").toBeTruthy();
-
-  const cards = await page.locator(`#${railId} > *`).count();
-  expect(
-    cards,
-    "the rail holds fewer than two cases, so it has nothing to page through",
-  ).toBeGreaterThan(1);
-
-  return { railId, cards };
-};
-
-/*
- * Measures, for every case card, how far its painted shadow is cut by each
- * ancestor that clips.
- *
- * Runs whole inside the page like the probe in landing-layout.spec.mjs, so the
- * helpers it needs are declared in here rather than serialised in from module
- * scope.
- */
 const SHADOW_PROBE = () => {
   /*
    * Chrome and WebKit both serialise box-shadow with the colour first and
@@ -213,73 +186,174 @@ test.describe("testimonials", () => {
     });
   }
 
-  test("the rail announces its overflow with visible controls", async ({ page }) => {
+  /*
+   * The dots that used to live under the rail are gone -- the design does not
+   * have them, and the row is meant to read as a strip that continues past the
+   * edge. Two guarantees the dots carried have to survive that, so they are
+   * asserted directly here instead of through a control:
+   *
+   *   1. something on screen says the row continues (this test), and
+   *   2. the hidden cases are actually reachable (the next one).
+   *
+   * The third thing the dots did -- show which case you are on -- goes away
+   * with them on purpose. That is the design decision, not a dropped guarantee.
+   */
+  for (const width of [390, 768, 1280, 1600]) {
+    test(`a case peeks past the rail edge to announce the row at ${width}px`, async ({ page }) => {
+      await gotoLanding(page, width);
+      await page.locator(RAIL).scrollIntoViewIfNeeded();
+
+      const peek = await page.evaluate((selector) => {
+        const rail = document.querySelector(selector);
+        const left = rail.getBoundingClientRect().left + rail.clientLeft;
+        const right = left + rail.clientWidth;
+
+        return Array.from(rail.children)
+          .map((child, index) => {
+            const box = child.getBoundingClientRect();
+            return {
+              index,
+              shown: Math.round(Math.min(box.right, right) - Math.max(box.left, left)),
+              hidden: Math.round(Math.max(0, box.right - right) + Math.max(0, left - box.left)),
+            };
+          })
+          .filter((child) => child.shown > 0 && child.hidden > 0);
+      }, RAIL);
+
+      // Both halves matter. Something visible enough to notice, and enough of it
+      // cut off to read as "there is more" rather than as the row ending here.
+      const announcing = peek.filter((child) => child.shown >= 16 && child.hidden >= 16);
+      expect(
+        announcing.length,
+        `no case straddles the rail edge, so nothing says the row continues: ${JSON.stringify(peek)}`,
+      ).toBeGreaterThan(0);
+    });
+  }
+
+  test("the cases hidden past the edge can be scrolled to", async ({ page }) => {
     await gotoLanding(page, 1280);
-
-    const { railId, cards } = await railCounts(page);
-
-    const controls = page.locator(`[aria-controls="${railId}"]`);
-    await expect(
-      controls,
-      `${cards} cases in the rail, so a different number of controls leaves at least one case unannounced`,
-    ).toHaveCount(cards);
-
-    for (let index = 0; index < cards; index += 1) {
-      await expect(controls.nth(index), `control ${index} is not visible`).toBeVisible();
-    }
-  });
-
-  // A control that looks like pagination and does nothing is worse than no
-  // control: it reads as "you have seen everything". Assert the effect.
-  test("a rail control scrolls the rail and reflects the position", async ({ page }) => {
-    await gotoLanding(page, 1280);
-
-    const { railId, cards } = await railCounts(page);
-    const controls = page.locator(`[aria-controls="${railId}"]`);
-    const scrollLeft = () => page.evaluate((s) => document.querySelector(s).scrollLeft, RAIL);
-
-    // Fail on the missing control rather than on a 60s click timeout waiting for
-    // one: the useful message is "there is no control", not "the click expired".
-    await expect(
-      controls,
-      "the rail has no controls to exercise -- see the previous test",
-    ).toHaveCount(cards);
-
     await page.locator(RAIL).scrollIntoViewIfNeeded();
-    expect(await scrollLeft(), "the rail does not start at its first case").toBe(0);
 
-    // The last control, not the second: it targets the case furthest from the
-    // start, so the rail has to travel to reach it whatever the case count.
-    await controls.nth(cards - 1).click();
-    await page.waitForTimeout(700);
-    const afterForward = await scrollLeft();
-    expect(afterForward, "clicking the last control did not move the rail").toBeGreaterThan(0);
+    const cards = await page.locator(`${RAIL} > *`).count();
+    expect(cards, "the rail holds one case, so nothing is hidden to reach").toBeGreaterThan(1);
 
-    // Whichever control is current has to be distinguishable from the rest, or
-    // the dots carry no state and the reader cannot tell where they are.
-    const marks = await page.evaluate((selector) => {
-      const els = Array.from(document.querySelectorAll(selector));
-      return els.map((el) => ({
-        selected: el.getAttribute("aria-selected") ?? el.getAttribute("aria-current"),
-        background: getComputedStyle(el).backgroundColor,
-        width: Math.round(el.getBoundingClientRect().width),
-        opacity: getComputedStyle(el).opacity,
-      }));
-    }, `[aria-controls="${railId}"]`);
+    const lastFullyShown = () =>
+      page.evaluate((selector) => {
+        const rail = document.querySelector(selector);
+        const left = rail.getBoundingClientRect().left + rail.clientLeft;
+        const right = left + rail.clientWidth;
+        const last = rail.children[rail.children.length - 1].getBoundingClientRect();
+        return last.left >= left - 1 && last.right <= right + 1;
+      }, RAIL);
 
-    const distinguishable =
-      new Set(marks.map((m) => JSON.stringify([m.selected, m.background, m.width, m.opacity])))
-        .size > 1;
-    expect(
-      distinguishable,
-      `every rail control renders identically after moving, so nothing shows the current case: ${JSON.stringify(marks)}`,
-    ).toBe(true);
+    expect(await lastFullyShown(), "the last case is already in view, so this measures nothing").toBe(false);
 
-    await controls.nth(0).click();
-    await page.waitForTimeout(700);
-    expect(
-      await scrollLeft(),
-      "clicking the first control did not bring the rail back",
-    ).toBeLessThan(afterForward);
+    await page.evaluate((selector) => {
+      const rail = document.querySelector(selector);
+      rail.scrollLeft = rail.scrollWidth;
+    }, RAIL);
+    await page.waitForTimeout(300);
+
+    expect(await lastFullyShown(), "scrolling the rail to its end does not bring the last case into view").toBe(true);
   });
+
+  /*
+   * The metrics strip under the rail is meant to sit in the same box as the
+   * card above it. Asserted from lg up only, and deliberately: below lg the
+   * card is held short of the rail so the next one can peek, so there is no
+   * shared box to line up with.
+   */
+  for (const width of [1024, 1280, 1600]) {
+    test(`the metrics strip lines up with the card above it at ${width}px`, async ({ page }) => {
+      await gotoLanding(page, width);
+
+      const edges = await page.evaluate(() => {
+        const card = document.querySelector("[data-case-card]").getBoundingClientRect();
+        const strip = document
+          .querySelector("[data-relationship-metric]")
+          .parentElement.getBoundingClientRect();
+        return {
+          cardLeft: Math.round(card.left),
+          cardRight: Math.round(card.right),
+          stripLeft: Math.round(strip.left),
+          stripRight: Math.round(strip.right),
+        };
+      });
+
+      expect(Math.abs(edges.stripLeft - edges.cardLeft), `left edges differ: ${JSON.stringify(edges)}`).toBeLessThanOrEqual(1);
+      expect(Math.abs(edges.stripRight - edges.cardRight), `right edges differ: ${JSON.stringify(edges)}`).toBeLessThanOrEqual(1);
+    });
+  }
+
+  /*
+   * Two separate guarantees about the metric labels, because they hold over
+   * different ranges.
+   *
+   * The complaint was one label reading differently from its neighbours -- a
+   * lone "recorrente" on the second line while the other two carried a pair of
+   * words there. So the rule that holds everywhere the three sit side by side
+   * is that they agree with each other and the tail always owns the last line.
+   *
+   * The stricter rule -- exactly two lines, tail on the second -- needs room
+   * the columns only have from lg up. At md the three share about 164px each
+   * and the first half wraps too, giving three consistent lines. Gabriel took
+   * that as the acceptable case: the display does not have the width.
+   */
+  for (const width of [768, 1024, 1280, 1600]) {
+    test(`the metric labels break consistently at ${width}px`, async ({ page }) => {
+      await gotoLanding(page, width);
+
+      const labels = await page.evaluate(() => {
+        /*
+         * Line count comes from the rendered height over the line height, not
+         * from counting Range rects. A block-level child contributes both its
+         * own box and the text inside it, so a two-line label yields three
+         * rects at three distinct tops -- the rect count reads 3 while the
+         * paragraph is plainly 48px tall on a 24px line.
+         */
+        return Array.from(document.querySelectorAll("[data-metric-tail]")).map((tail) => {
+          const label = tail.parentElement;
+          const lineHeight = parseFloat(getComputedStyle(label).lineHeight);
+          const labelTop = label.getBoundingClientRect().top;
+
+          return {
+            text: label.textContent.trim().replace(/\s+/g, " "),
+            tail: tail.textContent.trim(),
+            lineHeight,
+            lines: Math.round(label.getBoundingClientRect().height / lineHeight),
+            // Exactly one line down, not merely lower: two lines split in the
+            // wrong place would still be two lines.
+            tailLineOffset: Math.round(
+              (tail.getBoundingClientRect().top - labelTop) / lineHeight,
+            ),
+          };
+        });
+      });
+
+      expect(labels.length, "no metric labels were found").toBe(3);
+
+      // Holds at every width here: no label is the odd one out, and the tail is
+      // never left sharing a line with what comes before it.
+      const counts = new Set(labels.map((label) => label.lines));
+      expect(
+        counts.size,
+        `the metric labels do not agree on their line count: ${JSON.stringify(labels)}`,
+      ).toBe(1);
+
+      const shared = labels.filter((label) => label.tailLineOffset !== label.lines - 1);
+      expect(
+        shared,
+        `a metric tail does not own the last line: ${JSON.stringify(labels)}`,
+      ).toEqual([]);
+
+      // The intended split, only where the columns are wide enough for it.
+      if (width >= 1024) {
+        const wrong = labels.filter((label) => label.lines !== 2);
+        expect(
+          wrong,
+          `a metric label is not the intended two lines: ${JSON.stringify(labels)}`,
+        ).toEqual([]);
+      }
+    });
+  }
 });

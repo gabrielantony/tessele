@@ -2,7 +2,6 @@
 
 import {
   useRef,
-  useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
@@ -147,18 +146,31 @@ const CASES: CaseStudy[] = [
 
 const CASES_RAIL_ID = "cases-rail";
 
+/*
+ * The label is stored in two pieces because the break point is a decision, not
+ * an outcome. Left to wrap on its own, "acompanhados de forma recorrente" drops
+ * a lone "recorrente" onto the second line while its neighbours keep two words
+ * there, and which line a word lands on shifts with the font and the column.
+ *
+ * `tail` is what must sit on the second line wherever there is room for two.
+ * The single-word tail on the last one is deliberate -- Gabriel took that one as
+ * the exception, since the phrase has no two-word ending to give.
+ */
 const RELATIONSHIP_METRICS = [
   {
     value: "4 anos",
-    label: "de relacionamento médio com clientes",
+    lead: "de relacionamento médio",
+    tail: "com clientes",
   },
   {
     value: "95%",
-    label: "dos clientes voltaram para novos projetos",
+    lead: "dos clientes voltaram para",
+    tail: "novos projetos",
   },
   {
     value: "7 negócios",
-    label: "acompanhados de forma recorrente",
+    lead: "acompanhados de forma",
+    tail: "recorrente",
   },
 ];
 
@@ -231,8 +243,15 @@ function CaseCard({ caseStudy }: { caseStudy: CaseStudy }) {
   return (
     <article
       data-case-card
-      /* Each variant carries its own width, radius and padding from the design. */
-      className={`flex w-full shrink-0 snap-center flex-col bg-surface shadow-lifted lg:flex-row lg:items-center ${
+      /*
+       * Each variant carries its own width, radius and padding from the design.
+       *
+       * The width below lg is not from the design, which was drawn at one size:
+       * the card is held short of the rail so the next one shows at the edge.
+       * That sliver is the only thing telling a phone reader the row continues,
+       * now that the dots are gone.
+       */
+      className={`w-[85%] shrink-0 snap-center lg:w-full flex flex-col bg-surface shadow-lifted lg:flex-row lg:items-center ${
         media
           ? "max-w-testimonial rounded-3xl p-space-4"
           : "max-w-testimonial-compact rounded-2xl p-space-8"
@@ -323,7 +342,6 @@ function CaseCard({ caseStudy }: { caseStudy: CaseStudy }) {
 export default function CasesSection() {
   const root = useRef<HTMLElement>(null);
   const rail = useRef<HTMLDivElement>(null);
-  const [activeCase, setActiveCase] = useState(0);
 
   const dragState = useRef<DragState>({
     pointerId: null,
@@ -481,55 +499,6 @@ export default function CasesSection() {
     dragState.current.pointerId = null;
   }
 
-  function updateActiveCase() {
-    const carousel = rail.current;
-
-    if (!carousel) {
-      return;
-    }
-
-    const railCenter = carousel.scrollLeft + carousel.clientWidth / 2;
-    let closestCase = 0;
-    let closestDistance = Infinity;
-
-    Array.from(carousel.children).forEach((card, index) => {
-      if (!(card instanceof HTMLElement)) {
-        return;
-      }
-
-      const cardCenter = card.offsetLeft + card.clientWidth / 2;
-      const distance = Math.abs(cardCenter - railCenter);
-
-      if (distance < closestDistance) {
-        closestCase = index;
-        closestDistance = distance;
-      }
-    });
-
-    setActiveCase(closestCase);
-  }
-
-  function scrollToCase(index: number) {
-    const carousel = rail.current;
-    const card = carousel?.children.item(index);
-
-    if (!(card instanceof HTMLElement)) {
-      return;
-    }
-
-    const behavior = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches
-      ? "auto"
-      : "smooth";
-
-    card.scrollIntoView({
-      behavior,
-      block: "nearest",
-      inline: "center",
-    });
-  }
-
   return (
     <section
       ref={root}
@@ -559,7 +528,6 @@ export default function CasesSection() {
         role="region"
         aria-label="Cases de clientes"
         tabIndex={0}
-        onScroll={updateActiveCase}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={finishPointerDrag}
@@ -589,58 +557,47 @@ export default function CasesSection() {
       </div>
 
       {/*
-       * O role é o que faz o aria-label existir: num div sem role, a maioria dos
-       * leitores de tela descarta o rótulo, e os dots são anunciados como dois
-       * botões soltos sem dizer a que pertencem.
+       * `relative` is doing hit-testing work, not layout. The rail above gives
+       * its shadow room with padding and takes the space back with a negative
+       * margin, so its padding box still lies over the next 128px -- which is
+       * here. A non-positioned box loses that overlap to the earlier sibling in
+       * WebKit; positioning this paints it above.
        */}
-      {/*
-       * `relative` is doing hit-testing work, not layout work. The rail above
-       * gives its shadow room with padding and takes the space back with a
-       * negative margin, so its padding box still lies over everything in the
-       * next 128px -- these controls and the top of the metrics below. A
-       * non-positioned box loses that overlap to the earlier sibling in WebKit,
-       * which swallowed the clicks; positioning these paints them above it.
-       */}
-      <div
-        role="group"
-        className="relative z-10 mt-space-6 flex justify-center gap-space-3"
-        aria-label="Navegação dos cases"
-      >
-        {CASES.map((caseStudy, index) => {
-          const isActive = activeCase === index;
+      <div className="relative z-10 mt-space-16 px-page">
+        {/*
+         * Same box as the card above it, at every width: short of the rail and
+         * left-aligned below lg, the card's own width and centred from lg up.
+         */}
+        <div className="grid w-[85%] max-w-testimonial gap-space-8 md:grid-cols-3 lg:mx-auto lg:w-full">
+          {RELATIONSHIP_METRICS.map((metric) => (
+            <div
+              key={metric.value}
+              data-relationship-metric
+              className="text-center"
+            >
+              <p className="text-heading-2 text-accent">
+                {metric.value}
+              </p>
 
-          return (
-            <button
-              key={caseStudy.id}
-              type="button"
-              aria-controls={CASES_RAIL_ID}
-              aria-current={isActive ? "true" : undefined}
-              aria-label={`Ver case ${index + 1}: ${caseStudy.name}`}
-              className={`h-space-3 w-space-3 rounded-full transition-colors duration-fast focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight ${
-                isActive ? "bg-highlight" : "bg-hairline"
-              }`}
-              onClick={() => scrollToCase(index)}
-            />
-          );
-        })}
-      </div>
-
-      <div className="relative z-10 mx-auto mt-space-16 grid max-w-wide gap-space-8 px-page md:grid-cols-3">
-        {RELATIONSHIP_METRICS.map((metric) => (
-          <div
-            key={metric.value}
-            data-relationship-metric
-            className="text-center"
-          >
-            <p className="text-heading-2 text-accent">
-              {metric.value}
-            </p>
-
-            <p className="mx-auto mt-space-3 max-w-copy text-body text-muted">
-              {metric.label}
-            </p>
-          </div>
-        ))}
+              <p className="mt-space-3 text-body text-muted">
+                {metric.lead}{" "}
+                {/*
+                 * A block span rather than a <br />: from md up, where the
+                 * three sit side by side and the break is the point, it takes
+                 * its own line. Below that the columns stack full-width and it
+                 * flows back inline, so a narrow phone is not forced into a
+                 * break that leaves the first line half empty.
+                 */}
+                <span
+                  data-metric-tail
+                  className="md:block"
+                >
+                  {metric.tail}
+                </span>
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

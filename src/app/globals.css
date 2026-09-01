@@ -171,6 +171,24 @@
   display: none;
 }
 
+/*
+ * From lg up the first card sits centred on the page, with the next one showing
+ * past its right edge -- the arrangement in the design.
+ *
+ * The inline padding is what centres it: half of whatever is left once the
+ * card's own width is taken out, and never less than the page gutter. Written
+ * here rather than as a utility because it overrides px-page on the same
+ * element, which unlayered CSS does and an equally specific utility would not.
+ */
+@media (min-width: 64rem) {
+  .cases-rail {
+    padding-inline: max(
+      var(--spacing-page),
+      calc((100% - var(--container-testimonial)) / 2)
+    );
+  }
+}
+
 /* The type scale steps up on wider viewports. Redefining the token here means
    every utility built from it follows, with no per-component media query. */
 @media (min-width: 48rem) {
