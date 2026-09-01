@@ -150,6 +150,15 @@
   color-scheme: light;
 }
 
+/* The cases rail keeps horizontal overflow but does not expose a native bar. */
+.cases-rail {
+  scrollbar-width: none;
+}
+
+.cases-rail::-webkit-scrollbar {
+  display: none;
+}
+
 /* The type scale steps up on wider viewports. Redefining the token here means
    every utility built from it follows, with no per-component media query. */
 @media (min-width: 48rem) {
