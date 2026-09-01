@@ -356,7 +356,7 @@ export default function OurProcessSection() {
               onPointerCancel={handleFooterCtaPointerCancel}
               onFocus={handleFooterCtaFocus}
               onBlur={handleFooterCtaBlur}
-              className="relative rounded-md bg-accent px-space-6 py-space-3 text-action text-on-accent outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] will-change-transform hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-4 focus-visible:ring-offset-canvas"
+              className="relative rounded-md bg-accent px-space-8 py-space-4 text-action text-on-accent outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] will-change-transform hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-4 focus-visible:ring-offset-canvas"
             >
               Vamos trabalhar juntos
 
@@ -364,8 +364,11 @@ export default function OurProcessSection() {
                 data-motion
                 data-cta-dot
                 aria-hidden="true"
-                className="absolute -right-space-1-5 -top-space-1-5 size-[1.125rem] rounded-base border-[0.1875rem] border-canvas bg-highlight"
-              />
+                className="absolute -right-space-1-5 -top-space-1-5 size-[1.125rem]"
+              >
+                <span className="absolute inset-0 animate-ping rounded-base bg-highlight opacity-75" />
+                <span className="relative block size-full rounded-base border-[0.1875rem] border-canvas bg-highlight" />
+              </span>
             </a>
           </div>
         </div>
