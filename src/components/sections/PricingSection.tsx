@@ -408,7 +408,7 @@ function PricingGrid({
       className={[
         "grid w-full grid-cols-1",
         "gap-space-6 pt-space-4",
-        "lg:grid-cols-3",
+        "md:grid-cols-2 lg:grid-cols-3",
       ].join(" ")}
     >
       {plans.map((plan) => (
