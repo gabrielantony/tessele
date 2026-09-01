@@ -87,9 +87,10 @@ const PEOPLE: Person[] = [
 
 function Stats({ stats }: { stats: Stat[] }) {
   return (
+    // Três stats devem usar uma ou três colunas para não isolar uma métrica.
     <div
       data-stats
-      className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10.5rem),1fr))] gap-space-4 md:gap-space-6"
+      className="grid grid-cols-1 gap-space-4 sm:grid-cols-3"
     >
       {stats.map((stat) => (
         <div key={stat.label} className="flex flex-col gap-space-2">
