@@ -192,7 +192,7 @@ function InputField({
           absolute
           left-space-5
           top-space-4
-          text-body-bold
+          text-small-medium
           text-muted
 
           transition-all
@@ -296,7 +296,7 @@ function ContactInput({
           absolute
           left-space-5
           top-space-4
-          text-body-bold
+          text-small-medium
           text-muted
 
           transition-all
@@ -641,7 +641,7 @@ function ContactForm() {
           gap-space-4
         "
       >
-        <p className="text-body-bold text-ink">
+        <p className="text-body text-ink">
           Como você imagina trabalhar com a
           Tessele?
         </p>
