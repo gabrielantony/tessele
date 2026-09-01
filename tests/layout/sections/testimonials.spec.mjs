@@ -5,11 +5,9 @@ import { gotoLanding } from "./helpers.mjs";
 const RAIL = '[aria-label="Cases de clientes"]';
 
 /*
- * The "dark bar" Gabriel wanted gone is the rail's native scrollbar. The rail
- * holds two case cards that are `w-full max-w-wide shrink-0`, so it overflows at
- * every width -- measured hidden content: 304px at 320px, 685px at 768px,
- * 1120px at 1280px, still 768px at 1696px. It is the only thing on the page that
- * scrolls sideways.
+ * The "dark bar" Gabriel wanted gone is the rail's native scrollbar. Its cards
+ * are `w-full shrink-0` under a max-width, so the rail overflows at every width
+ * and is the only thing on the page that scrolls sideways.
  *
  * Hiding the bar alone would leave content reachable only by a gesture with
  * nothing on screen saying so, which is the defect `hiddenScrollers` in
@@ -17,6 +15,26 @@ const RAIL = '[aria-label="Cases de clientes"]';
  * takes over the job of announcing the overflow -- that check now earns its
  * exemption by finding such a control, rather than by an ALLOWED entry.
  */
+
+/*
+ * The control count is read off the rail rather than written down, because the
+ * guarantee is "one control per case", not "two controls". A literal here would
+ * have to be edited every time a case is added -- and an edit that just bumps a
+ * number is indistinguishable from an edit that papers over a missing dot.
+ */
+const railCounts = async (page) => {
+  const railId = await page.locator(RAIL).getAttribute("id");
+  expect(railId, "the rail needs an id so its controls can reference it").toBeTruthy();
+
+  const cards = await page.locator(`#${railId} > *`).count();
+  expect(
+    cards,
+    "the rail holds fewer than two cases, so it has nothing to page through",
+  ).toBeGreaterThan(1);
+
+  return { railId, cards };
+};
+
 test.describe("testimonials", () => {
   for (const width of [390, 768, 1280]) {
     test(`the cases rail hides its native scrollbar at ${width}px`, async ({ page }) => {
@@ -46,16 +64,15 @@ test.describe("testimonials", () => {
   test("the rail announces its overflow with visible controls", async ({ page }) => {
     await gotoLanding(page, 1280);
 
-    const railId = await page.locator(RAIL).getAttribute("id");
-    expect(railId, "the rail needs an id so its controls can reference it").toBeTruthy();
+    const { railId, cards } = await railCounts(page);
 
     const controls = page.locator(`[aria-controls="${railId}"]`);
     await expect(
       controls,
-      "no visible control drives the rail, so the hidden scrollbar leaves the second case unannounced",
-    ).toHaveCount(2);
+      `${cards} cases in the rail, so a different number of controls leaves at least one case unannounced`,
+    ).toHaveCount(cards);
 
-    for (let index = 0; index < 2; index += 1) {
+    for (let index = 0; index < cards; index += 1) {
       await expect(controls.nth(index), `control ${index} is not visible`).toBeVisible();
     }
   });
@@ -65,7 +82,7 @@ test.describe("testimonials", () => {
   test("a rail control scrolls the rail and reflects the position", async ({ page }) => {
     await gotoLanding(page, 1280);
 
-    const railId = await page.locator(RAIL).getAttribute("id");
+    const { railId, cards } = await railCounts(page);
     const controls = page.locator(`[aria-controls="${railId}"]`);
     const scrollLeft = () => page.evaluate((s) => document.querySelector(s).scrollLeft, RAIL);
 
@@ -74,17 +91,19 @@ test.describe("testimonials", () => {
     await expect(
       controls,
       "the rail has no controls to exercise -- see the previous test",
-    ).toHaveCount(2);
+    ).toHaveCount(cards);
 
     await page.locator(RAIL).scrollIntoViewIfNeeded();
     expect(await scrollLeft(), "the rail does not start at its first case").toBe(0);
 
-    await controls.nth(1).click();
+    // The last control, not the second: it targets the case furthest from the
+    // start, so the rail has to travel to reach it whatever the case count.
+    await controls.nth(cards - 1).click();
     await page.waitForTimeout(700);
     const afterForward = await scrollLeft();
-    expect(afterForward, "clicking the second control did not move the rail").toBeGreaterThan(0);
+    expect(afterForward, "clicking the last control did not move the rail").toBeGreaterThan(0);
 
-    // Whichever control is current has to be distinguishable from the other, or
+    // Whichever control is current has to be distinguishable from the rest, or
     // the dots carry no state and the reader cannot tell where they are.
     const marks = await page.evaluate((selector) => {
       const els = Array.from(document.querySelectorAll(selector));
@@ -101,7 +120,7 @@ test.describe("testimonials", () => {
         .size > 1;
     expect(
       distinguishable,
-      `both rail controls render identically after moving, so nothing shows the current case: ${JSON.stringify(marks)}`,
+      `every rail control renders identically after moving, so nothing shows the current case: ${JSON.stringify(marks)}`,
     ).toBe(true);
 
     await controls.nth(0).click();
