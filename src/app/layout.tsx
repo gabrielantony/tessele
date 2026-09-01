@@ -12,7 +12,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR" className={`${raleway.variable} ${fraunces.variable}`}>
-      <body className="bg-canvas text-ink font-body text-body">{children}</body>
+      <body className="bg-canvas text-ink font-body text-body lining-nums">{children}</body>
     </html>
   );
 }
