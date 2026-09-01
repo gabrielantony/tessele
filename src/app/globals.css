@@ -58,6 +58,10 @@
   --text-body--line-height: 1.5rem;
   --text-body--font-weight: 400;
   --text-body--letter-spacing: 0;
+  --text-body-medium: 1rem;
+  --text-body-medium--line-height: 1.5rem;
+  --text-body-medium--font-weight: 500;
+  --text-body-medium--letter-spacing: 0;
   --text-body-bold: 1rem;
   --text-body-bold--line-height: 1.5rem;
   --text-body-bold--font-weight: 700;
@@ -113,12 +117,20 @@
   --container-narrow: 48rem;
   --container-content: 68rem;
   --container-wide: 70rem;
+  --container-testimonial: 58rem;
+  --container-testimonial-compact: 39rem;
 
   --radius-sm: 0.25rem;
   --radius-base: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1.5rem;
   --radius-xl: 2rem;
+  /* The two testimonial-card radii, which follow the design's nested-radius
+     rule: outer = inner + padding (12 + 24 = 36; 32 + 16 = 48). Both names
+     exist in stock Tailwind at other values -- redefining them here is the same
+     move --radius-lg and --radius-xl above already make. */
+  --radius-2xl: 2.25rem;
+  --radius-3xl: 3rem;
   --radius-full: 999px;
 
   --shadow-floating: 0 1.25rem 3rem rgb(3 10 6 / 8%);
