@@ -10,6 +10,7 @@ import {
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import CTAButton from "@/components/ui/CTAButton";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -90,35 +91,6 @@ function formatPhone(value: string) {
 
 function looksLikeEmail(value: string) {
   return /[a-zA-Z@]/.test(value);
-}
-
-/* =========================
-   ICON
-========================= */
-
-function ArrowIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className="
-        size-space-5
-        transition-transform
-        duration-(--duration-base)
-        ease-(--ease-out)
-        group-hover/cta:translate-x-space-1
-      "
-    >
-      <path
-        d="M5 12H19M14 7L19 12L14 17"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
 }
 
 /* =========================
@@ -471,69 +443,6 @@ function MessageField({
 }
 
 /* =========================
-   CTA
-========================= */
-
-function CtaButton() {
-  return (
-    <button
-      type="submit"
-      className="
-        group/cta
-        flex
-        w-full
-        items-center
-        rounded-md
-        bg-accent
-        p-space-1
-        pl-space-6
-        text-on-accent
-
-        transition-all
-        duration-(--duration-base)
-        ease-(--ease-out)
-
-        hover:bg-accent-hover
-        hover:shadow-control
-
-        focus-visible:outline-highlight
-      "
-    >
-      <span
-        className="
-          flex-1
-          text-center
-          text-action
-        "
-      >
-        Quero falar do meu projeto
-      </span>
-
-      <span
-        className="
-          flex
-          size-space-12
-          shrink-0
-          items-center
-          justify-center
-          rounded-base
-          bg-surface
-          text-accent
-
-          transition-colors
-          duration-(--duration-base)
-          ease-(--ease-out)
-
-          group-hover/cta:bg-surface-tint
-        "
-      >
-        <ArrowIcon />
-      </span>
-    </button>
-  );
-}
-
-/* =========================
    FORM
 ========================= */
 
@@ -682,7 +591,10 @@ function ContactForm() {
       </div>
 
       <div data-motion="cta">
-        <CtaButton />
+        <CTAButton
+          label="Quero falar do meu projeto"
+          type="submit"
+        />
       </div>
     </form>
   );
