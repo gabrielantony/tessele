@@ -262,7 +262,7 @@ export default function ProblemSection() {
       ref={root}
       className="overflow-x-clip bg-canvas px-page py-section"
     >
-      <div className="mx-auto grid w-full max-w-wide grid-cols-1 items-center gap-space-12 xl:grid-cols-2 xl:gap-space-24">
+      <div className="mx-auto grid w-full max-w-wide grid-cols-1 items-center gap-space-10 xl:grid-cols-2 xl:gap-space-16">
         <div>
           <p className="inline-block rounded-base bg-highlight px-space-3 py-space-1-5 text-label text-ink uppercase">
             Quando tudo vira prioridade
