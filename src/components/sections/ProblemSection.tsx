@@ -241,7 +241,7 @@ export default function ProblemSection() {
               >
                 <div
                   data-orbit-card
-                  className="w-space-24 shrink-0 rounded-lg border border-hairline bg-surface px-space-3 py-space-3 text-center shadow-card sm:w-space-32 sm:px-space-4 sm:py-space-4 lg:w-space-40 lg:px-space-5 lg:py-space-5"
+                  className="w-space-32 shrink-0 rounded-lg border border-hairline bg-surface px-space-3 py-space-3 text-center shadow-card sm:w-space-32 sm:px-space-4 sm:py-space-4 lg:w-space-40 lg:px-space-5 lg:py-space-5"
                 >
                   <p className="text-small-bold text-ink uppercase">
                     {item.title}
