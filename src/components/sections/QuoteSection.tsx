@@ -16,11 +16,14 @@ const WORDS = QUOTE.split(" ");
  * How much scroll the sentence takes to write itself, in pixels.
  *
  * A reading distance, so it is capped rather than a multiple of the viewport:
- * the same 20 words should not cost 1.9x the wheel on a tall screen. The
- * viewport term only takes over below ~740px tall, where a flat 810px would
- * outlast the runway the section has to give.
+ * the same 20 words should not cost 1.9x the wheel on a tall screen, which is
+ * what `innerHeight * 1.3` used to do. 890px over 20 words is ~47px each, the
+ * pace measured off the reference (18 words, ~47px of scroll per word).
+ *
+ * The viewport term only takes over below ~640px tall, where the cap would
+ * outlast the runway the section has to give it.
  */
-const revealDistance = () => Math.round(Math.min(810, window.innerHeight * 1.1));
+const revealDistance = () => Math.round(Math.min(890, window.innerHeight * 1.4));
 
 export default function QuoteSection() {
   const root = useRef<HTMLElement>(null);
@@ -70,14 +73,20 @@ export default function QuoteSection() {
            */
 
           /*
-           * A number, not `true`. The reference gets its smoothness from Lenis
-           * damping the scroll position itself (lerp 0.1), so its reveal can
-           * afford to be wired straight to scroll. With native wheel input the
-           * scroll arrives in 40-100px steps, so the damping has to live here
-           * instead: 0.6s of catch-up is the same damped follow, applied to the
-           * animation rather than to the page.
+           * Wired straight to scroll, because the smoothing already happened
+           * upstream: SmoothScroll damps the scroll position itself with Lenis
+           * at lerp 0.1, so what this reads is already continuous. Measured, one
+           * wheel tick ramps the scroll over 38 frames and Lenis hands this
+           * ~29px per frame at its fastest, which is 0.6 of a word -- nothing
+           * here can snap.
+           *
+           * This carried `scrub: 0.6` while the page still scrolled natively and
+           * the damping had nowhere else to live. Keeping both stacked two lags:
+           * measured, the reveal then settled 150ms after the scroll had already
+           * stopped, for no gain in smoothness. The reference wires its reveal
+           * directly for the same reason.
            */
-          scrub: 0.6,
+          scrub: true,
 
           invalidateOnRefresh: true,
         },
@@ -118,21 +127,24 @@ export default function QuoteSection() {
      * tall enough for everything that happens inside it, which is
      *
      *   50dvh   to carry the sentence to the middle of the screen and stick it,
-     *   810px   of reading (revealDistance's cap),
-     *   ~220px  of the scrub's catch-up past the trigger's end at 0.6s,
+     *   890px   of reading (revealDistance's cap),
      *   ~300px  of beat holding the finished sentence, as the reference does,
      *   ~120px  for the sentence's own half-height, worst case at 3 lines,
      *
-     * so 50dvh + 1450px. A flat multiple of the viewport gets this wrong at both
+     * so 50dvh + 1310px. A flat multiple of the viewport gets this wrong at both
      * ends: 180dvh left only 24px of beat on a 900px-tall screen, because the
      * reading distance is a constant and does not shrink with the runway.
+     *
+     * Both terms scaling with dvh is what lands the release at the same scroll
+     * offset on every height: the runway grows by exactly what the sticky offset
+     * takes.
      *
      * No `overflow-hidden` here: it would make this section its own scrollport,
      * and the sticky child would have nothing to stick against.
      */
     <section
       ref={root}
-      className="relative h-[calc(50dvh+1450px)] w-full bg-accent"
+      className="relative h-[calc(50dvh+1310px)] w-full bg-accent"
     >
       <div className="sticky top-[50dvh] -translate-y-1/2 px-page">
         <h2
