@@ -124,6 +124,13 @@ const gotoLanding = async (page, width, { motion = false } = {}) => {
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
 };
 
+const showOrbit = async (page) => {
+  await page.evaluate(() =>
+    document.querySelector("[data-orbit-rotor]")?.scrollIntoView({ block: "center" }),
+  );
+  await page.waitForTimeout(400);
+};
+
 test.describe("landing layout", () => {
   for (const width of WIDTHS) {
     test(`layout holds at ${width}px`, async ({ page }) => {
@@ -229,4 +236,146 @@ test.describe("landing layout", () => {
       `after resizing past the card's breakpoints a card sits ${afterResize}px outside the square, where the clip cuts it mid-sentence`,
     ).toBeLessThanOrEqual(1);
   });
+
+  // The escape test above measures only the left and right edges -- the two the
+  // offset formula at ProblemSection.tsx:88-93 already balances, because it is
+  // derived from the card's WIDTH. Below 1024px the cards are taller than they
+  // are wide, so the escape is vertical and by exactly (height - width) / 2. It
+  // was there the whole time, on the two edges nothing looked at.
+  const ORBIT_ESCAPE = () => {
+    const square = document.querySelector("[data-orbit-rotor]")?.parentElement;
+    if (!square) return null;
+    const sq = square.getBoundingClientRect();
+    const worst = { left: 0, right: 0, top: 0, bottom: 0 };
+    for (const card of document.querySelectorAll("[data-orbit-card]")) {
+      const c = card.getBoundingClientRect();
+      worst.left = Math.max(worst.left, Math.round(sq.left - c.left));
+      worst.right = Math.max(worst.right, Math.round(c.right - sq.right));
+      worst.top = Math.max(worst.top, Math.round(sq.top - c.top));
+      worst.bottom = Math.max(worst.bottom, Math.round(c.bottom - sq.bottom));
+    }
+    return worst;
+  };
+
+  for (const width of [320, 390, 768, 1024, 1280, 1600]) {
+    // The orbit's period is 21s. The motion test above samples 14 x 400ms = 5.6s
+    // of it, so 73% of the rotation was never measured. Cover the whole cycle.
+    test(`the orbit keeps its cards inside the square through a full rotation at ${width}px`, async ({
+      page,
+    }) => {
+      await gotoLanding(page, width, { motion: true });
+      await showOrbit(page);
+
+      const worst = { left: 0, right: 0, top: 0, bottom: 0 };
+      for (let sample = 0; sample < 110; sample += 1) {
+        const now = await page.evaluate(ORBIT_ESCAPE);
+        for (const edge of Object.keys(worst)) worst[edge] = Math.max(worst[edge], now[edge]);
+        await page.waitForTimeout(200);
+      }
+
+      expect(
+        worst,
+        `a card leaves the orbit square by up to ${Math.max(...Object.values(worst))}px somewhere in the 21s rotation`,
+      ).toEqual({ left: 0, right: 0, top: 0, bottom: 0 });
+    });
+
+    // Reduced motion returns early after positioning the slots, so whatever the
+    // static geometry gets wrong is not a moment of the rotation -- it is what
+    // the visitor sees for as long as the page is open. No test looked here.
+    test(`the orbit keeps its cards inside the square with reduced motion at ${width}px`, async ({
+      page,
+    }) => {
+      await gotoLanding(page, width);
+      await showOrbit(page);
+
+      const worst = await page.evaluate(ORBIT_ESCAPE);
+      expect(
+        worst,
+        `at rest, a card sits up to ${Math.max(...Object.values(worst))}px outside the orbit square`,
+      ).toEqual({ left: 0, right: 0, top: 0, bottom: 0 });
+    });
+  }
+});
+
+// An element that hides its overflow passes every overflow check by definition --
+// that is what hiding means. So the check has to be the other way round: for each
+// box that carries content, is it inside the nearest ancestor that would cut it?
+//
+// A scroll container is not such an ancestor: the reader can still reach what
+// hangs outside it. Walking outward and stopping at the first scroller is what
+// separates "clipped away" from "scrolled out of view".
+const CLIPPED_AWAY = () => {
+  const describe = (el) => {
+    const parts = [];
+    let node = el;
+    while (node && node.nodeType === 1 && parts.length < 4) {
+      let piece = node.tagName.toLowerCase();
+      if (node.id) {
+        parts.unshift(`${piece}#${node.id}`);
+        break;
+      }
+      if (typeof node.className === "string" && node.className.trim()) {
+        piece += `.${node.className.trim().split(/\s+/).slice(0, 3).join(".")}`;
+      }
+      parts.unshift(piece);
+      node = node.parentElement;
+    }
+    return parts.join(" > ");
+  };
+
+  const hides = (value) => value === "hidden" || value === "clip";
+  const scrolls = (value) => value === "auto" || value === "scroll";
+
+  // The subject has to be a box that actually carries a text run of its own, not
+  // any box whose `textContent` happens to include a descendant's. The orbit puts
+  // its cards inside empty wrappers that are rotated 120 degrees; a rotated square
+  // has a bigger bounding box than the square, so those wrappers hang outside the
+  // orbit by design while the card inside them is entirely visible. Asserting on
+  // them would demand a fix for something that is not broken.
+  const carriesOwnText = (el) =>
+    Array.from(el.childNodes).some(
+      (node) => node.nodeType === 3 && (node.nodeValue || "").trim(),
+    );
+
+  const findings = [];
+  for (const el of document.querySelectorAll("body *")) {
+    if (!carriesOwnText(el)) continue;
+    const box = el.getBoundingClientRect();
+    if (box.width === 0 || box.height === 0) continue;
+
+    for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      if (scrolls(style.overflowX) || scrolls(style.overflowY)) break;
+      if (!hides(style.overflowX) && !hides(style.overflowY)) continue;
+
+      const clip = node.getBoundingClientRect();
+      const cut = Math.round(
+        Math.max(
+          hides(style.overflowX) ? clip.left - box.left : 0,
+          hides(style.overflowX) ? box.right - clip.right : 0,
+          hides(style.overflowY) ? clip.top - box.top : 0,
+          hides(style.overflowY) ? box.bottom - clip.bottom : 0,
+        ),
+      );
+      if (cut > 1) {
+        findings.push({ element: describe(el), clippedBy: describe(node), cutPx: cut });
+      }
+      break;
+    }
+  }
+  return findings;
+};
+
+test.describe("nothing is clipped away", () => {
+  for (const width of [320, 390, 768, 1024, 1280, 1600]) {
+    test(`no content is cut off by an ancestor that hides its overflow at ${width}px`, async ({
+      page,
+    }) => {
+      await gotoLanding(page, width);
+      await showOrbit(page);
+
+      const findings = await page.evaluate(CLIPPED_AWAY);
+      expect(findings, "content the reader has no way to reach").toEqual([]);
+    });
+  }
 });
