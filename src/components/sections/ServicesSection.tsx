@@ -129,8 +129,7 @@ const services: Service[] = [
       "Estratégia para escolher onde investir esforço e transformar isso em execução.",
     description:
       "Antes de qualquer execução, é preciso entender o momento da empresa, o que está funcionando, onde estão os gargalos e quais prioridades realmente merecem atenção. A partir desse diagnóstico, marketing deixa de ser uma sequência de ações e passa a responder a decisões concretas do negócio.",
-    image:
-      "https://images.unsplash.com/photo-1586165368502-1bad197a6461?auto=format&fit=crop&q=85",
+    image: "images/services-estrategia.jpg",
     imageAlt: "Peças de xadrez sobre um tabuleiro.",
     items: [
       {
@@ -168,8 +167,7 @@ const services: Service[] = [
       "Design e desenvolvimento para transformar estratégia em uma experiência clara.",
     description:
       "Da identidade ao produto digital, cada entrega parte do que a empresa precisa comunicar e do que as pessoas precisam conseguir fazer. A forma acompanha essa lógica para construir pontos de contato consistentes com o negócio.",
-    image:
-      "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&q=85",
+    image: "images/services-design.jpg",
     imageAlt: "Notebook aberto em uma mesa de trabalho.",
     items: [
       {
@@ -207,8 +205,7 @@ const services: Service[] = [
       "Mídia paga com direção para transformar investimento em oportunidades reais.",
     description:
       "A campanha parte de um objetivo claro, uma oferta, um público e uma jornada coerente. A partir daí, investimento e desempenho são acompanhados para entender o que merece escala e onde é preciso ajustar.",
-    image:
-      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=85",
+    image: "images/services-trafego.jpg",
     imageAlt: "Dashboard com gráficos de desempenho.",
     items: [
       {
