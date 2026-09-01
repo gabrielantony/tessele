@@ -532,7 +532,7 @@ function ServiceListItem({ item }: { item: ServiceItem }) {
   return (
     <div
       data-tab-item
-      className="flex min-w-0 items-center gap-space-2-5 text-ink"
+      className="flex min-w-0 items-center gap-space-2 text-ink"
     >
       <span
         data-tab-item-icon
@@ -583,7 +583,7 @@ function ServiceCard({
 
         {/* CONTENT */}
 
-        <div className="flex min-w-0 flex-col justify-center gap-space-6 p-space-6 md:col-span-3 md:p-space-10">
+        <div className="flex min-w-0 flex-col justify-center gap-space-6 px-space-5 py-space-6 md:col-span-3 md:p-space-10">
           <div
             key={`${service.id}-copy`}
             data-tab-copy
