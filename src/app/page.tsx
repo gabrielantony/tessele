@@ -1,11 +1,9 @@
-import ExampleMotionSection from "@/components/sections/ExampleMotionSection";
 import Hero from "@/components/sections/Hero";
 import QuoteSection from "@/components/sections/QuoteSection";
 import ProblemSection from "@/components/sections/ProblemSection";
 import OurProcessSection from "@/components/sections/OurProcessSection";
 import ServicesSection from "@/components/sections/ServicesSection";
 import TestimonialsSection from "@/components/sections/TestimonialsSection";
-import PlansSection from "@/components/sections/PlansSection";
 import PricingSection from "@/components/sections/PricingSection";
 import AboutUsSection from "@/components/sections/AboutUsSection";
 import FAQSection from "@/components/sections/FAQSection";
@@ -34,13 +32,11 @@ export default function Home() {
       <OurProcessSection />
       <ServicesSection />
       <TestimonialsSection />
-      <PlansSection />
       <PricingSection />
       <AboutUsSection />
       <FAQSection />
       <ContactUsSection />
       <FooterSection />
-      <ExampleMotionSection />
     </main>
   );
 }

@@ -1,66 +1,297 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
+
 import { useGSAP } from "@gsap/react";
+
 import gsap from "gsap";
+
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
-/*
- * SCAFFOLDING — delete this file.
- *
- * Shape of a section that animates. Three things make it different from the
- * static one, and all three are required:
- *
- *   1. "use client" at the top — GSAP touches the DOM, so this cannot be a
- *      server component. Forgetting it is the single most common error in
- *      LLM-generated Next.js + GSAP code.
- *   2. useGSAP({ scope }) instead of useEffect — it reverts every tween and
- *      ScrollTrigger created inside it on unmount and before re-running. That
- *      cleanup is what stops triggers from stacking.
- *   3. A reduced-motion path — read docs/failure-archetypes.md before writing
- *      any real scroll sequence here. Every archetype in it is a bug that
- *      already escaped once in this exact area.
- */
+type FAQItemData = {
+  question: string;
+  answer: string;
+};
+
+const faqItems: FAQItemData[] = [
+  {
+    question: "Como funciona o primeiro contato com a Tessele?",
+    answer:
+      "O primeiro contato serve para entender o que está acontecendo na empresa, o que motivou a busca pela Tessele e qual resultado vocês esperam alcançar. A partir dessa conversa, conseguimos avaliar se faz mais sentido um projeto específico ou um acompanhamento contínuo e definir os próximos passos.",
+  },
+  {
+    question: "Como vocês definem o que minha empresa realmente precisa?",
+    answer:
+      "Antes de sugerir qualquer entrega, a gente procura entender o momento da empresa, o que já está sendo feito, onde estão os gargalos e quais objetivos precisam de mais atenção. A partir dessa leitura, conseguimos definir quais ações fazem sentido agora e quais podem esperar.",
+  },
+  {
+    question:
+      "Posso contratar a Tessele para um projeto específico ou apenas para acompanhamento mensal?",
+    answer:
+      "Sim. A Tessele pode entrar tanto em projetos específicos quanto em acompanhamentos recorrentes. Um site, uma landing page, uma identidade visual ou uma campanha podem ser desenvolvidos como projetos pontuais. Quando existe uma necessidade contínua de marketing, conteúdo, tráfego ou design, o acompanhamento mensal costuma fazer mais sentido.",
+  },
+  {
+    question:
+      "Quais tipos de projetos de marketing, design e desenvolvimento vocês realizam?",
+    answer:
+      "A Tessele atua em estratégia e marketing, design e desenvolvimento e tráfego pago. Isso pode incluir gestão de redes sociais, campanhas, criação de conteúdo, identidade visual, materiais comerciais, sites institucionais, landing pages, interfaces, automações e gestão de mídia paga.",
+  },
+  {
+    question: "A Tessele atende empresas fora de Curitiba?",
+    answer:
+      "Sim. Apesar de a Tessele estar em Curitiba, boa parte do trabalho pode acontecer de forma remota. Reuniões, planejamento, acompanhamento e desenvolvimento dos projetos podem ser conduzidos online, o que permite atender empresas de outras cidades e estados.",
+  },
+  {
+    question:
+      "Depois que o projeto começa, como funciona o acompanhamento e a comunicação com a equipe?",
+    answer:
+      "A comunicação acontece ao longo de todo o trabalho, com reuniões e pontos de acompanhamento definidos de acordo com o projeto ou plano contratado. Assim, conseguimos compartilhar andamento, validar decisões, receber feedbacks e ajustar prioridades sem perder o contexto do que está sendo construído.",
+  },
+];
+
+const PHI = (1 + Math.sqrt(5)) / 2;
+const PHI_INVERSE = 1 / PHI;
+const PHI_SQUARED = PHI * PHI;
+
+const DURATION_PRIMARY = PHI_INVERSE;
+const DURATION_SECONDARY = PHI_INVERSE * PHI_INVERSE;
+const STAGGER = DURATION_SECONDARY * PHI_INVERSE;
+const OVERLAP = STAGGER;
+
+function fibonacciEaseOut(progress: number) {
+  return 1 - Math.pow(1 - progress, PHI_SQUARED);
+}
+
+function AnimatedFAQIcon({ open }: { open: boolean }) {
+  return (
+    <span
+      className="relative flex size-space-6 shrink-0 items-center justify-center"
+      aria-hidden="true"
+    >
+      <svg
+        className={`absolute h-space-2 w-space-4 text-accent transition-[opacity,transform] duration-[var(--duration-base)] ease-[var(--ease-out)] motion-reduce:transition-none ${
+          open
+            ? "rotate-[45deg] scale-[0.7] opacity-0"
+            : "rotate-[0deg] scale-[1] opacity-100"
+        }`}
+        fill="none"
+        viewBox="0 0 16 10"
+      >
+        <path
+          d="M2 2.5L8 7.5L14 2.5"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+        />
+      </svg>
+
+      <svg
+        className={`absolute size-space-4 text-muted transition-[opacity,transform] duration-[var(--duration-base)] ease-[var(--ease-out)] motion-reduce:transition-none ${
+          open
+            ? "rotate-[0deg] scale-[1] opacity-100"
+            : "rotate-[-45deg] scale-[0.7] opacity-0"
+        }`}
+        fill="none"
+        viewBox="0 0 16 16"
+      >
+        <path
+          d="M14 2L2 14M2 2L14 14"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+        />
+      </svg>
+    </span>
+  );
+}
+
+function FAQItem({
+  item,
+  index,
+  isOpen,
+  onToggle,
+}: {
+  item: FAQItemData;
+  index: number;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  const triggerId = `faq-trigger-${index}`;
+  const answerId = `faq-answer-${index}`;
+
+  return (
+    <div
+      data-faq-item
+      className={`relative w-full rounded-md bg-canvas transition-[box-shadow] duration-[var(--duration-base)] ease-[var(--ease-out)] motion-reduce:transition-none ${
+        isOpen ? "shadow-lifted" : ""
+      }`}
+    >
+      <div className="p-space-5">
+        <button
+          id={triggerId}
+          type="button"
+          onClick={onToggle}
+          className="flex w-full cursor-pointer items-start gap-space-4 text-left"
+          aria-expanded={isOpen}
+          aria-controls={answerId}
+        >
+          <span
+            className={`min-w-0 flex-1 text-ink ${
+              isOpen ? "text-body-bold" : "text-body"
+            }`}
+          >
+            {item.question}
+          </span>
+
+          <AnimatedFAQIcon open={isOpen} />
+        </button>
+
+        <div
+          id={answerId}
+          role="region"
+          aria-labelledby={triggerId}
+          aria-hidden={!isOpen}
+          onTransitionEnd={(event) => {
+            if (event.propertyName === "grid-template-rows") {
+              ScrollTrigger.refresh();
+            }
+          }}
+          className={`grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-[var(--duration-base)] ease-[var(--ease-out)] motion-reduce:transition-none ${
+            isOpen
+              ? "mt-space-2 grid-rows-[1fr] opacity-100"
+              : "mt-space-0 grid-rows-[0fr] opacity-0"
+          }`}
+        >
+          <div className="overflow-hidden">
+            <p className="w-full pr-space-10 text-body text-ink">
+              {item.answer}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FAQSection() {
   const root = useRef<HTMLElement>(null);
+  const [openItem, setOpenItem] = useState<number | null>(null);
 
   useGSAP(
     () => {
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        // Static end state, not a shorter animation.
-        gsap.set("[data-reveal]", { opacity: 1, y: 0 });
+      if (!root.current) {
         return;
       }
 
-      gsap.from("[data-reveal]", {
-        opacity: 0,
-        y: 16,
-        duration: 0.4,
-        stagger: 0.05,
-        ease: "power2.out",
-        scrollTrigger: { trigger: root.current, start: "top 80%" },
+      const selector = gsap.utils.selector(root);
+
+      const revealTargets = selector("[data-reveal]");
+
+      const prefersReducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+
+      if (prefersReducedMotion) {
+        gsap.set(revealTargets, {
+          clearProps: "all",
+        });
+
+        return;
+      }
+
+      const timeline = gsap.timeline({
+        defaults: {
+          ease: fibonacciEaseOut,
+        },
+        scrollTrigger: {
+          trigger: root.current,
+          start: "top 75%",
+          toggleActions: "play none none reverse",
+        },
       });
+
+      timeline
+        .from("[data-faq-heading]", {
+          autoAlpha: 0,
+          yPercent: 12,
+          duration: DURATION_PRIMARY,
+        })
+        .from(
+          "[data-faq-copy]",
+          {
+            autoAlpha: 0,
+            yPercent: 8,
+            duration: DURATION_SECONDARY,
+          },
+          `-=${OVERLAP}`,
+        )
+        .from(
+          "[data-faq-stack]",
+          {
+            autoAlpha: 0,
+            yPercent: 6,
+            duration: DURATION_PRIMARY,
+          },
+          `-=${OVERLAP}`,
+        );
     },
     { scope: root },
   );
 
+  const handleToggle = (index: number) => {
+    setOpenItem((current) => (current === index ? null : index));
+
+    requestAnimationFrame(() => {
+      ScrollTrigger.refresh();
+    });
+  };
+
   return (
     <section
       ref={root}
-      className="bg-surface-sunken px-page py-section"
+      aria-labelledby="faq-heading"
+      className="bg-canvas px-page py-section"
     >
-      <div className="mx-auto w-full max-w-(--container-content)">
-        <p data-reveal className="text-label text-muted uppercase">
-          Motion section
-        </p>
-        <h2 data-reveal className="text-heading-2 font-display mt-space-4">
-          Placeholder heading
-        </h2>
-        <p data-reveal className="text-lead text-muted mt-space-6 max-w-[35rem]">
-          Scroll down and these three elements rise into place, staggered.
-        </p>
+      <div className="mx-auto grid w-full items-start gap-space-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-space-20">
+        <div>
+          <h2
+            id="faq-heading"
+            data-reveal
+            data-faq-heading
+            className="max-w-copy text-display-2 text-ink"
+          >
+            O que você pode querer saber antes de começar com a Tessele.
+          </h2>
+
+          <p
+            data-reveal
+            data-faq-copy
+            className="mt-space-6 max-w-copy text-lead text-muted"
+          >
+            Reunimos aqui as respostas para as dúvidas mais comuns sobre
+            projetos, acompanhamento, escopo e a forma como a Tessele trabalha.
+          </p>
+        </div>
+
+        <div
+          data-reveal
+          data-faq-stack
+          className="isolate flex w-full flex-col gap-space-2 rounded-lg bg-surface-sunken p-space-2"
+        >
+          {faqItems.map((item, index) => (
+            <FAQItem
+              key={item.question}
+              item={item}
+              index={index}
+              isOpen={openItem === index}
+              onToggle={() => handleToggle(index)}
+            />
+          ))}
+        </div>
       </div>
     </section>
   );
