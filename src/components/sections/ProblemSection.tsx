@@ -273,18 +273,23 @@ export default function ProblemSection() {
             * "avançar." -- which is what it did at the width this column has from
             * lg up. `text-balance` evens the rag on top of that, where it is
             * supported; the tie does not depend on it. */}
-          <h2 className="mt-space-6 max-w-copy text-heading-2 text-balance text-ink">
+          <h2 className="mt-space-4 max-w-copy text-heading-2 text-balance text-ink">
             Você testa, muda, publica, investe. Mas ainda fica difícil saber o
             que realmente faz a empresa&nbsp;
             <span className="text-highlight">avançar</span>.
           </h2>
 
-          <p className="mt-space-8 max-w-copy text-lead text-muted">
+          {/* The same tie as the heading above, on the closing phrase: without it
+            * this paragraph's last line was "e orçamento." alone -- two words
+            * split from the "tempo, equipe" they belong with. Gluing the whole
+            * closing run moves the wrap earlier instead, so the last line reads
+            * as a full phrase at every width this column takes. */}
+          <p className="mt-space-4 max-w-copy text-lead text-muted">
             Uma campanha funciona por um tempo. O site recebe ajustes. O
             conteúdo continua saindo. Surge uma nova ideia e ela também entra
             na fila. Quando cada decisão nasce isolada, fica difícil separar o
-            que merece mais investimento do que só está consumindo tempo,
-            equipe e orçamento.
+            que merece mais investimento do que só está consumindo
+            tempo,&nbsp;equipe&nbsp;e&nbsp;orçamento.
           </p>
         </div>
 
