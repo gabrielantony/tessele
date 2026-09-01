@@ -7,6 +7,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import CTAButton from "@/components/ui/CTAButton";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -117,25 +118,6 @@ function CheckIcon() {
     >
       <path
         d="M2.5 8L6.2 11.5L13.5 4.5"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ArrowIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      aria-hidden="true"
-      className="size-space-5"
-    >
-      <path
-        d="M3 10H16M11.5 5.5L16 10L11.5 14.5"
         stroke="currentColor"
         strokeWidth={2}
         strokeLinecap="round"
@@ -256,47 +238,6 @@ function BillingToggle({
 }
 
 /* ======================================================
-   CTA
-====================================================== */
-
-function CTAButton({
-  primary = false,
-  label = "Quero este plano",
-}: {
-  primary?: boolean;
-  label?: string;
-}) {
-  return (
-    <button
-      type="button"
-      className={[
-        "group flex w-full cursor-pointer items-center gap-space-4",
-        "rounded-md py-space-1 pl-space-6 pr-space-1",
-        "text-small-bold",
-        "transition-all duration-(--duration-fast) ease-(--ease-out)",
-        "active:shadow-control",
-        primary
-          ? "bg-highlight text-accent hover:shadow-floating"
-          : "bg-accent text-on-accent hover:bg-accent-hover hover:shadow-floating",
-      ].join(" ")}
-    >
-      <span className="flex-1 text-center">{label}</span>
-
-      <span
-        className={[
-          "flex size-space-12 shrink-0 items-center justify-center",
-          "rounded-base bg-surface text-accent",
-          "transition-colors duration-(--duration-fast) ease-(--ease-out)",
-          "group-hover:bg-surface-tint",
-        ].join(" ")}
-      >
-        <ArrowIcon />
-      </span>
-    </button>
-  );
-}
-
-/* ======================================================
    FEATURE
 ====================================================== */
 
@@ -388,7 +329,10 @@ function PlanCard({
           </ul>
         </div>
 
-        <CTAButton primary={plan.featured} />
+        <CTAButton
+          label="Quero este plano"
+          variant={plan.featured ? "highlight" : undefined}
+        />
       </div>
     </article>
   );
@@ -487,7 +431,7 @@ function DemandSection() {
         </div>
 
         <div className="w-full lg:w-auto">
-          <CTAButton primary label="Solicitar orçamento" />
+          <CTAButton label="Solicitar orçamento" variant="highlight" />
         </div>
       </div>
     </div>

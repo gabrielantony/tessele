@@ -16,12 +16,14 @@ type CTAButtonProps =
   | {
       href: string;
       label: string;
+      variant?: "highlight";
       type?: never;
       onClick?: never;
     }
   | {
       href?: never;
       label: string;
+      variant?: "highlight";
       type?: "button" | "submit";
       onClick?: MouseEventHandler<HTMLButtonElement>;
     };
@@ -29,6 +31,7 @@ type CTAButtonProps =
 export default function CTAButton(props: CTAButtonProps) {
   const root = useRef<CTAElement>(null);
   const { contextSafe } = useGSAP({ scope: root });
+  const isHighlight = props.variant === "highlight";
   const setRoot = (element: CTAElement | null) => {
     root.current = element;
   };
@@ -181,7 +184,14 @@ export default function CTAButton(props: CTAButtonProps) {
   const content = (
     <>
       <span className="flex h-full min-w-0 flex-1 items-center justify-center overflow-visible">
-        <span className="text-action text-center text-on-accent">{props.label}</span>
+        <span
+          className={[
+            "text-action text-center",
+            isHighlight ? "text-accent" : "text-on-accent",
+          ].join(" ")}
+        >
+          {props.label}
+        </span>
       </span>
 
       <span
@@ -194,10 +204,11 @@ export default function CTAButton(props: CTAButtonProps) {
   );
 
   const className = [
-    "flex w-fit max-w-full shrink-0 select-none items-center rounded-md bg-accent",
+    "flex w-fit max-w-full shrink-0 select-none items-center rounded-md",
     "py-space-1 pr-space-1 pl-space-6 outline-none will-change-transform",
     "focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-4",
     "focus-visible:ring-offset-canvas",
+    isHighlight ? "bg-highlight" : "bg-accent",
   ].join(" ");
 
   if ("href" in props) {
