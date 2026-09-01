@@ -88,7 +88,8 @@ export default function ProblemSection() {
       const updateOrbitCardOffset = () => {
         gsap.set(orbitCards, {
           marginTop: (_index, card) =>
-            card.offsetWidth / 2 - parseFloat(getComputedStyle(rotor).insetInlineStart),
+            Math.max(card.offsetWidth, card.offsetHeight) / 2 -
+            parseFloat(getComputedStyle(rotor).insetInlineStart),
         });
       };
 
@@ -203,7 +204,7 @@ export default function ProblemSection() {
           </p>
         </div>
 
-        <div className="relative aspect-square w-full max-w-narrow overflow-hidden justify-self-center lg:justify-self-end">
+        <div className="relative aspect-square w-full max-w-narrow justify-self-center lg:justify-self-end">
           {/* Órbita fixa */}
           <svg
             aria-hidden="true"
