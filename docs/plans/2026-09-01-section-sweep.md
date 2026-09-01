@@ -16,9 +16,13 @@ rendering as intended (no 404s, no broken layout), and no unwanted line wraps.
 
 ## Execution model
 
-- **Two fronts**, each a git worktree with its own branch cut from `feat/landing-sections`,
-  named `fix/<section>-section` (never `WIP-`). One Codex instance per front, one section per
-  handoff. `codex exec resume --last` filters by cwd, so each worktree keeps its own thread.
+- **Two fronts**, each a git worktree with its own branch cut from `feat/landing-sections`:
+  `fix/sweep-front-a` and `fix/sweep-front-b`. Two branches total — a worktree mechanically
+  requires its own branch (parallel Codex instances cannot share one tree), but sections do NOT
+  get individual branches: they land as sequential commits on their front's branch, merged back
+  into `feat/landing-sections` per approved section. One Codex instance per front, one section
+  per handoff; `codex exec resume --last` filters by cwd, so each worktree keeps its own thread.
+  Foundations (F1+F2) run before the fronts exist, directly on `feat/landing-sections`.
 - **Claude writes the tests** (red first, committed), builds the handoff, reviews the diff
   against the recorded baseline SHA, merges back into `feat/landing-sections` — merges are
   **serial**, with the full suite run between merges.
