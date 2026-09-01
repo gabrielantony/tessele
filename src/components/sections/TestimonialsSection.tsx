@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useRef,
   type PointerEvent as ReactPointerEvent,
 } from "react";
@@ -237,6 +238,22 @@ function CaseMedia({ media }: { media: CaseMedia }) {
   );
 }
 
+/*
+ * deltaX is only in pixels when deltaMode says so. A device reporting lines or
+ * pages would otherwise move the rail by a couple of pixels per notch.
+ */
+function wheelPixels(event: WheelEvent, pageSize: number) {
+  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+    return event.deltaX * 16;
+  }
+
+  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+    return event.deltaX * pageSize;
+  }
+
+  return event.deltaX;
+}
+
 function CaseCard({ caseStudy }: { caseStudy: CaseStudy }) {
   const { media } = caseStudy;
 
@@ -441,6 +458,49 @@ export default function CasesSection() {
       scope: root,
     },
   );
+
+  /*
+   * The rail takes predominantly sideways wheel input itself.
+   *
+   * The page runs a damped-scroll layer that listens for wheel on window and
+   * cancels the event before the browser can act on it. Every real trackpad
+   * swipe sideways carries a small vertical component, which is enough for that
+   * layer to claim the event: the rail never moves and the stray vertical part
+   * scrolls the page instead. Measured before this existed -- six events of
+   * (60, 6) moved the rail 0px and the page 36px.
+   *
+   * Non-passive because React registers its own onWheel as passive, where
+   * preventDefault silently does nothing; and stopped here, on the rail, which
+   * sits below window in the bubble path.
+   *
+   * A predominantly vertical gesture is left entirely alone. Over the rail or
+   * not, that one belongs to the page -- swallowing it would trap the reader on
+   * a section-tall element.
+   */
+  useEffect(() => {
+    const carousel = rail.current;
+
+    if (!carousel) {
+      return;
+    }
+
+    function handleWheel(event: WheelEvent) {
+      if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      carousel!.scrollLeft += wheelPixels(event, carousel!.clientWidth);
+    }
+
+    carousel.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      carousel.removeEventListener("wheel", handleWheel);
+    };
+  }, []);
 
   function handlePointerDown(
     event: ReactPointerEvent<HTMLDivElement>,

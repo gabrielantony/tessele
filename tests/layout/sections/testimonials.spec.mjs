@@ -16,6 +16,28 @@ const RAIL = '[aria-label="Cases de clientes"]';
  * exemption by finding such a control, rather than by an ALLOWED entry.
  */
 
+const positions = (page) =>
+  page.evaluate(
+    (selector) => ({
+      page: Math.round(window.scrollY),
+      rail: Math.round(document.querySelector(selector).scrollLeft),
+    }),
+    RAIL,
+  );
+
+/*
+ * Park the cursor in the middle of the rail with everything settled, so what a
+ * wheel test measures afterwards is the wheel and not the tail of getting here.
+ */
+const restOverRail = async (page, width) => {
+  await gotoLanding(page, width, { motion: true });
+  await page.locator(RAIL).scrollIntoViewIfNeeded();
+  await page.waitForTimeout(900);
+
+  const box = await page.locator(RAIL).boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+};
+
 const SHADOW_PROBE = () => {
   /*
    * Chrome and WebKit both serialise box-shadow with the colour first and
@@ -255,6 +277,75 @@ test.describe("testimonials", () => {
     await page.waitForTimeout(300);
 
     expect(await lastFullyShown(), "scrolling the rail to its end does not bring the last case into view").toBe(true);
+  });
+
+  /*
+   * Reported from the page: swiping the rail sideways on a trackpad dragged the
+   * page upward with it.
+   *
+   * Runs with motion enabled on purpose -- the smooth-scroll layer this is about
+   * only engages there, and this is the one place in the suite that needs the
+   * real condition rather than the stilled one.
+   */
+  test("scrolling the rail sideways does not drag the page with it", async ({ page, isMobile }) => {
+    // Not a coverage gap: the input under test does not exist on a touch
+    // profile, and mobile WebKit refuses page.mouse.wheel outright.
+    test.skip(isMobile, "a trackpad is not a touch input");
+
+    await restOverRail(page, 1280);
+
+    const before = await positions(page);
+
+    /*
+     * A trackpad swipe sideways is never perfectly axis-aligned: every event in
+     * the stream carries a small vertical component next to the horizontal one.
+     * A pure deltaX would not reproduce this -- it is the stray deltaY that the
+     * page was following.
+     */
+    for (let step = 0; step < 6; step += 1) {
+      await page.mouse.wheel(60, 6);
+      await page.waitForTimeout(60);
+    }
+    await page.waitForTimeout(900);
+
+    const after = await positions(page);
+
+    expect(
+      after.rail - before.rail,
+      `the sideways wheel did not scroll the rail, so this measures nothing (page moved ${after.page - before.page}px)`,
+    ).toBeGreaterThan(0);
+
+    expect(
+      Math.abs(after.page - before.page),
+      `the page moved ${after.page - before.page}px while the rail was scrolled sideways`,
+    ).toBeLessThanOrEqual(2);
+  });
+
+  /*
+   * The other half of the rule, and the one a fix for the drift above can
+   * quietly break: the rail is a section-tall element, so if it swallowed
+   * vertical wheel input too, a reader whose cursor happened to be over it
+   * would find the page stuck.
+   */
+  test("scrolling vertically over the rail still moves the page", async ({ page, isMobile }) => {
+    test.skip(isMobile, "a trackpad is not a touch input");
+
+    await restOverRail(page, 1280);
+
+    const before = await positions(page);
+
+    for (let step = 0; step < 6; step += 1) {
+      await page.mouse.wheel(0, 60);
+      await page.waitForTimeout(60);
+    }
+    await page.waitForTimeout(900);
+
+    const after = await positions(page);
+
+    expect(
+      after.page - before.page,
+      "the page did not move, so the rail is trapping vertical scroll",
+    ).toBeGreaterThan(0);
   });
 
   /*
