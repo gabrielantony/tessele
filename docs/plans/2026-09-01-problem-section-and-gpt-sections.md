@@ -1,5 +1,16 @@
 # ProblemSection orbit + the GPT-written sections — plan
 
+> **Superseded for the orbit, 2026-09-01.** Phases 1 and 2 landed, and then the
+> orbit itself was dropped: `ProblemSection` now places three fixed cards around
+> the circle and lights them one at a time (hub pulse → the line to that card
+> draws itself green → the card lights → the dashed arc fills to the next one),
+> with a stacked column below 640px. Nothing in it derives a position from a
+> rendered box any more, which is what every defect described below had in
+> common. The geometry contract moved to `tests/layout/sections/problem.spec.mjs`;
+> the three orbit-geometry tests in `tests/layout/landing-layout.spec.mjs` were
+> removed and point there. Phases 3 to 6, about the other sections, are untouched
+> by this.
+
 Repo: `tessele-site` (Next 16, static export to GitHub Pages under `/tessele/`).
 Branch: `feat/landing-sections`. Written 2026-09-01.
 

@@ -166,9 +166,9 @@ const gotoLanding = async (page, width, { motion = false } = {}) => {
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
 };
 
-const showOrbit = async (page) => {
+const showDiagram = async (page) => {
   await page.evaluate(() =>
-    document.querySelector("[data-orbit-rotor]")?.scrollIntoView({ block: "center" }),
+    document.querySelector("[data-diagram]")?.scrollIntoView({ block: "center" }),
   );
   await page.waitForTimeout(400);
 };
@@ -198,20 +198,22 @@ test.describe("landing layout", () => {
     });
   }
 
-  // The headline defect is not a static overflow: the problem section spins an
-  // orbit of cards on a 21s loop, and the cards swing past the page edge as they
-  // travel. The document gets wider and narrower on its own, so a single snapshot
-  // reports whatever angle it happened to catch -- measured between 4px and 148px
-  // at 390px for the same page. Sample across the cycle and keep the worst.
+  // The headline defect this suite was written for was not a static overflow: the
+  // problem section used to spin an orbit of cards on a 21s loop, and the cards
+  // swung past the page edge as they travelled. A single snapshot reported
+  // whatever angle it happened to catch -- measured between 4px and 148px at
+  // 390px for the same page.
+  //
+  // That orbit is gone (the section now lights three fixed cards in sequence), and
+  // this test stays because the property is page-wide and cheap: no animation
+  // anywhere on the page may widen the document at any point in its loop. Sampling
+  // across time is the only way to hold that, whatever is moving.
   for (const width of [390, 900]) {
     test(`the page never scrolls horizontally while motion runs at ${width}px`, async ({
       page,
     }) => {
       await gotoLanding(page, width, { motion: true });
-      await page.evaluate(() =>
-        document.querySelector("[data-orbit-rotor]")?.scrollIntoView({ block: "center" }),
-      );
-      await page.waitForTimeout(400);
+      await showDiagram(page);
 
       let worst = 0;
       let worstAt = 0;
@@ -228,115 +230,27 @@ test.describe("landing layout", () => {
 
       expect(
         worst,
-        `the document swelled to ${worst}px wider than the viewport during the orbit (sample ${worstAt} of 14)`,
+        `the document swelled to ${worst}px wider than the viewport while motion ran (sample ${worstAt} of 14)`,
       ).toBeLessThanOrEqual(1);
     });
   }
 
-  // The orbit's inward offset is derived from the card's rendered width, and the
-  // cards are sized responsively (w-space-24 / sm:w-space-32 / lg:w-space-40). A
-  // value computed once at init is stale the moment the viewport crosses one of
-  // those breakpoints without a reload -- which is what rotating a phone does.
-  // Every other test here loads fresh at a fixed width and is blind to it.
-  test("the orbit survives a resize across breakpoints without reloading", async ({ page }) => {
-    await gotoLanding(page, 390, { motion: true });
-    await page.evaluate(() =>
-      document.querySelector("[data-orbit-rotor]")?.scrollIntoView({ block: "center" }),
-    );
-    await page.waitForTimeout(400);
-
-    const worstEscape = async () => {
-      let worst = 0;
-      for (let sample = 0; sample < 10; sample += 1) {
-        worst = Math.max(
-          worst,
-          await page.evaluate(() => {
-            const square = document.querySelector("[data-orbit-rotor]")?.parentElement;
-            if (!square) return 0;
-            const box = square.getBoundingClientRect();
-            let escape = 0;
-            for (const card of document.querySelectorAll("[data-orbit-card]")) {
-              const cardBox = card.getBoundingClientRect();
-              escape = Math.max(escape, box.left - cardBox.left, cardBox.right - box.right);
-            }
-            return Math.round(escape);
-          }),
-        );
-        await page.waitForTimeout(350);
-      }
-      return worst;
-    };
-
-    expect(await worstEscape(), "a card leaves the orbit square at the width it loaded at").toBeLessThanOrEqual(1);
-
-    await page.setViewportSize({ width: 1280, height: HEIGHT });
-    await page.waitForTimeout(800);
-
-    const afterResize = await worstEscape();
-    expect(
-      afterResize,
-      `after resizing past the card's breakpoints a card sits ${afterResize}px outside the square, where the clip cuts it mid-sentence`,
-    ).toBeLessThanOrEqual(1);
-  });
-
-  // The escape test above measures only the left and right edges -- the two the
-  // offset formula at ProblemSection.tsx:88-93 already balances, because it is
-  // derived from the card's WIDTH. Below 1024px the cards are taller than they
-  // are wide, so the escape is vertical and by exactly (height - width) / 2. It
-  // was there the whole time, on the two edges nothing looked at.
-  const ORBIT_ESCAPE = () => {
-    const square = document.querySelector("[data-orbit-rotor]")?.parentElement;
-    if (!square) return null;
-    const sq = square.getBoundingClientRect();
-    const worst = { left: 0, right: 0, top: 0, bottom: 0 };
-    for (const card of document.querySelectorAll("[data-orbit-card]")) {
-      const c = card.getBoundingClientRect();
-      worst.left = Math.max(worst.left, Math.round(sq.left - c.left));
-      worst.right = Math.max(worst.right, Math.round(c.right - sq.right));
-      worst.top = Math.max(worst.top, Math.round(sq.top - c.top));
-      worst.bottom = Math.max(worst.bottom, Math.round(c.bottom - sq.bottom));
-    }
-    return worst;
-  };
-
-  for (const width of [320, 390, 768, 1024, 1280, 1600]) {
-    // The orbit's period is 21s. The motion test above samples 14 x 400ms = 5.6s
-    // of it, so 73% of the rotation was never measured. Cover the whole cycle.
-    test(`the orbit keeps its cards inside the square through a full rotation at ${width}px`, async ({
-      page,
-    }) => {
-      await gotoLanding(page, width, { motion: true });
-      await showOrbit(page);
-
-      const worst = { left: 0, right: 0, top: 0, bottom: 0 };
-      for (let sample = 0; sample < 110; sample += 1) {
-        const now = await page.evaluate(ORBIT_ESCAPE);
-        for (const edge of Object.keys(worst)) worst[edge] = Math.max(worst[edge], now[edge]);
-        await page.waitForTimeout(200);
-      }
-
-      expect(
-        worst,
-        `a card leaves the orbit square by up to ${Math.max(...Object.values(worst))}px somewhere in the 21s rotation`,
-      ).toEqual({ left: 0, right: 0, top: 0, bottom: 0 });
-    });
-
-    // Reduced motion returns early after positioning the slots, so whatever the
-    // static geometry gets wrong is not a moment of the rotation -- it is what
-    // the visitor sees for as long as the page is open. No test looked here.
-    test(`the orbit keeps its cards inside the square with reduced motion at ${width}px`, async ({
-      page,
-    }) => {
-      await gotoLanding(page, width);
-      await showOrbit(page);
-
-      const worst = await page.evaluate(ORBIT_ESCAPE);
-      expect(
-        worst,
-        `at rest, a card sits up to ${Math.max(...Object.values(worst))}px outside the orbit square`,
-      ).toEqual({ left: 0, right: 0, top: 0, bottom: 0 });
-    });
-  }
+  /*
+   * The three tests that lived here measured the orbit's own geometry: an inward
+   * offset derived from the cards' rendered width at init, which went stale on
+   * resize and overshot vertically on every viewport where a card was taller than
+   * wide. There is no orbit any more -- the problem section places three fixed
+   * cards by percentage -- so the same guarantees are measured against the
+   * section's own markup, at more widths and for a fraction of the runtime, in
+   * tests/layout/sections/problem.spec.mjs:
+   *
+   *   - `the diagram holds its cards and hub inside the square at <w>px` (8 widths)
+   *   - `the diagram holds its bounds while the sequence runs at <w>px`
+   *   - `the diagram survives a resize across the layout switch`
+   *
+   * What stays here is the page-wide half: the document must not widen while
+   * anything on the page is animating, asserted above.
+   */
 });
 
 // An element that hides its overflow passes every overflow check by definition --
@@ -369,11 +283,11 @@ const CLIPPED_AWAY = () => {
   const scrolls = (value) => value === "auto" || value === "scroll";
 
   // The subject has to be a box that actually carries a text run of its own, not
-  // any box whose `textContent` happens to include a descendant's. The orbit puts
-  // its cards inside empty wrappers that are rotated 120 degrees; a rotated square
-  // has a bigger bounding box than the square, so those wrappers hang outside the
-  // orbit by design while the card inside them is entirely visible. Asserting on
-  // them would demand a fix for something that is not broken.
+  // any box whose `textContent` happens to include a descendant's. A wrapper's
+  // box can sit outside a clipper by design while every box inside it that holds
+  // text is entirely visible -- the orbit's rotated slots were the case that
+  // forced this, and positioning wrappers still are one. Asserting on them would
+  // demand a fix for something that is not broken.
   const carriesOwnText = (el) =>
     Array.from(el.childNodes).some(
       (node) => node.nodeType === 3 && (node.nodeValue || "").trim(),
@@ -395,10 +309,10 @@ const CLIPPED_AWAY = () => {
       // A clipper collapsed to nothing on the clipped axis is a closed
       // disclosure, not a cut: an accordion panel at height 0, a tab panel not
       // selected yet. That content is reachable -- the reader opens it -- which
-      // is the same reason a scroll container is skipped above. The orbit's
-      // square is 332px tall at 390px, so the defect this probe was written for
-      // does not hide behind this, and `an escaping box is still reported` below
-      // is what keeps that true.
+      // is the same reason a scroll container is skipped above. No clipper on
+      // this page is collapsed on the axis it clips, so the defect this probe was
+      // written for does not hide behind this, and `an escaping box is still
+      // reported` below is what keeps that true.
       const collapsedX = clip.width <= 1;
       const collapsedY = clip.height <= 1;
 
@@ -425,7 +339,7 @@ test.describe("nothing is clipped away", () => {
       page,
     }) => {
       await gotoLanding(page, width);
-      await showOrbit(page);
+      await showDiagram(page);
 
       const findings = await page.evaluate(CLIPPED_AWAY);
       expect(findings, "content the reader has no way to reach").toEqual([]);
