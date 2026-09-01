@@ -17,6 +17,7 @@ type CTAButtonProps =
       href: string;
       label: string;
       variant?: "highlight";
+      fullWidth?: boolean;
       type?: never;
       onClick?: never;
     }
@@ -24,6 +25,7 @@ type CTAButtonProps =
       href?: never;
       label: string;
       variant?: "highlight";
+      fullWidth?: boolean;
       type?: "button" | "submit";
       onClick?: MouseEventHandler<HTMLButtonElement>;
     };
@@ -204,7 +206,8 @@ export default function CTAButton(props: CTAButtonProps) {
   );
 
   const className = [
-    "flex w-fit max-w-full shrink-0 select-none items-center rounded-md",
+    "flex max-w-full shrink-0 select-none items-center rounded-md",
+    props.fullWidth ? "w-full" : "w-fit",
     "py-space-1 pr-space-1 pl-space-6 outline-none will-change-transform",
     "focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-4",
     "focus-visible:ring-offset-canvas",
