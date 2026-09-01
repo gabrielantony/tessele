@@ -41,7 +41,7 @@ const PEOPLE: Person[] = [
   {
     name: "Gabriel Antony",
     role: "UX/UI Design e Desenvolvimento",
-    image: "/images/gabriel-antony.jpg",
+    image: "images/gabriel-antony.jpg",
     title: "Design e desenvolvimento precisam conversar desde o começo.",
     description:
       "Desde 2019, Gabriel trabalha com produtos digitais para empresas no Brasil, Canadá e Estados Unidos. Ao longo de mais de 50 projetos, sua atuação passou por UX/UI, pesquisa, arquitetura de informação, design systems, SaaS e desenvolvimento, acompanhando desde a estrutura da experiência até a implementação.\nEssa combinação entre design e tecnologia permite uma visão mais completa do produto, considerando uso, viabilidade, consistência e evolução ao longo do tempo.",
@@ -63,7 +63,7 @@ const PEOPLE: Person[] = [
   {
     name: "Thaís Cuman",
     role: "Estratégia, Marketing e Conteúdo",
-    image: "/images/thais-cuman.jpg",
+    image: "images/thais-cuman.jpg",
     title:
       "O conteúdo foi o ponto de partida. A estratégia passou a ocupar cada vez mais espaço.",
     description:
@@ -87,9 +87,10 @@ const PEOPLE: Person[] = [
 
 function Stats({ stats }: { stats: Stat[] }) {
   return (
+    // Três stats devem usar uma ou três colunas para não isolar uma métrica.
     <div
       data-stats
-      className="grid grid-cols-3 gap-space-4 md:gap-space-6"
+      className="grid grid-cols-1 gap-space-4 sm:grid-cols-3"
     >
       {stats.map((stat) => (
         <div key={stat.label} className="flex flex-col gap-space-2">
@@ -198,20 +199,20 @@ function PersonRow({
       </div>
 
       {/* Desktop */}
-      <div className="hidden items-start gap-space-8 lg:grid lg:grid-cols-5">
+      <div className="hidden items-start gap-space-8 lg:grid lg:grid-cols-4">
         {reverse ? (
           <>
             <div className="col-span-3" data-row-content>
               <InfoCard person={person} />
             </div>
 
-            <div className="col-span-2" data-row-profile>
+            <div className="col-span-1" data-row-profile>
               <MemberIdentity person={person} />
             </div>
           </>
         ) : (
           <>
-            <div className="col-span-2" data-row-profile>
+            <div className="col-span-1" data-row-profile>
               <MemberIdentity person={person} />
             </div>
 
