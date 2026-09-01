@@ -89,7 +89,7 @@ function Stats({ stats }: { stats: Stat[] }) {
   return (
     <div
       data-stats
-      className="grid grid-cols-3 gap-space-4 md:gap-space-6"
+      className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10.5rem),1fr))] gap-space-4 md:gap-space-6"
     >
       {stats.map((stat) => (
         <div key={stat.label} className="flex flex-col gap-space-2">
