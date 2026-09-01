@@ -274,8 +274,8 @@ export default function Hero() {
         onBlur={handleBlur}
         className="
           flex
-          h-[3.5rem]
-          w-[18.125rem]
+          w-fit
+          max-w-full
           shrink-0
           select-none
           items-center
@@ -307,7 +307,7 @@ export default function Hero() {
           <span
             className="
               text-action
-              whitespace-nowrap
+              text-center
               text-on-accent
             "
           >

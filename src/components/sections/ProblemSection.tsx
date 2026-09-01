@@ -76,9 +76,12 @@ export default function ProblemSection() {
 
       /*
        * O deslocamento coloca o centro do card sobre a linha
-       * da órbita. A rotação inversa mantém o texto sempre reto.
+       * da órbita sem deixá-lo sair do quadrado. A rotação inversa mantém o
+       * texto sempre reto.
        */
       gsap.set(orbitCards, {
+        marginTop: (_index, card) =>
+          card.offsetWidth / 2 - parseFloat(getComputedStyle(rotor).insetInlineStart),
         yPercent: -50,
         rotation: (index) => -(index * angleStep),
         transformOrigin: "50% 50%",
@@ -188,7 +191,7 @@ export default function ProblemSection() {
           </p>
         </div>
 
-        <div className="relative aspect-square w-full max-w-narrow justify-self-center lg:justify-self-end">
+        <div className="relative aspect-square w-full max-w-narrow overflow-hidden justify-self-center lg:justify-self-end">
           {/* Órbita fixa */}
           <svg
             aria-hidden="true"
