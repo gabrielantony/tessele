@@ -80,12 +80,22 @@ export default function ProblemSection() {
        * texto sempre reto.
        */
       gsap.set(orbitCards, {
-        marginTop: (_index, card) =>
-          card.offsetWidth / 2 - parseFloat(getComputedStyle(rotor).insetInlineStart),
         yPercent: -50,
         rotation: (index) => -(index * angleStep),
         transformOrigin: "50% 50%",
       });
+
+      const updateOrbitCardOffset = () => {
+        gsap.set(orbitCards, {
+          marginTop: (_index, card) =>
+            card.offsetWidth / 2 - parseFloat(getComputedStyle(rotor).insetInlineStart),
+        });
+      };
+
+      updateOrbitCardOffset();
+
+      const orbitResizeObserver = new ResizeObserver(updateOrbitCardOffset);
+      orbitResizeObserver.observe(rotor);
 
       gsap.set(rotor, { transformOrigin: "50% 50%" });
 
@@ -96,7 +106,7 @@ export default function ProblemSection() {
       });
 
       if (prefersReducedMotion) {
-        return;
+        return () => orbitResizeObserver.disconnect();
       }
 
       /*
@@ -161,6 +171,8 @@ export default function ProblemSection() {
       if (gate.isActive) {
         for (const animation of running) animation.play();
       }
+
+      return () => orbitResizeObserver.disconnect();
     },
     { scope: root },
   );
