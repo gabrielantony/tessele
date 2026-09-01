@@ -72,6 +72,50 @@ test.describe("about", () => {
     });
   }
 
+  /*
+   * There are exactly three stats, so a two-column layout always leaves one
+   * orphaned on its own row -- which reads as broken in a way a wrapped label
+   * does not. This is the constraint intrinsic sizing cannot express: `auto-fit`
+   * fits as many columns as it can, and "as many as fit" includes two.
+   *
+   * Measured after the first pass at the wrapping fix: 1 column at 390/430,
+   * 2 at 640, 3 at 768/900, 2 at 1024, 3 at 1280/1600. So 640px and 1024px --
+   * iPad landscape among them -- traded a wrapped label for an orphan.
+   *
+   * One column or three, never two.
+   */
+  for (const width of [390, 430, 640, 768, 900, 1024, 1280, 1600]) {
+    test(`the three stats never sit in two columns at ${width}px`, async ({ page }) => {
+      await gotoLanding(page, width);
+
+      const layouts = await page.evaluate((selector) => {
+        const out = [];
+        for (const grid of document.querySelector(selector).querySelectorAll("[data-stats]")) {
+          if (grid.getBoundingClientRect().width === 0) continue;
+          const columns = new Set(
+            Array.from(grid.children).map((child) =>
+              Math.round(child.getBoundingClientRect().left),
+            ),
+          ).size;
+          const rows = new Set(
+            Array.from(grid.children).map((child) =>
+              Math.round(child.getBoundingClientRect().top),
+            ),
+          ).size;
+          out.push({ items: grid.children.length, columns, rows });
+        }
+        return out;
+      }, SECTION);
+
+      expect(layouts.length, "no visible stats grid found").toBeGreaterThan(0);
+
+      const orphaned = layouts.filter(
+        (layout) => layout.columns > 1 && layout.items % layout.columns !== 0,
+      );
+      expect(orphaned, "a stat left alone on the last row").toEqual([]);
+    });
+  }
+
   // Bounds, not a ratio: the photo has to stop dominating its row and the copy
   // has to gain room, but which grid split delivers that is an implementation
   // choice. Today's numbers (416 / 640) fail both ends.
