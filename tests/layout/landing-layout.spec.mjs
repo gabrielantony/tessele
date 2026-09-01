@@ -98,9 +98,25 @@ const PROBE = ({ allowOverflow, allowOverlap }) => {
       style.scrollbarWidth === "none" ||
       getComputedStyle(el, "::-webkit-scrollbar").display === "none";
     if (!barHidden) continue;
+
+    // What this check is really about is whether anything on screen says the
+    // content continues -- not whether a native scrollbar specifically is the
+    // thing saying it. A hidden bar paired with visible controls that drive this
+    // scroller announces the overflow just as well, so the exemption is earned
+    // by the affordance existing and being visible, measured here rather than
+    // declared in ALLOWED for a particular element.
+    const controls = el.id
+      ? Array.from(document.querySelectorAll(`[aria-controls="${el.id}"]`)).filter((control) => {
+          const box = control.getBoundingClientRect();
+          return box.width > 0 && box.height > 0 && getComputedStyle(control).visibility !== "hidden";
+        })
+      : [];
+    if (controls.length >= 2) continue;
+
     hiddenScrollers.push({
       element: describe(el),
       hiddenPx: el.scrollWidth - el.clientWidth,
+      visibleControls: controls.length,
     });
   }
 
