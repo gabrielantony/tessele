@@ -25,29 +25,70 @@ import { gotoLanding } from "./helpers.mjs";
  *
  * The wordmark is `hidden md:block`, so below 768px there is nothing to check.
  */
+/*
+ * Measures whatever element renders the wordmark, not svg text specifically. The
+ * first version only understood `<svg><text>`, so when the fix replaced it with
+ * DOM text the assertion fell through to a fallback and passed on almost
+ * nothing -- a probe that stops probing the moment the implementation changes.
+ *
+ * The method is the same either way: render the same string, with the same
+ * computed font, free of any forcing or transform, and compare aspect ratios.
+ */
 const WORDMARK_DISTORTION = () => {
-  const text = document.querySelector("[data-footer-wordmark] text");
-  if (!text) return null;
+  const mark = document.querySelector("[data-footer-wordmark]");
+  if (!mark) return null;
 
-  const svg = text.ownerSVGElement;
-  const matrix = text.getScreenCTM();
+  const svgText = mark.querySelector("text");
+  if (svgText) {
+    const matrix = svgText.getScreenCTM();
+    const probe = svgText.cloneNode(true);
+    probe.removeAttribute("textLength");
+    probe.removeAttribute("lengthAdjust");
+    svgText.ownerSVGElement.append(probe);
+    const naturalUnits = probe.getBBox().width;
+    probe.remove();
+    const forcedUnits = svgText.getBBox().width;
+    return {
+      kind: "svg",
+      ratio: (forcedUnits * matrix.a) / (naturalUnits * matrix.d),
+      detail: `x${matrix.a.toFixed(2)} against y${matrix.d.toFixed(2)}, advance forced from ${naturalUnits.toFixed(1)} to ${forcedUnits.toFixed(1)} units`,
+    };
+  }
 
-  // What the glyph advance would be with nothing forcing it.
-  const probe = text.cloneNode(true);
-  probe.removeAttribute("textLength");
-  probe.removeAttribute("lengthAdjust");
-  svg.append(probe);
-  const naturalUnits = probe.getBBox().width;
+  const rendered = Array.from(mark.querySelectorAll("*")).find(
+    (el) => (el.textContent ?? "").trim() && !el.children.length,
+  );
+  if (!rendered) return null;
+
+  const style = getComputedStyle(rendered);
+  const box = rendered.getBoundingClientRect();
+
+  const probe = document.createElement("span");
+  probe.textContent = rendered.textContent;
+  for (const property of [
+    "fontFamily",
+    "fontSize",
+    "fontWeight",
+    "fontStretch",
+    "letterSpacing",
+    "textTransform",
+    "lineHeight",
+  ]) {
+    probe.style[property] = style[property];
+  }
+  probe.style.position = "absolute";
+  probe.style.whiteSpace = "nowrap";
+  probe.style.visibility = "hidden";
+  probe.style.transform = "none";
+  document.body.append(probe);
+  const natural = probe.getBoundingClientRect();
   probe.remove();
-  const forcedUnits = text.getBBox().width;
 
+  // Any scale or stretch shows up as the two aspect ratios diverging.
   return {
-    // Net horizontal stretch applied to the letterforms, against the vertical.
-    ratio: (forcedUnits * matrix.a) / (naturalUnits * matrix.d),
-    xScale: Number(matrix.a.toFixed(2)),
-    yScale: Number(matrix.d.toFixed(2)),
-    naturalUnits: Number(naturalUnits.toFixed(1)),
-    forcedUnits: Number(forcedUnits.toFixed(1)),
+    kind: "dom",
+    ratio: box.width / box.height / (natural.width / natural.height),
+    detail: `rendered ${Math.round(box.width)}x${Math.round(box.height)} against a natural ${Math.round(natural.width)}x${Math.round(natural.height)}, transform ${style.transform}`,
   };
 };
 
@@ -58,33 +99,47 @@ test.describe("footer", () => {
 
       const measured = await page.evaluate(WORDMARK_DISTORTION);
 
-      // If the wordmark stops being an <svg><text>, this test has nothing to
-      // measure and should say so rather than quietly passing.
-      const present = await page.evaluate(
-        () => document.querySelectorAll("[data-footer-wordmark]").length,
-      );
-      expect(present, "the footer wordmark is gone").toBeGreaterThan(0);
-      if (measured === null) {
-        const glyphAspect = await page.evaluate(() => {
-          const el = document.querySelector("[data-footer-wordmark]");
-          const style = getComputedStyle(el);
-          return { transform: style.transform, scale: style.scale };
-        });
-        expect(
-          [glyphAspect.transform, glyphAspect.scale].filter(
-            (value) => value && value !== "none",
-          ),
-          "the wordmark is no longer svg text, and carries a transform that could distort it",
-        ).toEqual([]);
-        return;
-      }
-
+      expect(measured, "the footer wordmark is gone, or renders no text").not.toBeNull();
       expect(
         measured.ratio,
-        `the glyphs are stretched ${measured.ratio.toFixed(2)}x horizontally (x${measured.xScale} against y${measured.yScale}, advance forced from ${measured.naturalUnits} to ${measured.forcedUnits} units)`,
+        `the wordmark letterforms are distorted ${measured.ratio.toFixed(2)}x (${measured.kind}: ${measured.detail})`,
       ).toBeCloseTo(1, 1);
     });
   }
+
+  /*
+   * Gabriel's call, recorded so nobody restores the old look while "fixing" the
+   * proportions: the wordmark is deliberately small and centred, not the wide
+   * display mark it used to be. It filled 88% of the footer before, but only by
+   * stretching the glyphs -- 1.61x at 1280px, 2.59x at 1920px. Asked whether he
+   * wanted it wide with open tracking, large and proportional, or small and
+   * centred, he chose small and centred.
+   *
+   * So the fill share is intentionally NOT asserted here. What is asserted is
+   * that it stays undistorted (above) and that it is still visible at all -- a
+   * later change that scales it back up to fill the footer would have to distort
+   * it again, and the assertion above is what catches that.
+   */
+  test("the wordmark is present without filling the footer", async ({ page }) => {
+    await gotoLanding(page, 1280);
+
+    const fill = await page.evaluate(() => {
+      const mark = document.querySelector("[data-footer-wordmark]");
+      if (!mark) return null;
+      const text = Array.from(mark.querySelectorAll("*")).find(
+        (el) => (el.textContent ?? "").trim() && !el.children.length,
+      );
+      const container = mark.parentElement;
+      if (!text || !container) return null;
+      return {
+        visible: text.getBoundingClientRect().width > 0,
+        share: text.getBoundingClientRect().width / container.getBoundingClientRect().width,
+      };
+    });
+
+    expect(fill, "the wordmark renders nothing measurable").not.toBeNull();
+    expect(fill.visible, "the wordmark is not rendered").toBe(true);
+  });
 
   // The wordmark is decorative -- the footer's real content must not depend on it.
   test("the footer legal line stays legible", async ({ page }) => {
