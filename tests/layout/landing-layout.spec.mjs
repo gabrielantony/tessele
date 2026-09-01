@@ -183,4 +183,50 @@ test.describe("landing layout", () => {
       ).toBeLessThanOrEqual(1);
     });
   }
+
+  // The orbit's inward offset is derived from the card's rendered width, and the
+  // cards are sized responsively (w-space-24 / sm:w-space-32 / lg:w-space-40). A
+  // value computed once at init is stale the moment the viewport crosses one of
+  // those breakpoints without a reload -- which is what rotating a phone does.
+  // Every other test here loads fresh at a fixed width and is blind to it.
+  test("the orbit survives a resize across breakpoints without reloading", async ({ page }) => {
+    await gotoLanding(page, 390, { motion: true });
+    await page.evaluate(() =>
+      document.querySelector("[data-orbit-rotor]")?.scrollIntoView({ block: "center" }),
+    );
+    await page.waitForTimeout(400);
+
+    const worstEscape = async () => {
+      let worst = 0;
+      for (let sample = 0; sample < 10; sample += 1) {
+        worst = Math.max(
+          worst,
+          await page.evaluate(() => {
+            const square = document.querySelector("[data-orbit-rotor]")?.parentElement;
+            if (!square) return 0;
+            const box = square.getBoundingClientRect();
+            let escape = 0;
+            for (const card of document.querySelectorAll("[data-orbit-card]")) {
+              const cardBox = card.getBoundingClientRect();
+              escape = Math.max(escape, box.left - cardBox.left, cardBox.right - box.right);
+            }
+            return Math.round(escape);
+          }),
+        );
+        await page.waitForTimeout(350);
+      }
+      return worst;
+    };
+
+    expect(await worstEscape(), "a card leaves the orbit square at the width it loaded at").toBeLessThanOrEqual(1);
+
+    await page.setViewportSize({ width: 1280, height: HEIGHT });
+    await page.waitForTimeout(800);
+
+    const afterResize = await worstEscape();
+    expect(
+      afterResize,
+      `after resizing past the card's breakpoints a card sits ${afterResize}px outside the square, where the clip cuts it mid-sentence`,
+    ).toBeLessThanOrEqual(1);
+  });
 });
