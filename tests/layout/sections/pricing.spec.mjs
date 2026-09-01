@@ -73,16 +73,24 @@ test.describe("pricing", () => {
   });
 
   /*
-   * `PricingGrid` goes `grid-cols-1` straight to `lg:grid-cols-3`, so 768-1023px
-   * stacks three plans in one ~500px column with the copy floating in it.
-   * Measured column count: 1 at 390/768/900/1023, 3 at 1024/1280.
+   * This assertion replaced an earlier one, and the correction is worth recording
+   * because the first version made the page worse.
    *
-   * The three plans are meant to be compared side by side; one column is right on
-   * a phone and wrong on a tablet. Asserting a count rather than a breakpoint
-   * leaves the mechanism open.
+   * I measured that `grid-cols-1 lg:grid-cols-3` stacks three plans in one
+   * ~500px column from 768 to 1023px, and asked for more than one column there.
+   * `md:grid-cols-2` satisfied that and produced three cards in two columns:
+   * the most expensive plan alone on the second row with half the row empty
+   * beside it. Confirmed by eye at 768px and 900px. That reads as broken, where a
+   * single tall column reads as a deliberate stack -- so the "fix" cost more than
+   * the whitespace it recovered.
+   *
+   * The right constraint is the one the about stats needed: no incomplete row.
+   * With three cards that permits one column or three and forbids exactly the
+   * two-column orphan, which leaves the choice of breakpoint to the design
+   * instead of to me.
    */
-  for (const width of [768, 900, 1023]) {
-    test(`the three plans sit side by side at ${width}px`, async ({ page }) => {
+  for (const width of [390, 768, 900, 1023, 1024, 1280, 1600]) {
+    test(`no plan card is left alone on a row at ${width}px`, async ({ page }) => {
       await gotoLanding(page, width);
 
       const layout = await page.evaluate((selector) => {
@@ -90,14 +98,15 @@ test.describe("pricing", () => {
         return {
           count: cards.length,
           columns: new Set(cards.map((card) => Math.round(card.getBoundingClientRect().left))).size,
+          rows: new Set(cards.map((card) => Math.round(card.getBoundingClientRect().top))).size,
         };
       }, SECTION);
 
       expect(layout.count, "no plan cards found").toBeGreaterThan(1);
       expect(
-        layout.columns,
-        `the ${layout.count} plans are stacked in ${layout.columns} column(s) at ${width}px`,
-      ).toBeGreaterThan(1);
+        layout.count % layout.columns,
+        `${layout.count} plans in ${layout.columns} columns leaves ${layout.count % layout.columns} alone on the last row`,
+      ).toBe(0);
     });
   }
 
