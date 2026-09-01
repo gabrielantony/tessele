@@ -63,7 +63,7 @@ const PEOPLE: Person[] = [
   {
     name: "Thaís Cuman",
     role: "Estratégia, Marketing e Conteúdo",
-    image: "images/thais-cuman.jpg",
+    image: "images/thais-img.jpg",
     title:
       "O conteúdo foi o ponto de partida. A estratégia passou a ocupar cada vez mais espaço.",
     description:
