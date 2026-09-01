@@ -8,7 +8,10 @@ import gsap from "gsap";
 
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
+import Link from "next/link";
+
 import Wordmark from "@/components/ui/Wordmark";
+import { whatsappHref } from "@/lib/whatsapp";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -44,18 +47,30 @@ const navigationLinks = [
   },
 ];
 
+/*
+ * The most generic entry point on the page: whoever gets here scrolled past
+ * everything and just wants to talk, so the message says only that.
+ */
+const FOOTER_WHATSAPP_MESSAGE =
+  "Oi! Cheguei pelo site de vocês. Podemos conversar?";
+
+// `external` is per link rather than blanket: a mailto: hands off to the mail
+// client and leaves the page where it is, so a new tab there is a blank tab.
 const contactLinks = [
   {
     label: "WhatsApp",
-    href: "#contato",
+    href: whatsappHref(FOOTER_WHATSAPP_MESSAGE),
+    external: true,
   },
   {
     label: "E-mail",
-    href: "#contato",
+    href: "mailto:contatotessele@gmail.com",
+    external: false,
   },
   {
     label: "Instagram",
-    href: "#contato",
+    href: "https://www.instagram.com/tessele.co",
+    external: true,
   },
 ];
 
@@ -143,18 +158,32 @@ export default function Footer() {
       aria-label="Rodapé"
     >
       <div className="relative w-full overflow-hidden rounded-xl bg-accent px-page py-section">
-        <div className="mx-auto w-full max-w-content">
+        <div
+          data-footer-reveal
+          data-footer-wordmark
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-space-0 bottom-space-0 z-0 aspect-[685/123] w-full"
+        >
+          <Wordmark />
+        </div>
+
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-space-0 z-10 bg-[linear-gradient(180deg,transparent_43%,color-mix(in_srgb,var(--color-dark-canvas)_80%,transparent)_100%)]"
+        />
+
+        <div className="relative z-20 mx-auto w-full max-w-content">
           <h2
             data-footer-reveal
             data-footer-heading
-            className="text-heading-2 text-center text-on-accent"
+            className="text-heading-2 text-center text-on-accent !text-[1.5rem] !leading-[2rem] md:!text-[2.5rem] md:!leading-[3rem]"
           >
             Marketing, design e desenvolvimento para empresas que precisam
             decidir e construir o próximo passo.
           </h2>
         </div>
 
-        <div className="mt-space-16 grid w-full grid-cols-1 gap-space-12 md:grid-cols-2 lg:grid-cols-3">
+        <div className="relative z-20 mt-space-16 grid w-full grid-cols-2 gap-space-8 md:gap-space-12 lg:grid-cols-3">
           <nav
             data-footer-reveal
             data-footer-column
@@ -188,7 +217,12 @@ export default function Footer() {
             <ul className="flex list-none flex-col gap-space-5">
               {contactLinks.map((link) => (
                 <li key={link.label}>
-                  <a href={link.href} className={linkClassName}>
+                  <a
+                    href={link.href}
+                    target={link.external ? "_blank" : undefined}
+                    rel={link.external ? "noopener noreferrer" : undefined}
+                    className={linkClassName}
+                  >
                     {link.label}
                   </a>
                 </li>
@@ -199,7 +233,7 @@ export default function Footer() {
           <div
             data-footer-reveal
             data-footer-column
-            className="flex min-w-0 flex-col gap-space-6 md:col-span-2 lg:col-span-1"
+            className="flex min-w-0 flex-col gap-space-6 col-span-2 lg:col-span-1"
           >
             <p className="text-label uppercase text-on-accent-muted">
               Estúdio
@@ -217,30 +251,21 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="relative mt-space-20 flex min-h-space-0 items-center justify-center md:min-h-space-40">
-          <div
-            data-footer-reveal
-            data-footer-wordmark
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-space-0 bottom-space-0 hidden h-space-40 items-center justify-center md:flex"
-          >
-            <Wordmark />
-          </div>
+        <div
+          data-footer-reveal
+          data-footer-legal
+          className="relative z-20 mt-space-16 flex flex-col items-center justify-center gap-space-3 text-center text-body text-on-accent md:mt-space-20 md:flex-row md:gap-space-8"
+        >
+          <p>© 2026 Tessele Estúdio</p>
 
-          <div
-            data-footer-reveal
-            data-footer-legal
-            className="relative flex flex-col items-center justify-center gap-space-3 text-center text-body text-on-accent md:flex-row md:gap-space-8"
+          {/* next/link, not a plain <a>: the production build serves the site
+              from the /tessele subpath, and Link is what prepends it. */}
+          <Link
+            href="/privacidade"
+            className="transition-colors duration-(--duration-fast) ease-(--ease-out) hover:text-highlight focus-visible:text-highlight"
           >
-            <p>© 2026 Tessele Estúdio</p>
-
-            <a
-              href="#privacidade"
-              className="transition-colors duration-(--duration-fast) ease-(--ease-out) hover:text-highlight focus-visible:text-highlight"
-            >
-              Política de Privacidade
-            </a>
-          </div>
+            Política de Privacidade
+          </Link>
         </div>
       </div>
     </footer>

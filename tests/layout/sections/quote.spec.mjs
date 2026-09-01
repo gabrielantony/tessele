@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { gotoLanding } from "./helpers.mjs";
+import { gotoLanding, HEIGHT } from "./helpers.mjs";
 
 /*
  * The institutional sentence after the Hero holds the centre of the screen with
@@ -62,14 +62,19 @@ const walkTheReveal = (page, pxPerFrame = 12) =>
       const words = [...document.querySelectorAll("[data-word]")];
       const sectionTop = section.getBoundingClientRect().top + window.scrollY;
 
-      // Begin a little above the section so the arrival is inside the sample.
-      window.scrollTo(0, Math.max(0, sectionTop - 200));
+      // Begin a full viewport above the section. The reveal starts at `top
+      // center`, which is half a viewport before the section's top reaches the
+      // top of the screen, so a 200px lead-in would begin the walk after the
+      // first words had already resolved -- and every measurement below reads
+      // from these frames.
+      window.scrollTo(0, Math.max(0, sectionTop - window.innerHeight));
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
       const frames = [];
       await new Promise((done) => {
-        // Far enough to carry the sentence to complete and the sticky to release.
-        const frameBudget = (section.offsetHeight + 400) / pxPerFrame;
+        // Far enough to carry the sentence to complete and the sticky to release,
+        // plus the viewport the walk now starts above the section.
+        const frameBudget = (section.offsetHeight + window.innerHeight + 400) / pxPerFrame;
         let frame = 0;
         const step = () => {
           frames.push({
@@ -187,8 +192,12 @@ test.describe("quote", () => {
     const startOffset = firstStart.y - frames[0].y;
     expect(
       startOffset,
-      `nothing begins to appear until ${startOffset}px past the top of the section`,
-    ).toBeLessThanOrEqual(400);
+      `nothing begins to appear until ${startOffset}px into the walk`,
+      // The walk now opens a viewport above the section, and the reveal starts
+      // half a viewport in, so the allowance carries that offset. The property
+      // being defended is unchanged: the first word must not wait on a long dead
+      // stretch after the trigger has already fired.
+    ).toBeLessThanOrEqual(400 + HEIGHT / 2);
 
     /*
      * And the words arrive in order, monotonically -- no word un-reveals as you

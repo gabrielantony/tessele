@@ -50,10 +50,10 @@ export default function SmoothScroll() {
        * scroll position while Lenis's internal target stays where it was, so the
        * next wheel event snaps back to the old place.
        *
-       * Note that the page's three anchors -- #contato from the Hero and the
-       * process CTA, #privacidade from the footer -- currently point at ids that
-       * do not exist anywhere in the source, so Lenis will warn that the target
-       * was not found. That is the missing id, not this option.
+       * Note that #contato -- from the Hero and the process CTA -- still points
+       * at an id that does not exist anywhere in the source, so Lenis will warn
+       * that the target was not found. That is the missing id, not this option.
+       * (The footer's privacy link is no longer an anchor: it is a route.)
        */
       anchors: true,
 

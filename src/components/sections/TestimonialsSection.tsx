@@ -761,7 +761,13 @@ export default function CasesSection() {
          * (48 + 16) and 32px below (160 - 128). Changing one half of a pair
          * without the other either moves the section or brings the cut back.
          */
-        className="cases-rail mt-space-12 flex items-start gap-space-8 overflow-x-auto overscroll-x-contain px-page pt-space-4 pb-space-40 -mb-space-32 snap-x snap-mandatory lg:cursor-grab lg:snap-none lg:active:cursor-grabbing"
+        /*
+         * `outline-inset` rather than the usual offset ring: this element is as
+         * wide as the viewport and its border box runs 160px past the cards to
+         * hold their shadow, so an outset ring draws a rectangle that crosses
+         * the metrics strip below. Inset keeps it on the rail's own edge.
+         */
+        className="cases-rail focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-highlight mt-space-12 flex items-start gap-space-8 overflow-x-auto overscroll-x-contain px-page pt-space-4 pb-space-40 -mb-space-32 snap-x snap-mandatory lg:cursor-grab lg:snap-none lg:active:cursor-grabbing"
       >
         {CASES.map((caseStudy) => (
           <CaseCard

@@ -9,6 +9,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { CustomEase } from "gsap/CustomEase";
 import CTAButton from "@/components/ui/CTAButton";
+import { whatsappHref } from "@/lib/whatsapp";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP, CustomEase);
 
@@ -85,6 +86,21 @@ const plans: Plan[] = [
     ],
   },
 ];
+
+/*
+ * Both messages name what the visitor was looking at, because that is the whole
+ * value of a per-card CTA: the conversation opens already knowing which plan or
+ * which route, without anyone having to ask.
+ *
+ * The price and period read as an apposition ("o semestral de R$ 2.300/mês")
+ * rather than a parenthetical -- nobody types brackets into WhatsApp.
+ */
+function planMessage(plan: Plan, billing: BillingPeriod, price: string) {
+  return `Oi! Estava vendo o plano ${plan.name} no site, o ${billing} de ${price}. Queria entender melhor.`;
+}
+
+const DEMAND_MESSAGE =
+  "Oi! Vi que vocês atendem por demanda, sem mensalidade. Queria um orçamento pra um projeto específico.";
 
 const demandServices = [
   "Captação de conteúdo",
@@ -198,6 +214,7 @@ function BillingToggle({
         className={[
           "cursor-pointer transition-colors",
           "duration-(--duration-fast) ease-(--ease-out)",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight",
           !isSemester
             ? "text-body-bold text-on-accent"
             : "text-body text-on-accent-muted hover:text-on-accent",
@@ -216,6 +233,7 @@ function BillingToggle({
         className={[
           "relative grid shrink-0 cursor-pointer grid-cols-2",
           "rounded-full p-space-1",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight",
           "transition-all duration-(--duration-base) ease-(--ease-out)",
           "active:shadow-control",
           isSemester ? "bg-highlight" : "bg-muted",
@@ -243,6 +261,7 @@ function BillingToggle({
         className={[
           "cursor-pointer transition-colors",
           "duration-(--duration-fast) ease-(--ease-out)",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight",
           isSemester
             ? "text-body-bold text-on-accent"
             : "text-body text-on-accent-muted hover:text-on-accent",
@@ -500,6 +519,8 @@ function PlanCard({
           </div>
 
           <CTAButton
+            href={whatsappHref(planMessage(plan, billing, price))}
+            external
             label="Quero este plano"
             variant={plan.featured ? "highlight" : undefined}
             fullWidth
@@ -608,7 +629,12 @@ function DemandSection() {
         </div>
 
         <div className="w-full lg:w-auto">
-          <CTAButton label="Solicitar orçamento" variant="highlight" />
+          <CTAButton
+            href={whatsappHref(DEMAND_MESSAGE)}
+            external
+            label="Solicitar orçamento"
+            variant="highlight"
+          />
         </div>
       </div>
     </div>
@@ -709,6 +735,7 @@ export default function PlanosEPrecos() {
   return (
     <section
       ref={root}
+      id="planos"
       data-name="planos-e-precos"
       className={[
         "overflow-hidden rounded-xl bg-accent",

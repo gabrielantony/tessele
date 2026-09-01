@@ -64,47 +64,43 @@ function fibonacciEaseOut(progress: number) {
   return 1 - Math.pow(1 - progress, PHI_SQUARED);
 }
 
+const ICON_BAR_LENGTH = 9.9;
+const ICON_BAR_SCALE_OPEN = 12 / 7;
+
 function AnimatedFAQIcon({ open }: { open: boolean }) {
+  const barClass =
+    "absolute left-1/2 top-1/2 h-0.5 rounded-full bg-current transition-[translate,scale,color] duration-[var(--duration-slow)] ease-[var(--ease-fluid)] motion-reduce:transition-none";
+
   return (
     <span
-      className="relative flex size-space-6 shrink-0 items-center justify-center"
+      className={`relative flex size-space-6 shrink-0 items-center justify-center ${
+        open ? "text-accent" : "text-muted"
+      }`}
       aria-hidden="true"
     >
-      <svg
-        className={`absolute h-space-2 w-space-4 text-accent transition-[opacity,transform] duration-[var(--duration-base)] ease-[var(--ease-out)] motion-reduce:transition-none ${
-          open
-            ? "rotate-[45deg] scale-[0.7] opacity-0"
-            : "rotate-[0deg] scale-[1] opacity-100"
-        }`}
-        fill="none"
-        viewBox="0 0 16 10"
-      >
-        <path
-          d="M2 2.5L8 7.5L14 2.5"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-        />
-      </svg>
+      <span
+        className={barClass}
+        style={{
+          width: `${ICON_BAR_LENGTH}px`,
+          rotate: "45deg",
+          translate: open
+            ? "-50% -50%"
+            : "calc(-50% - 3.5px) calc(-50% + 0.5px)",
+          scale: open ? `${ICON_BAR_SCALE_OPEN} 1` : "1 1",
+        }}
+      />
 
-      <svg
-        className={`absolute size-space-4 text-muted transition-[opacity,transform] duration-[var(--duration-base)] ease-[var(--ease-out)] motion-reduce:transition-none ${
-          open
-            ? "rotate-[0deg] scale-[1] opacity-100"
-            : "rotate-[-45deg] scale-[0.7] opacity-0"
-        }`}
-        fill="none"
-        viewBox="0 0 16 16"
-      >
-        <path
-          d="M14 2L2 14M2 2L14 14"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-        />
-      </svg>
+      <span
+        className={barClass}
+        style={{
+          width: `${ICON_BAR_LENGTH}px`,
+          rotate: "-45deg",
+          translate: open
+            ? "-50% -50%"
+            : "calc(-50% + 3.5px) calc(-50% + 0.5px)",
+          scale: open ? `${ICON_BAR_SCALE_OPEN} 1` : "1 1",
+        }}
+      />
     </span>
   );
 }
@@ -126,7 +122,7 @@ function FAQItem({
   return (
     <div
       data-faq-item
-      className={`relative w-full rounded-md bg-canvas transition-[box-shadow] duration-[var(--duration-base)] ease-[var(--ease-out)] motion-reduce:transition-none ${
+      className={`relative w-full rounded-md bg-canvas transition-[box-shadow] duration-[var(--duration-slow)] ease-[var(--ease-fluid)] motion-reduce:transition-none ${
         isOpen ? "shadow-lifted" : ""
       }`}
     >
@@ -135,7 +131,7 @@ function FAQItem({
           id={triggerId}
           type="button"
           onClick={onToggle}
-          className="flex w-full cursor-pointer items-start gap-space-4 text-left"
+          className="flex w-full cursor-pointer items-start gap-space-4 rounded-base text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight"
           aria-expanded={isOpen}
           aria-controls={answerId}
         >
@@ -160,7 +156,7 @@ function FAQItem({
               ScrollTrigger.refresh();
             }
           }}
-          className={`grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-[var(--duration-base)] ease-[var(--ease-out)] motion-reduce:transition-none ${
+          className={`grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-[var(--duration-slow)] ease-[var(--ease-fluid)] motion-reduce:transition-none ${
             isOpen
               ? "mt-space-2 grid-rows-[1fr] opacity-100"
               : "mt-space-0 grid-rows-[0fr] opacity-0"
@@ -253,6 +249,7 @@ export default function FAQSection() {
   return (
     <section
       ref={root}
+      id="faq"
       aria-labelledby="faq-heading"
       className="bg-canvas px-page py-section"
     >
@@ -264,13 +261,14 @@ export default function FAQSection() {
             data-faq-heading
             className="max-w-copy text-heading-2 text-ink"
           >
-            O que você pode querer saber antes de começar com a Tessele.
+            O que você pode querer saber antes de{" "}
+            <span className="text-highlight">começar</span> com a Tessele.
           </h2>
 
           <p
             data-reveal
             data-faq-copy
-            className="mt-space-6 max-w-copy text-lead text-muted"
+            className="mt-space-4 max-w-copy text-lead text-muted"
           >
             Reunimos aqui as respostas para as dúvidas mais comuns sobre
             projetos, acompanhamento, escopo e a forma como a Tessele trabalha.

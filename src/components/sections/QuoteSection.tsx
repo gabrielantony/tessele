@@ -17,13 +17,25 @@ const WORDS = QUOTE.split(" ");
  *
  * A reading distance, so it is capped rather than a multiple of the viewport:
  * the same 20 words should not cost 1.9x the wheel on a tall screen, which is
- * what `innerHeight * 1.3` used to do. 890px over 20 words is ~47px each, the
- * pace measured off the reference (18 words, ~47px of scroll per word).
+ * what `innerHeight * 1.3` used to do. 620px over 20 words is ~33px each.
  *
- * The viewport term only takes over below ~640px tall, where the cap would
- * outlast the runway the section has to give it.
+ * This was 890px, ~47px per word, taken off the reference
+ * (fathom.framer.media, 18 words at that pace). The reference's pace is right
+ * for the reference: there the sentence is the arrival. Here the curtain has
+ * already spent a viewport delivering the ground it sits on, so the reader
+ * reaches the first word having been in this colour for a while -- and 890px is
+ * then most of two screens of wheel spent on twenty words that were already
+ * legible in outline.
+ *
+ * ~33px per word changes the pace and nothing else: the stagger is normalised to
+ * the timeline, so one word is still in transit at a time. It also stays well
+ * clear of the ~20px floor below which the sentence dumps itself faster than it
+ * can be read.
+ *
+ * The viewport term takes over below 620px tall, where a full screen of scroll
+ * is already as much as that display can spare for one sentence.
  */
-const revealDistance = () => Math.round(Math.min(890, window.innerHeight * 1.4));
+const revealDistance = () => Math.round(Math.min(620, window.innerHeight));
 
 export default function QuoteSection() {
   const root = useRef<HTMLElement>(null);
@@ -51,12 +63,25 @@ export default function QuoteSection() {
           trigger: root.current,
 
           /*
-           * The words start once the dark ground fills the screen. The sticky
-           * child has already centred itself half a viewport earlier, so the
-           * sentence is in position and blank while the section is still
-           * arriving -- which is the breath before it starts, not a dead zone.
+           * The words start the moment the sentence reaches the position it will
+           * be held in -- `top center` is exactly when the section's top hits the
+           * middle of the screen, which is where `top-[50dvh]` engages the sticky.
+           *
+           * This read `top top` while the Hero scrolled straight into this
+           * section, and the half viewport between the two was a breath: the
+           * sentence sat centred and blank while the dark ground was still
+           * arriving behind it. CurtainTransition now delivers that ground a
+           * viewport earlier, and the breath stopped being a breath. Measured on a
+           * 900px-tall window: the curtain finished at y=852 and the first word
+           * did not appear until y=1812 -- 960px, better than a full screen, of a
+           * flat field with nothing happening in it. Nothing was arriving any
+           * more; it had already arrived.
+           *
+           * So this is not the reveal being rushed. It is the same breath it
+           * always was, taken back to the point where something is actually still
+           * in motion behind the sentence.
            */
-          start: "top top",
+          start: "top center",
 
           end: () => `+=${revealDistance()}`,
 
@@ -127,11 +152,16 @@ export default function QuoteSection() {
      * tall enough for everything that happens inside it, which is
      *
      *   50dvh   to carry the sentence to the middle of the screen and stick it,
-     *   890px   of reading (revealDistance's cap),
-     *   ~300px  of beat holding the finished sentence, as the reference does,
+     *   620px   of reading (revealDistance's cap),
+     *   ~180px  of beat holding the finished sentence,
      *   ~120px  for the sentence's own half-height, worst case at 3 lines,
      *
-     * so 50dvh + 1310px. A flat multiple of the viewport gets this wrong at both
+     * so 50dvh + 920px. The beat was ~300px, the reference's; it is shorter here
+     * for the same reason the reading is (see revealDistance), and because the
+     * two stack: everything the beat holds is scroll spent after the last word
+     * has landed and there is nothing left to watch.
+     *
+     * A flat multiple of the viewport gets this wrong at both
      * ends: 180dvh left only 24px of beat on a 900px-tall screen, because the
      * reading distance is a constant and does not shrink with the runway.
      *
@@ -144,7 +174,7 @@ export default function QuoteSection() {
      */
     <section
       ref={root}
-      className="relative h-[calc(50dvh+1310px)] w-full bg-accent"
+      className="relative h-[calc(50dvh+920px)] w-full bg-accent"
     >
       <div className="sticky top-[50dvh] -translate-y-1/2 px-page">
         <h2

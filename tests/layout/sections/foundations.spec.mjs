@@ -41,13 +41,20 @@ test.describe("foundations", () => {
   // is also hand-written on an anchor in OurProcessSection, so a bare selector
   // matches two elements and .first() would only find the hero by page order --
   // silently changing subject if the page is ever reordered.
-  // [data-cta-button] is owned by the shared component; the hero is the first
-  // section, and asserting that is what makes the scoping visible instead of
-  // accidental.
+  // [data-cta-button] is owned by the shared component; the hero is identified by
+  // being the section that carries the page's h1, and asserting that is what makes
+  // the scoping visible instead of accidental.
+  //
+  // This read `main > section:first-of-type` until CurtainTransition began
+  // wrapping the Hero, at which point the Hero stopped being a direct child of
+  // `main` and the selector silently retargeted the Quote section. Identifying the
+  // Hero by what it contains rather than by where it sits survives that -- and
+  // there is exactly one h1 on the page, which the count assertion below still
+  // proves.
   test("the hero CTA honours the interaction contract", async ({ page }) => {
     await gotoLanding(page, 1280);
 
-    const hero = "main > section:first-of-type";
+    const hero = "main section:has(h1)";
     await expect(
       page.locator(`${hero} [data-cta-button]`),
       "the hero does not render exactly one shared CTA button",

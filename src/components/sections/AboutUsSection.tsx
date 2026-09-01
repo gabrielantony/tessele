@@ -90,15 +90,13 @@ function Stats({ stats }: { stats: Stat[] }) {
     // Três stats devem usar uma ou três colunas para não isolar uma métrica.
     <div
       data-stats
-      className="grid grid-cols-1 gap-space-4 sm:grid-cols-3"
+      className="grid grid-cols-1 gap-space-6 sm:grid-cols-3"
     >
       {stats.map((stat) => (
         <div key={stat.label} className="flex flex-col gap-space-2">
           <strong className="text-metric text-ink">{stat.value}</strong>
 
-          <span className="text-small text-muted md:text-body">
-            {stat.label}
-          </span>
+          <span className="text-body text-muted">{stat.label}</span>
         </div>
       ))}
     </div>
@@ -199,24 +197,30 @@ function PersonRow({
       </div>
 
       {/* Desktop */}
-      <div className="hidden items-start gap-space-8 lg:grid lg:grid-cols-4">
+      <div
+        className={`hidden items-start gap-space-8 lg:grid ${
+          reverse
+            ? "lg:grid-cols-[1fr_290px]"
+            : "lg:grid-cols-[290px_1fr]"
+        }`}
+      >
         {reverse ? (
           <>
-            <div className="col-span-3" data-row-content>
+            <div data-row-content>
               <InfoCard person={person} />
             </div>
 
-            <div className="col-span-1" data-row-profile>
+            <div data-row-profile>
               <MemberIdentity person={person} />
             </div>
           </>
         ) : (
           <>
-            <div className="col-span-1" data-row-profile>
+            <div data-row-profile>
               <MemberIdentity person={person} />
             </div>
 
-            <div className="col-span-3" data-row-content>
+            <div data-row-content>
               <InfoCard person={person} />
             </div>
           </>
@@ -392,7 +396,7 @@ export default function AboutUs() {
           </h2>
         </header>
 
-        <div className="mt-space-20 flex flex-col gap-space-20 lg:mt-space-24 lg:gap-space-16">
+        <div className="mt-space-10 flex flex-col gap-space-20 lg:mt-space-24 lg:gap-space-16">
           <PersonRow person={PEOPLE[0]} />
 
           <PersonRow person={PEOPLE[1]} reverse />

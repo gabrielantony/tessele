@@ -11,6 +11,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import CTAButton from "@/components/ui/CTAButton";
+import { whatsappHref } from "@/lib/whatsapp";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -93,6 +94,71 @@ function looksLikeEmail(value: string) {
   return /[a-zA-Z@]/.test(value);
 }
 
+/*
+ * Each option needs its own sentence rather than a slot in one template: two of
+ * the three complete "O que tenho em mente é...", and the third does not --
+ * "é um ainda não sei" is not a thing anyone writes.
+ */
+const RELATIONSHIP_SENTENCES: Record<ContactType, string> = {
+  "Acompanhamento mensal": "O que tenho em mente é um acompanhamento mensal.",
+  "Projeto específico": "O que tenho em mente é um projeto específico.",
+  "Ainda não sei": "Ainda não sei bem qual formato faz sentido.",
+};
+
+/*
+ * The fields go into prose rather than `Nome: / Empresa: / Contato:` labels,
+ * which read as a form dump forwarded by a robot instead of a person writing.
+ *
+ * The cost of prose is that every sentence has to survive its field being
+ * empty on its own -- a missing label was one ugly line, but a missing name is
+ * "Meu nome é  e sou da ." So each one is assembled and then dropped if it
+ * came out empty, rather than interpolated blind.
+ */
+function buildWhatsappMessage(
+  formData: ContactFormData,
+  relationshipType: ContactType | null,
+) {
+  const name = formData.name.trim();
+  const company = formData.company.trim();
+  const contact = formData.contact.trim();
+  const message = formData.message.trim();
+
+  // "Meu nome é X" and not "Sou o X": the form has a single name field, and the
+  // second form would need a gender the visitor never gave us.
+  const who =
+    name && company
+      ? `Meu nome é ${name} e sou da ${company}.`
+      : name
+        ? `Meu nome é ${name}.`
+        : company
+          ? `Sou da ${company}.`
+          : "";
+
+  const introduction = [
+    who,
+    relationshipType ? RELATIONSHIP_SENTENCES[relationshipType] : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  /*
+   * The contact field only makes the message when it holds an e-mail. They are
+   * sending this from WhatsApp, so their number is already at the top of the
+   * chat -- repeating it back is the most robotic line the message could carry.
+   * An e-mail is the one case where the field says something new.
+   */
+  const email = looksLikeEmail(contact) ? `Meu e-mail é ${contact}.` : "";
+
+  return [
+    "Oi! Acabei de preencher o formulário no site.",
+    introduction,
+    message,
+    email,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 /* =========================
    INPUT
 ========================= */
@@ -164,12 +230,13 @@ function InputField({
           absolute
           left-space-5
           top-space-4
-          text-small-medium
+          text-body
           text-muted
 
-          transition-all
-          duration-(--duration-fast)
+          transition-[top,font-size,line-height,font-weight,letter-spacing]
+          duration-(--duration-base)
           ease-(--ease-out)
+          motion-reduce:transition-none
 
           peer-focus:top-space-2
           peer-focus:text-label
@@ -203,8 +270,13 @@ function ContactInput({
     const nextValue = event.target.value;
 
     if (looksLikeEmail(nextValue)) {
+      // The value may still carry parens from an earlier digits-only pass
+      // through formatPhone (e.g. "(18) " before "2Antony@gmail.com" was
+      // typed) — strip them now that it reads as an e-mail, not a phone.
       onChange(
-        nextValue.slice(0, MAX_EMAIL_LENGTH),
+        nextValue
+          .replace(/[()]/g, "")
+          .slice(0, MAX_EMAIL_LENGTH),
       );
       return;
     }
@@ -253,7 +325,6 @@ function ContactInput({
           px-space-5
           pb-space-2
           pt-space-6
-          pr-space-24
           text-body
           text-ink
           outline-none
@@ -268,12 +339,13 @@ function ContactInput({
           absolute
           left-space-5
           top-space-4
-          text-small-medium
+          text-body
           text-muted
 
-          transition-all
-          duration-(--duration-fast)
+          transition-[top,font-size,line-height,font-weight,letter-spacing]
+          duration-(--duration-base)
           ease-(--ease-out)
+          motion-reduce:transition-none
 
           peer-focus:top-space-2
           peer-focus:text-label
@@ -284,32 +356,6 @@ function ContactInput({
       >
         E-mail ou WhatsApp
       </label>
-
-      {value && (
-        <div
-          className="
-            pointer-events-none
-            absolute
-            inset-y-space-0
-            right-space-4
-            flex
-            items-center
-          "
-        >
-          <span
-            className="
-              rounded-full
-              bg-highlight-soft
-              px-space-2
-              py-space-1
-              text-label
-              text-accent
-            "
-          >
-            {emailMode ? "E-mail" : "WhatsApp"}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
@@ -337,11 +383,11 @@ function ContactChip({
         border
         px-space-4
         py-space-2
-        text-body-bold
 
-        transition-all
+        transition-[color,background-color,border-color,box-shadow,font-weight]
         duration-(--duration-base)
         ease-(--ease-out)
+        motion-reduce:transition-none
 
         focus-visible:outline-highlight
 
@@ -351,12 +397,14 @@ function ContactChip({
                 border-accent
                 bg-accent
                 text-on-accent
+                text-body-bold
                 shadow-control
               `
             : `
                 border-transparent
                 bg-surface-sunken
                 text-ink
+                text-body
 
                 hover:border-highlight
                 hover:bg-highlight-soft
@@ -416,7 +464,6 @@ function MessageField({
           resize-y
           bg-transparent
           p-space-5
-          pb-space-8
           text-body
           text-ink
           outline-none
@@ -425,19 +472,6 @@ function MessageField({
           selection:text-accent
         "
       />
-
-      <span
-        className="
-          pointer-events-none
-          absolute
-          bottom-space-3
-          right-space-4
-          text-label
-          text-muted
-        "
-      >
-        {value.length}
-      </span>
     </div>
   );
 }
@@ -475,10 +509,47 @@ function ContactForm() {
   ) {
     event.preventDefault();
 
-    console.log({
-      ...formData,
-      relationshipType,
-    });
+    /*
+     * Nome and the contact field gate the submit. Without them the message is a
+     * bare "preenchi o formulário" with nothing in it, which costs them a reply
+     * just to say who they are.
+     *
+     * Checked here rather than with the `required` attribute on purpose: native
+     * validation scrolls the page to the invalid field, and this button is at the
+     * bottom of the form, so the scroll pulls the button out from under the
+     * cursor mid-press. That breaks the CTA's own interaction contract -- the one
+     * assertCtaMechanics measures -- for every visitor, not just in the test.
+     *
+     * `preventScroll` is the same reason: the focus is the signal, the jump is
+     * not. TODO: this deserves a visible inline message, which is a copy and
+     * layout decision rather than something to invent here.
+     */
+    const missing = !formData.name.trim()
+      ? 'input[name="name"]'
+      : !formData.contact.trim()
+        ? 'input[name="contact"]'
+        : null;
+
+    if (missing) {
+      event.currentTarget
+        .querySelector<HTMLInputElement>(missing)
+        ?.focus({ preventScroll: true });
+      return;
+    }
+
+    /*
+     * A new tab, not a navigation: on desktop this is web.whatsapp.com, and
+     * replacing the page would throw away everything they just typed if they
+     * come back. The call is inside a submit handler that only a real click or
+     * Enter can reach, which is what keeps popup blockers out of it.
+     */
+    window.open(
+      whatsappHref(
+        buildWhatsappMessage(formData, relationshipType),
+      ),
+      "_blank",
+      "noopener,noreferrer",
+    );
   }
 
   return (
@@ -590,7 +661,14 @@ function ContactForm() {
         />
       </div>
 
-      <div data-motion="cta">
+      <div
+        data-motion="cta"
+        className="
+          flex
+          w-full
+          justify-center
+        "
+      >
         <CTAButton
           label="Quero falar do meu projeto"
           type="submit"

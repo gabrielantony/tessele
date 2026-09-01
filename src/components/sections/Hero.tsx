@@ -5,8 +5,21 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import CTAButton from "@/components/ui/CTAButton";
+import SpotlightGrid from "@/components/ui/SpotlightGrid";
+import { whatsappHref } from "@/lib/whatsapp";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
+
+/*
+ * The CTA opens WhatsApp directly rather than scrolling to the form below. The
+ * form has no backend -- WhatsApp is the only destination either path can reach
+ * -- so the only question was how many clicks to get there.
+ *
+ * Kept to one sentence on purpose: the visitor is the one who sends this, and a
+ * long message put in their mouth is a message they delete and retype.
+ */
+const WHATSAPP_MESSAGE =
+  "Oi! Vi o site de vocês e queria conversar sobre um projeto aqui da empresa.";
 
 export default function Hero() {
   const root = useRef<HTMLElement>(null);
@@ -38,6 +51,8 @@ export default function Hero() {
     <section
       ref={root}
       className="
+        relative
+        isolate
         flex
         min-h-[48.75rem]
         w-full
@@ -52,7 +67,16 @@ export default function Hero() {
         py-section
       "
     >
+      {/*
+       * `isolate` above is what makes this work: the grid sits at -z-10 so it
+       * stays behind the copy, and the stacking context keeps that negative index
+       * from dropping it behind the section's own bg-canvas, where it would be
+       * invisible.
+       */}
+      <SpotlightGrid />
+
       <div
+        data-hero-content
         className="
           flex
           w-full
@@ -139,7 +163,19 @@ export default function Hero() {
         </div>
       </div>
 
-      <CTAButton href="#contato" label="Quero falar do meu projeto" />
+      {/*
+       * The CTA is wrapped rather than marked directly because CTAButton already
+       * owns `y` and `scale` on itself for hover, press and focus. The curtain's
+       * exit tween writes `y` too, and any settle firing mid-scrub would stomp it.
+       * Two elements, two transforms, and they compose instead of fighting.
+       */}
+      <div data-hero-content>
+        <CTAButton
+          href={whatsappHref(WHATSAPP_MESSAGE)}
+          external
+          label="Quero falar do meu projeto"
+        />
+      </div>
     </section>
   );
 }

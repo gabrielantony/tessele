@@ -18,6 +18,13 @@ type CTAButtonProps =
       label: string;
       variant?: "highlight";
       fullWidth?: boolean;
+      /*
+       * Opens the link in a new tab. Every href this component is given today is
+       * a WhatsApp deep link, and those want it: on desktop the same tab would
+       * replace the page with web.whatsapp.com, so a visitor comparing plans
+       * loses the page to go and ask about one of them.
+       */
+      external?: boolean;
       type?: never;
       onClick?: never;
     }
@@ -26,6 +33,7 @@ type CTAButtonProps =
       label: string;
       variant?: "highlight";
       fullWidth?: boolean;
+      external?: never;
       type?: "button" | "submit";
       onClick?: MouseEventHandler<HTMLButtonElement>;
     };
@@ -179,10 +187,36 @@ export default function CTAButton(props: CTAButtonProps) {
     nudgeArrow(button);
   });
 
-  const handleBlur = contextSafe((event: FocusEvent<CTAElement>) =>
-    settle(event.currentTarget),
-  );
+  const handleBlur = contextSafe((event: FocusEvent<CTAElement>) => {
+    const button = event.currentTarget;
 
+    /*
+     * Losing focus is not a reason to drop out of the raised state while the
+     * cursor is still on the button -- hover owns that, and pointerleave will
+     * settle it when the cursor actually goes.
+     *
+     * This is not hypothetical tidying: the contact form's submit sends focus to
+     * the first empty field when it refuses to submit, so that blur arrives while
+     * the pointer is still down on the button -- and without this the button sank
+     * under the cursor.
+     */
+    if (canHover() && button.matches(":hover")) return;
+
+    settle(button);
+  });
+
+  /*
+   * The icon chip is anchored to the right edge -- that inset chip is the
+   * button's shape -- and the label centers on the space the chip leaves, not
+   * on the button's own middle. The chip occupies its side of the button, so
+   * the field the label answers to is the one that remains: `flex-1` stretches
+   * the label across exactly that field and centers it there.
+   *
+   * Centering on the button's geometric middle instead (a spacer mirroring the
+   * chip) puts the label at the true center but reads worse, because the eye
+   * measures the label against the chip beside it rather than against the
+   * button's invisible axis.
+   */
   const content = (
     <>
       <span className="flex h-full min-w-0 flex-1 items-center justify-center overflow-visible">
@@ -222,6 +256,8 @@ export default function CTAButton(props: CTAButtonProps) {
         data-cta-button
         data-reveal
         href={props.href}
+        target={props.external ? "_blank" : undefined}
+        rel={props.external ? "noopener noreferrer" : undefined}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
         onPointerDown={handlePointerDown}

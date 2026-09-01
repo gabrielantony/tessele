@@ -480,13 +480,21 @@ function ServiceTab({
         "group",
         "relative",
         "flex",
+        "w-full",
         "cursor-pointer",
         "items-center",
+        "justify-center",
         "gap-space-2",
         "rounded-full",
-        "px-space-6",
+        "px-space-4",
         "py-space-3",
+        "lg:w-auto",
+        "lg:px-space-6",
         "text-ink",
+        // Focus is declared here rather than left to the browser: Chrome's own
+        // ring is `outline: auto`, which ignores outline-color and paints its
+        // blue -- a colour from outside this palette.
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight",
         "transition-[background-color,color,box-shadow]",
         "duration-(--duration-base)",
         "ease-(--ease-out)",
@@ -566,10 +574,10 @@ function ServiceCard({
       role="tabpanel"
       className="w-full overflow-hidden rounded-xl bg-surface p-space-4 shadow-lifted"
     >
-      <div className="grid min-w-0 grid-cols-1 gap-space-6 md:grid-cols-5 md:items-stretch">
+      <div className="grid min-w-0 grid-cols-1 gap-space-6 lg:grid-cols-5 lg:items-stretch">
         {/* IMAGE */}
 
-        <div className="relative aspect-square min-w-0 overflow-hidden rounded-lg bg-surface-sunken md:col-span-2 md:aspect-auto">
+        <div className="relative aspect-[3/2] w-full min-w-0 overflow-hidden rounded-lg bg-surface-sunken sm:aspect-auto sm:h-64 md:h-72 lg:col-span-2 lg:aspect-auto lg:h-auto">
           <img
             key={service.image}
             data-tab-image
@@ -583,7 +591,7 @@ function ServiceCard({
 
         {/* CONTENT */}
 
-        <div className="flex min-w-0 flex-col justify-center gap-space-6 px-space-5 py-space-6 md:col-span-3 md:p-space-10">
+        <div className="flex min-w-0 flex-col justify-center gap-space-6 p-space-2 lg:col-span-3 lg:p-space-10">
           <div
             key={`${service.id}-copy`}
             data-tab-copy
@@ -1055,6 +1063,7 @@ export default function ServicosEEntregas() {
   return (
     <section
       ref={root}
+      id="servicos"
       data-name="servicos-e-entregas"
       className="bg-canvas px-page py-section"
     >
@@ -1083,7 +1092,7 @@ export default function ServicosEEntregas() {
             data-tabs
             role="tablist"
             aria-label="Áreas de atuação"
-            className="flex max-w-full flex-wrap items-center justify-center gap-space-2 rounded-full border border-border-strong bg-surface-sunken p-space-1"
+            className="flex w-full flex-col items-stretch gap-space-1 rounded-xl border border-border-strong bg-surface-sunken p-space-1 lg:w-auto lg:max-w-full lg:flex-row lg:items-center lg:justify-center lg:gap-space-2 lg:rounded-full"
           >
             {services.map((item, index) => {
               const active = activeService === index;

@@ -6,8 +6,15 @@ import { useGSAP } from "@gsap/react";
 
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { whatsappHref } from "@/lib/whatsapp";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
+
+// Picks up the section's own closing line -- "Vamos traçar o caminho" -- from
+// the visitor's side: they have just read how the studio works and want it
+// applied to their case.
+const WHATSAPP_MESSAGE =
+  "Oi! Vi como vocês trabalham e queria entender como seria pra minha empresa.";
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 const PHI_INVERSE = 1 / PHI;
@@ -266,6 +273,7 @@ export default function OurProcessSection() {
   return (
     <section
       ref={root}
+      id="como-trabalhamos"
       className="bg-canvas px-page py-section text-ink"
     >
       <div className="mx-auto w-full max-w-wide">
@@ -348,7 +356,9 @@ export default function OurProcessSection() {
             <a
               data-motion
               data-cta
-              href="#contato"
+              href={whatsappHref(WHATSAPP_MESSAGE)}
+              target="_blank"
+              rel="noopener noreferrer"
               onPointerEnter={handleFooterCtaPointerEnter}
               onPointerLeave={handleFooterCtaPointerLeave}
               onPointerDown={handleFooterCtaPointerDown}

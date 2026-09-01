@@ -102,10 +102,12 @@ const arcLength = (from: number, to: number) =>
 const CONNECTOR = { width: 32, length: 40 } as const;
 
 /*
- * Order is the sequence: each factor lights up in turn, and below 640px they
- * stack in this order too. Their place on the circle comes from `angle`, so the
- * arrangement in the design (Percepção on top, the other two below) is
- * independent of the order they animate in.
+ * Array order is the sequence, and both layouts follow it: each factor lights
+ * up in this order, and below 640px the stacked column reads top to bottom in
+ * this same order -- the reader meets Experiência, then Percepção, then
+ * Confiança, building up to the decision. `angle` is the one thing that does
+ * not follow it: it says where a factor sits on the circle, which puts
+ * Percepção at the top regardless of it being the second to light.
  */
 const FACTORS = [
   {
@@ -136,6 +138,10 @@ const MOTION = {
   arc: 0.95,
   hold: 1.2,
   reset: 0.7,
+  press: 0.16,
+  pressBack: 0.4,
+  completePulse: 1.4,
+  completePulseStagger: 0.18,
 } as const;
 
 export default function ProblemSection() {
@@ -149,6 +155,7 @@ export default function ProblemSection() {
       const layers = gsap.utils.toArray<SVGGElement>("[data-fill-layer]", root.current);
       const rings = gsap.utils.toArray<HTMLElement>("[data-card-active]", root.current);
       const pulses = gsap.utils.toArray<HTMLElement>("[data-pulse]", root.current);
+      const hubButton = gsap.utils.toArray<HTMLElement>("[data-hub-button]", root.current);
 
       if (fills.length === 0 || rings.length !== FACTORS.length) return;
 
@@ -186,7 +193,8 @@ export default function ProblemSection() {
         .set(fills, { strokeDasharray: (_index, path) => lengthOf(path) }, 0)
         .set(fills, { strokeDashoffset: (_index, path) => lengthOf(path) }, 0)
         .set(layers, { opacity: 1 }, 0)
-        .set(rings, { opacity: 0 }, 0);
+        .set(rings, { opacity: 0 }, 0)
+        .set(hubButton, { scale: 1 }, 0);
 
       FACTORS.forEach((_factor, index) => {
         const at = index * MOTION.step;
@@ -229,6 +237,39 @@ export default function ProblemSection() {
           );
         }
       });
+
+      /*
+       * The instant the last arc's stroke finishes drawing -- the circle
+       * closes -- the hub gets tapped: a quick press-down that springs back
+       * with an overshoot, echoing someone confirming the decision, and the
+       * same radar rings that ping each factor's step fire once more, bigger,
+       * to mark the moment the circle is whole.
+       */
+      const completeAt = (FACTORS.length - 1) * MOTION.step + 0.55 + MOTION.arc;
+
+      loop
+        .to(
+          hubButton,
+          { scale: 0.92, duration: MOTION.press, ease: "power1.out" },
+          completeAt,
+        )
+        .to(
+          hubButton,
+          { scale: 1, duration: MOTION.pressBack, ease: "back.out(3)" },
+          completeAt + MOTION.press,
+        )
+        .fromTo(
+          pulses,
+          { scale: 1, opacity: 0.5 },
+          {
+            scale: 2.2,
+            opacity: 0,
+            duration: MOTION.completePulse,
+            ease: "power2.out",
+            stagger: MOTION.completePulseStagger,
+          },
+          completeAt + MOTION.press,
+        );
 
       const settled = FACTORS.length * MOTION.step + MOTION.hold;
 
@@ -367,10 +408,18 @@ export default function ProblemSection() {
             * flow item ignores and an absolute one obeys, so one inline style
             * serves both layouts. Anything animated lives inside it, clear of the
             * centring translate GSAP would otherwise overwrite.
+            *
+            * `order-last` is the mobile-only exception: the hub stays the JSX's
+            * first flex child (so it keeps painting under the cards if their
+            * boxes ever touch) but the reader sees it at the very bottom, after
+            * what it is the sum of. `order-*` only takes hold while the parent
+            * is actually `display: flex` -- true below `sm`, where this wrapper
+            * is a flow item -- so it is inert from `sm` up, where the wrapper is
+            * `sm:absolute` and stops participating in flex layout at all.
             */}
           <div
             style={{ left: `${CENTER_X}%`, top: `${CENTER_Y}%` }}
-            className="w-full sm:absolute sm:w-[24%] sm:-translate-x-1/2 sm:-translate-y-1/2"
+            className="order-last w-full sm:absolute sm:w-[24%] sm:-translate-x-1/2 sm:-translate-y-1/2"
           >
             <div
               data-hub
@@ -388,7 +437,10 @@ export default function ProblemSection() {
                 className="absolute inset-0 rounded-full bg-highlight-soft opacity-0"
               />
 
-              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-highlight px-space-3 text-center">
+              <div
+                data-hub-button
+                className="absolute inset-0 flex items-center justify-center rounded-full bg-highlight px-space-3 text-center"
+              >
                 <p className="text-body-bold text-ink">Decisão de compra</p>
               </div>
             </div>
@@ -399,7 +451,48 @@ export default function ProblemSection() {
 
             return (
               <Fragment key={factor.title}>
-                {/* The stacked layout's line, one per step, same fill as a spoke. */}
+                {/*
+                  * Position and width live on this wrapper, the animation on the
+                  * card inside it. GSAP writes `transform` when it moves a card,
+                  * and that is the same property the centring translate uses.
+                  *
+                  * Rendered before its own connector so the stacked layout's line
+                  * trails the card instead of leading it: with the hub moved to
+                  * the end (see `data-hub`), a leading line on the first card
+                  * would dangle above nothing. A trailing line always has
+                  * something to lead into -- the next factor, or the hub for
+                  * whichever factor is last -- so nothing needs hiding.
+                  */}
+                <div
+                  style={{ left: `${trim(place.x)}%`, top: `${trim(place.y)}%` }}
+                  className="w-full sm:absolute sm:w-[34%] sm:-translate-x-1/2 sm:-translate-y-1/2"
+                >
+                  <div
+                    data-factor-card
+                    className="relative rounded-lg border border-hairline bg-surface px-space-4 py-space-4 text-center shadow-card"
+                  >
+                    <span
+                      data-card-active
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -inset-px rounded-lg border border-highlight bg-highlight-soft opacity-0"
+                    />
+
+                    <div className="relative">
+                      <p className="text-small-bold text-ink uppercase">
+                        {factor.title}
+                      </p>
+
+                      <p className="mt-space-2 text-small text-muted">
+                        {factor.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* The stacked layout's line, one per step, same fill as a
+                  * spoke -- it lights with this factor's own card, so trailing
+                  * it here reads as that light continuing on toward whatever
+                  * comes next. */}
                 <div
                   aria-hidden="true"
                   className="h-space-10 w-space-8 shrink-0 sm:hidden"
@@ -428,37 +521,6 @@ export default function ProblemSection() {
                       />
                     </g>
                   </svg>
-                </div>
-
-                {/*
-                  * Position and width live on this wrapper, the animation on the
-                  * card inside it. GSAP writes `transform` when it moves a card,
-                  * and that is the same property the centring translate uses.
-                  */}
-                <div
-                  style={{ left: `${trim(place.x)}%`, top: `${trim(place.y)}%` }}
-                  className="w-full sm:absolute sm:w-[34%] sm:-translate-x-1/2 sm:-translate-y-1/2"
-                >
-                  <div
-                    data-factor-card
-                    className="relative rounded-lg border border-hairline bg-surface px-space-4 py-space-4 text-center shadow-card"
-                  >
-                    <span
-                      data-card-active
-                      aria-hidden="true"
-                      className="pointer-events-none absolute -inset-px rounded-lg border border-highlight bg-highlight-soft opacity-0"
-                    />
-
-                    <div className="relative">
-                      <p className="text-small-bold text-ink uppercase">
-                        {factor.title}
-                      </p>
-
-                      <p className="mt-space-2 text-small text-muted">
-                        {factor.description}
-                      </p>
-                    </div>
-                  </div>
                 </div>
               </Fragment>
             );

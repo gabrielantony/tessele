@@ -5,7 +5,7 @@ export default function Wordmark() {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
-      className="h-auto w-56 text-accent-hover"
+      className="h-full w-full text-accent-hover"
     >
       <path d="M100.869 25.9119H64.5806V121H37.0286V25.9119H0.572571V1.71991H100.869V25.9119Z" fill="currentColor" />
       <path d="M194.796 96.8079V121H110.964V1.71991H193.284V25.9119H138.516V49.0959H185.556V71.4399H138.516V96.8079H194.796Z" fill="currentColor" />

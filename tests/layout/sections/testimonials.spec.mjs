@@ -117,7 +117,12 @@ const SHADOW_PROBE = () => {
   });
 };
 
-test.describe("testimonials", () => {
+/*
+ * The section is commented out of src/app/page.tsx until the real cases exist,
+ * so every selector below has nothing to measure. Skipped rather than deleted:
+ * the component and these tests are unchanged and come back together.
+ */
+test.describe.skip("testimonials", () => {
   for (const width of [390, 768, 1280]) {
     test(`the cases rail hides its native scrollbar at ${width}px`, async ({ page }) => {
       await gotoLanding(page, width);

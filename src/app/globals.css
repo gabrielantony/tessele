@@ -303,6 +303,57 @@
   animation: plan-beam-sweep 3s linear infinite;
 }
 
+/*
+ * A grid that only exists where the cursor is.
+ *
+ * The lines are painted across the whole layer and then masked down to a soft
+ * circle that follows the pointer, so what moves is the hole, not the grid --
+ * which is why the lines stay locked to the section instead of sliding with the
+ * cursor. Borrowed from spotlightbg.framer.website (measured 2026-09-01: a 72px
+ * grid at 30% white, masked by `radial-gradient(400px at <x> <y>)`), adapted from
+ * its black ground to this one's canvas.
+ *
+ * --color-hairline is the project's own 1px-line colour rather than a new value,
+ * and the mask fades to nothing at the edge, so only the exact centre ever
+ * reaches its full 12.5%. Everything else is fainter than the token.
+ *
+ * The two --spotlight-* lengths are written by SpotlightGrid on every frame. The
+ * defaults here are what a reader with no JS gets, and they never become visible:
+ * the layer starts at opacity 0 and only that component ever raises it.
+ */
+.spotlight-grid {
+  --spotlight-x: 50%;
+  --spotlight-y: 50%;
+  /* Roughly a third of a desktop viewport, clamped so it does not shrink to a
+     pinhole on a laptop or spread into a wash on a very wide display. Same shape
+     as --spacing-page, for the same reason. */
+  --spotlight-radius: clamp(20rem, 28vw, 34rem);
+
+  background-image:
+    linear-gradient(var(--color-hairline) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-hairline) 1px, transparent 1px);
+  /* 5rem, off the project's spacing scale, rather than the reference's 72px. */
+  background-size: var(--spacing-space-20) var(--spacing-space-20);
+
+  /* Unprefixed only -- see the note on .plan-beam above. */
+  mask: radial-gradient(
+    var(--spotlight-radius) at var(--spotlight-x) var(--spotlight-y),
+    #000 0%,
+    transparent 100%
+  );
+}
+
+/*
+ * Without a fine pointer there is no cursor to follow, and a spotlight parked
+ * wherever the last tap landed is worse than none. Removed rather than left at
+ * opacity 0 so the browser never rasterises the mask on a phone.
+ */
+@media (hover: none), (pointer: coarse) {
+  .spotlight-grid {
+    display: none;
+  }
+}
+
 /* Motion is opt-in to being disabled: anything animated must survive this. */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -313,4 +364,34 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   FOCUS
+
+   Each control declares its own focus ring, next to the rest of its styling --
+   there is no global rule painting one. What lives here is the single thing a
+   component cannot express on its own: whether the ring should appear at all.
+--------------------------------------------------------------------------- */
+
+/*
+ * Rings appear on Tab and on nothing else.
+ *
+ * `:focus-visible` on its own does not give that, because it is true for any
+ * keyboard interaction: click near the cases rail (a scroll container with
+ * tabIndex, so it takes focus silently) and the next arrow key press -- the one
+ * scrolling the page -- lights the rail up. FocusRings records which device
+ * focus came from; this turns the indicator off when it was a pointer.
+ *
+ * Unlayered on purpose: it has to beat the utilities that draw the rings, and
+ * unlayered CSS outranks every Tailwind layer.
+ *
+ * `box-shadow: none` is safe to write this broadly because the rule only ever
+ * applies to an element that is BOTH :focus-visible and pointer-focused -- a
+ * combination a click alone never produces, so it cannot reach an element whose
+ * shadow is decorative.
+ */
+:root[data-focus="pointer"] :focus-visible {
+  outline: none;
+  box-shadow: none;
 }
