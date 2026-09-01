@@ -136,6 +136,36 @@ timeline, the `ScrollTrigger` gate that pauses the orbit off-screen, or the `Res
 - Every pre-existing test still passes, including the document-overflow ones. Removing a clip
   must not reintroduce the page-widening bug those tests guard.
 
+**What actually landed, and where this plan was wrong.** `4835007` fixed the formula and
+`8efeb79` finished the phase. The suite is 87/87 in all three projects.
+
+The plan asserted that fixing the card geometry would be enough to contain the orbit once the
+clip came off. It was not. Besides the cards there are the `[data-orbit-slot]` wrappers —
+empty, `pointer-events-none`, sized to the whole orbit and rotated 120° and 240°. The bounding
+box of a rotated square is `side · (|cos| + |sin|)`, so at 120° it is 1.366× the square: those
+boxes always stuck out, and the old clip was hiding them too. Removing it widened the document
+by 18px at 390, 21px at 430, 63px at 768 and 74px at 900, and 0px from 1024 up — the band where
+the section is a single column. Bisecting confirmed it: `display: none` on the slots alone takes
+the document to 0px at every width.
+
+So the phase ends with a clip after all, and the rule below that "`overflow-hidden` and
+`overflow-x-clip` are not fixes in this plan" is too broad. The distinction that matters is not
+whether a clip exists but **whether a test would notice what it hides**:
+
+- The old clip was on the **square** and it hid **content** — cards 29px outside it, cut
+  mid-sentence — while nothing measured the cards. That is what made a real defect invisible.
+- What landed is `overflow-x-clip` on the **section**, and the only thing it contains is a
+  phantom box with no visual presence at all.
+- The square stays unclipped. A card that escapes it again bleeds over the copy rather than
+  disappearing, and `the orbit keeps its cards inside the square` fails — six widths, three
+  engines, motion and reduced motion. That test did not exist when the old clip was added. Its
+  existence, not the absence of a clip, is what makes this safe.
+
+The alternative was restructuring the slot to be card-sized with `transformOrigin` at the orbit
+centre, removing the phantom box at the root. Rejected: it rewrites the rotation mechanics the
+file's comments exist to protect, and it moves the card centres inward off the dashed circle —
+a visual change and real regression risk, in exchange for a box nobody can see.
+
 ---
 
 ### Phase 2 — the card labels fit the card
@@ -243,8 +273,10 @@ must be identical before and after.
 - No `@ts-ignore`, no `eslint-disable`, no `test.skip`, no new entry in the spec's `ALLOWED`
   object, no weakened assertion, no widened `catch`. If the only route to green passes through
   one of those, **stop and say which check would have to be turned off and why.**
-- `overflow-hidden` and `overflow-x-clip` are not fixes in this plan. They are what turned a
-  visible bug into an invisible one. Adding one back to pass a check counts as silencing it.
+- A clip is not a fix **while nothing measures what it hides** — that is what turned a visible
+  bug into an invisible one here. Adding one to make a check pass, with no assertion covering the
+  content behind it, counts as silencing that check. Phase 1 revised this rule after hitting it;
+  read its "What actually landed" note before reaching for a clip in a later phase.
 - `npm run build`, `npm run lint` and `npx playwright test` all pass before a phase is handed
   back, with output shown.
 - Commits in English, small and semantic. One phase per Codex invocation.
