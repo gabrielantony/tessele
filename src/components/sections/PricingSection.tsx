@@ -7,9 +7,17 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { CustomEase } from "gsap/CustomEase";
 import CTAButton from "@/components/ui/CTAButton";
 
-gsap.registerPlugin(ScrollTrigger, useGSAP);
+gsap.registerPlugin(ScrollTrigger, useGSAP, CustomEase);
+
+// Same curves as --ease-enter / --ease-exit in globals.css (Material 3
+// emphasized decelerate/accelerate — the UX-in-Motion enter/exit pairing).
+// GSAP can't read CSS custom properties for its `ease` option, so the
+// values are duplicated here; keep both in sync if the tokens change.
+CustomEase.create("price-enter", "0.05, 0.7, 0.1, 1");
+CustomEase.create("price-exit", "0.3, 0, 0.8, 0.15");
 
 /* ======================================================
    TYPES
@@ -99,6 +107,15 @@ const DURATION_PRIMARY = PHI_INVERSE;
 const DURATION_SECONDARY = PHI_INVERSE * PHI_INVERSE;
 const STAGGER = DURATION_SECONDARY * PHI_INVERSE;
 const OVERLAP = STAGGER;
+
+// The price swap, stepped down the same golden-ratio ladder. The old value
+// leaves in PRICE_EXIT, and the new one starts arriving at PRICE_OVERLAP --
+// well before that exit finishes, so the first character shows up in ~90ms
+// instead of waiting out a full exit first.
+const PRICE_EXIT = STAGGER * PHI_INVERSE; // ~146ms
+const PRICE_ENTER = STAGGER; // ~236ms
+const PRICE_OVERLAP = PRICE_EXIT * PHI_INVERSE; // ~90ms
+const PRICE_CHAR_STAGGER = PRICE_EXIT * PHI_INVERSE * PHI_INVERSE * PHI_INVERSE; // ~34ms
 
 function fibonacciEaseOut(progress: number) {
   return 1 - Math.pow(1 - progress, PHI_SQUARED);
@@ -254,6 +271,144 @@ function FeatureItem({ children }: { children: string }) {
 }
 
 /* ======================================================
+   PRICE
+   Swaps the value on a billing change with the old and the
+   new price on screen at once: the outgoing copy sits in an
+   absolutely-positioned layer so it can leave (--ease-exit)
+   while the incoming characters are already cascading in
+   (--ease-enter), one after another. Overlapping the two is
+   what keeps the whole swap around 500ms.
+
+   Single-pass by design. An earlier version animated the exit,
+   waited for React to swap the text, then animated the enter --
+   which meant a run interrupted between those two halves left
+   the price stuck at opacity 0 with nothing to restore it. Here
+   the visible state is the default: if no animation runs at all,
+   the current price is simply rendered.
+====================================================== */
+
+function splitPriceCharacters(value: string) {
+  // Grouping runs of non-digits ("R$ ", ".", "/mês") keeps the cascade on the
+  // part that actually changes, instead of spelling out every letter.
+  const groups: string[] = [];
+
+  for (const char of value) {
+    const isDigit = char >= "0" && char <= "9";
+    const last = groups[groups.length - 1];
+    const lastIsDigit = last !== undefined && last[0] >= "0" && last[0] <= "9";
+
+    if (!isDigit && last !== undefined && !lastIsDigit) {
+      groups[groups.length - 1] = last + char;
+    } else {
+      groups.push(char);
+    }
+  }
+
+  return groups;
+}
+
+function PriceValue({
+  price,
+  className,
+}: {
+  price: string;
+  className: string;
+}) {
+  const containerRef = useRef<HTMLParagraphElement>(null);
+
+  // Deriving during render (React's supported "adjust state when props change")
+  // rather than in an effect: it means both copies are already committed to the
+  // DOM by the time the animation below looks for them.
+  const [shown, setShown] = useState({
+    current: price,
+    previous: null as string | null,
+  });
+
+  if (shown.current !== price) {
+    setShown({ current: price, previous: shown.current });
+  }
+
+  useGSAP(
+    () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const outgoing = container.querySelector("[data-price-out]");
+      // No outgoing copy means this is the first paint, not a swap — the
+      // incoming price is already visible and must stay that way.
+      if (!outgoing) return;
+
+      const clearPrevious = () =>
+        setShown((state) => ({ ...state, previous: null }));
+
+      const prefersReducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+
+      if (prefersReducedMotion) {
+        clearPrevious();
+        return;
+      }
+
+      const incoming = container.querySelectorAll("[data-price-in] > span");
+
+      gsap
+        .timeline({ onComplete: clearPrevious })
+        .to(
+          outgoing,
+          {
+            opacity: 0,
+            yPercent: -45,
+            filter: "blur(5px)",
+            duration: PRICE_EXIT,
+            ease: "price-exit",
+          },
+          0,
+        )
+        .fromTo(
+          incoming,
+          { opacity: 0, yPercent: 55, filter: "blur(6px)" },
+          {
+            opacity: 1,
+            yPercent: 0,
+            filter: "blur(0px)",
+            duration: PRICE_ENTER,
+            ease: "price-enter",
+            stagger: PRICE_CHAR_STAGGER,
+          },
+          PRICE_OVERLAP,
+        );
+    },
+    { dependencies: [shown.current], scope: containerRef },
+  );
+
+  return (
+    <p ref={containerRef} className={`relative ${className}`}>
+      {shown.previous !== null && (
+        <span
+          data-price-out
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 top-0 whitespace-nowrap"
+        >
+          {shown.previous}
+        </span>
+      )}
+
+      <span data-price-in className="whitespace-nowrap">
+        {splitPriceCharacters(shown.current).map((group, i) => (
+          // whitespace-pre, because a group can end in a space ("R$ ") and an
+          // inline-block collapses trailing whitespace at its own edge -- which
+          // silently ran the currency symbol into the first digit.
+          <span key={i} className="inline-block whitespace-pre">
+            {group}
+          </span>
+        ))}
+      </span>
+    </p>
+  );
+}
+
+/* ======================================================
    CARD
 ====================================================== */
 
@@ -270,71 +425,88 @@ function PlanCard({
       : plan.quarterlyPrice;
 
   return (
-    <article
-      data-plan-card
-      className={[
-        "relative flex min-w-0 flex-col self-stretch",
-        "rounded-xl border bg-surface",
-        "p-space-6 pt-space-8",
-        "transition-all duration-(--duration-base) ease-(--ease-out)",
-        "hover:shadow-floating",
-        plan.featured
-          ? "border-highlight shadow-card"
-          : "border-border-strong hover:border-highlight",
-      ].join(" ")}
-    >
-      {plan.featured && (
-        <div
-          className={[
-            "absolute left-1/2 top-space-0",
-            "-translate-x-1/2 -translate-y-1/2",
-            "flex items-center gap-space-1",
-            "whitespace-nowrap rounded-base",
-            "bg-highlight px-space-3 py-space-1",
-            "text-label uppercase text-accent",
-            "shadow-control",
-          ].join(" ")}
-        >
-          <AwardIcon />
-          <span>Mais escolhido</span>
-        </div>
-      )}
+    // Two layers on purpose. The scroll reveal writes an inline transform on
+    // the wrapper, and an inline style always beats a class -- so a hover:
+    // utility on that same element would silently never apply. Giving the hover
+    // its own element keeps the two transforms from fighting over one node.
+    <div data-plan-card className="flex min-w-0">
+      <article
+        className={[
+          "group relative flex min-w-0 flex-1 flex-col",
+          // border-2 on every card, not just the featured one: the width is
+          // what reserves the space, so varying it per card would make the
+          // three of them differ by a pixel on each edge.
+          "rounded-xl border-2 bg-surface shadow-plan",
+          "p-space-6 pt-space-8 will-change-[translate,scale]",
+          // translate and scale, not transform: Tailwind v4 writes the hover
+          // lift to the individual `translate:` / `scale:` properties, so a
+          // transition naming `transform` covers none of it and the card jumps.
+          "transition-[translate,scale,box-shadow,border-color]",
+          "duration-(--duration-lift) ease-(--ease-lift)",
+          "hover:-translate-y-2 hover:scale-[1.02] hover:shadow-plan-lifted",
+          // The green edge belongs to the featured plan alone -- it is what
+          // marks that card out, so lending it to the other two on hover would
+          // undo the distinction at exactly the moment they are compared.
+          plan.featured
+            ? "plan-beam border-highlight-deep"
+            : "border-border-strong",
+        ].join(" ")}
+      >
+        {plan.featured && (
+          <div
+            className={[
+              "absolute left-1/2 top-space-0",
+              "-translate-x-1/2 -translate-y-1/2",
+              "flex items-center gap-space-1",
+              "whitespace-nowrap rounded-base",
+              "bg-highlight px-space-3 py-space-1",
+              "text-label uppercase text-accent",
+              "shadow-control",
+            ].join(" ")}
+          >
+            <AwardIcon />
+            <span>Mais escolhido</span>
+          </div>
+        )}
 
-      <div className="flex flex-1 flex-col justify-between gap-space-10">
-        <div className="flex flex-col gap-space-6">
-          <div className="flex flex-col gap-space-3">
-            <div className="flex flex-col gap-space-2">
-              <p className="text-body text-muted">{plan.name}</p>
+        <div className="flex flex-1 flex-col justify-between gap-space-10">
+          <div className="flex flex-col gap-space-6">
+            <div className="flex flex-col gap-space-3">
+              <div className="flex flex-col gap-space-2">
+                <p className="text-body text-muted">{plan.name}</p>
 
-              <p
-                key={`${plan.name}-${billing}`}
-                data-current-price
-                className="text-heading-3 tabular-nums text-accent"
-              >
-                {price}
+                <PriceValue
+                  price={price}
+                  className="text-heading-3 tabular-nums lining-nums text-accent"
+                />
+              </div>
+
+              {/* The reserved height is only worth anything from lg up, where
+                  the three cards sit side by side and their dividers should
+                  line up. Stacked, each card is alone on its row, so it just
+                  leaves a hole under a short description. */}
+              <p className="text-body text-muted lg:min-h-space-20">
+                {plan.description}
               </p>
             </div>
 
-            <p className="min-h-space-20 text-body text-muted">
-              {plan.description}
-            </p>
+            <div className="border-t border-hairline" />
+
+            <ul className="flex flex-col gap-space-4">
+              {plan.features.map((feature) => (
+                <FeatureItem key={feature}>{feature}</FeatureItem>
+              ))}
+            </ul>
           </div>
 
-          <div className="border-t border-hairline" />
-
-          <ul className="flex flex-col gap-space-4">
-            {plan.features.map((feature) => (
-              <FeatureItem key={feature}>{feature}</FeatureItem>
-            ))}
-          </ul>
+          <CTAButton
+            label="Quero este plano"
+            variant={plan.featured ? "highlight" : undefined}
+            fullWidth
+          />
         </div>
-
-        <CTAButton
-          label="Quero este plano"
-          variant={plan.featured ? "highlight" : undefined}
-        />
-      </div>
-    </article>
+      </article>
+    </div>
   );
 }
 
@@ -350,8 +522,11 @@ function PricingGrid({
   return (
     <div
       className={[
-        "grid w-full grid-cols-1",
-        "gap-space-6 pt-space-4",
+        "grid w-full grid-cols-1 gap-space-6",
+        // The top padding is clearance for the featured card's badge, which
+        // hangs above the row. Only the lg row leads with that card -- stacked,
+        // a plain card comes first and the padding is just a gap.
+        "lg:pt-space-4",
         // Uma coluna até lg, três a partir dali. Duas colunas deixariam o
         // terceiro plano sozinho numa linha pela metade — pior que a pilha.
         "lg:grid-cols-3",
@@ -403,7 +578,7 @@ function DemandSection() {
           Por demanda a partir de
         </p>
 
-        <p className="text-metric tabular-nums text-on-accent">
+        <p className="text-metric tabular-nums lining-nums text-on-accent">
           R$ 150
         </p>
 
@@ -446,7 +621,6 @@ function DemandSection() {
 
 export default function PlanosEPrecos() {
   const root = useRef<HTMLElement>(null);
-  const billingReady = useRef(false);
 
   const [billing, setBilling] =
     useState<BillingPeriod>("semestral");
@@ -532,50 +706,6 @@ export default function PlanosEPrecos() {
     },
   );
 
-  /* ------------------------------------------------------
-     Billing continuity
-  ------------------------------------------------------ */
-
-  useGSAP(
-    () => {
-      const prefersReducedMotion = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
-
-      if (prefersReducedMotion) {
-        gsap.set("[data-current-price]", {
-          clearProps: "all",
-        });
-
-        return;
-      }
-
-      if (!billingReady.current) {
-        billingReady.current = true;
-        return;
-      }
-
-      gsap.fromTo(
-        "[data-current-price]",
-        {
-          opacity: 0,
-          yPercent: 18,
-        },
-        {
-          opacity: 1,
-          yPercent: 0,
-          duration: DURATION_SECONDARY,
-          ease: fibonacciEaseOut,
-          stagger: STAGGER,
-        },
-      );
-    },
-    {
-      scope: root,
-      dependencies: [billing],
-    },
-  );
-
   return (
     <section
       ref={root}
@@ -617,12 +747,22 @@ export default function PlanosEPrecos() {
           </p>
         </header>
 
-        <BillingToggle
-          billing={billing}
-          onChange={setBilling}
-        />
+        {/* Toggle and grid are one unit: the toggle labels what the prices
+            below it say, so they sit closer together than the section's own
+            rhythm below lg, where the full gap left them reading as separate. */}
+        <div
+          className={[
+            "flex w-full flex-col items-center",
+            "gap-space-8 lg:gap-space-10",
+          ].join(" ")}
+        >
+          <BillingToggle
+            billing={billing}
+            onChange={setBilling}
+          />
 
-        <PricingGrid billing={billing} />
+          <PricingGrid billing={billing} />
+        </div>
 
         <DemandSection />
       </div>

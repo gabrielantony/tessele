@@ -20,6 +20,11 @@
   --color-on-accent-muted: #999e99;
   --color-on-accent-border: #4d594d;
   --color-highlight: #85d02d;
+  /* Same hue and saturation as --color-highlight, dropped to 35% lightness.
+     The bright green is a fill colour -- as a 2px stroke on a white card it
+     nearly disappears, and it gives a lit beam running over it nothing to
+     contrast against. */
+  --color-highlight-deep: #5e9320;
   --color-dark-canvas: #030a06;
   --color-accent-soft: rgb(17 33 24 / 5%);
   --color-highlight-soft: rgb(133 208 45 / 10%);
@@ -136,6 +141,24 @@
   --shadow-floating: 0 1.25rem 3rem rgb(3 10 6 / 8%);
   --shadow-card: 0 0.5rem 0.75rem rgb(0 0 0 / 2%);
   --shadow-control: 0 0.25rem 0.375rem rgb(0 0 0 / 5%);
+  /* The plan cards sit on the dark section, where a black shadow reads as
+     nothing: compositing black over #112118 barely moves the pixel. So the
+     lift glows in the highlight green instead -- #85d02d is far lighter than
+     the background, which is what makes it visible at all.
+     Both are the same three layers in the same hue, differing only in alpha:
+     CSS interpolates two box-shadow lists only when their lengths match, so a
+     rest/hover pair built any other way snaps instead of easing.
+     Offsets run negative on x, matching --shadow-lifted below: the whole site
+     lights its cards from the upper right, so a straight-down shadow here
+     would be the one thing casting from a different sun. */
+  --shadow-plan:
+    -0.25rem 0.5rem 1rem rgb(133 208 45 / 0%),
+    -0.75rem 1.25rem 2rem rgb(133 208 45 / 2%),
+    -1.5rem 2.5rem 3.5rem rgb(133 208 45 / 3%);
+  --shadow-plan-lifted:
+    -0.25rem 0.5rem 1rem rgb(133 208 45 / 5%),
+    -0.75rem 1.25rem 2rem rgb(133 208 45 / 8%),
+    -1.5rem 2.5rem 3.5rem rgb(133 208 45 / 10%);
   --shadow-lifted:
     -4px 6px 16px rgb(137 130 103 / 8%),
     -15px 25px 29px rgb(137 130 103 / 7%),
@@ -144,10 +167,19 @@
 
   --duration-fast: 160ms;
   --duration-base: 320ms;
+  --duration-slow: 420ms;
   --duration-editorial: 720ms;
   --ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
   --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-fluid: cubic-bezier(0.618, 0, 0.382, 1);
+  /* For something being lifted under the cursor. --ease-fluid is symmetric, so
+     it eases IN as well -- the card hangs still for a moment after the pointer
+     arrives, which is what reads as unnatural. This one leaves immediately and
+     settles past the target before coming to rest: 0.236 / 0.382 are phi^-3 and
+     phi^-2, and the 1.236 overshoot is 2*phi^-1. */
+  --ease-lift: cubic-bezier(0.236, 1.236, 0.382, 1);
+  --duration-lift: 400ms;
 }
 
 /* The font families point at variables that next/font defines on <html>, so they
@@ -204,6 +236,71 @@
     --text-lead: 1.25rem;
     --text-lead--line-height: 1.875rem;
   }
+}
+
+/*
+ * The featured plan gets a light running its perimeter, to pull the eye to that
+ * card among the three.
+ *
+ * It is a conic-gradient sized to the card and then masked down to a 2px ring,
+ * rather than an animated border or a second bordered element: the two masks
+ * cancel each other everywhere except the ring, so the gradient is only ever
+ * visible along the edge. Only --plan-beam-angle changes over time, which
+ * repaints that ring and nothing else -- no layout, no work on the card itself.
+ *
+ * The angle needs @property to animate at all: a plain custom property is a
+ * string to the animation engine and would jump from 0 to 360 instead of
+ * sweeping. Where @property is unsupported the ring simply sits still, which is
+ * also what prefers-reduced-motion gets from the block below.
+ */
+@property --plan-beam-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes plan-beam-sweep {
+  to {
+    --plan-beam-angle: 360deg;
+  }
+}
+
+.plan-beam::before {
+  content: "";
+  position: absolute;
+  /* Matches the card's border-width, so the ring lands on the border itself
+     rather than just inside it. */
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  /* The lit band is brighter than --color-highlight, because it travels over a
+     --color-highlight-deep stroke: a beam the same colour as what it runs on
+     is not a beam. It spans ~120deg so it stays on screen long enough to be
+     read as one moving light rather than a blink at the corners. */
+  background: conic-gradient(
+    from var(--plan-beam-angle),
+    transparent 0deg,
+    transparent 240deg,
+    var(--color-highlight) 285deg,
+    #f2ffd9 315deg,
+    var(--color-highlight) 345deg,
+    transparent 360deg
+  );
+  /* Makes the band read as emitting light rather than being painted on, which
+     is most of what sells the movement at this size. */
+  filter: drop-shadow(0 0 0.25rem rgb(133 208 45 / 70%));
+  /* Unprefixed only, and mask-composite last. The -webkit-mask shorthand is an
+     alias for mask in current browsers, so declaring it afterwards resets
+     mask-composite back to `add` -- which masks nothing away and floods the
+     whole card with the gradient instead of leaving a ring. */
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  /* linear because it is constant motion: any easing would make the light
+     visibly hesitate at the same corner on every pass. */
+  animation: plan-beam-sweep 3s linear infinite;
 }
 
 /* Motion is opt-in to being disabled: anything animated must survive this. */
