@@ -55,6 +55,7 @@ Use as `text-<name>`. See the modifier table below.
 | `text-heading-4` | 1.25rem | — |
 | `text-lead` | 1.125rem | 1.25rem |
 | `text-body` | 1rem | — |
+| `text-body-medium` | 1rem | — |
 | `text-body-bold` | 1rem | — |
 | `text-small` | 0.875rem | — |
 | `text-small-bold` | 0.875rem | — |
@@ -100,6 +101,8 @@ Use as `max-w-<name>`.
 | `max-w-narrow` | 48rem |
 | `max-w-content` | 68rem |
 | `max-w-wide` | 70rem |
+| `max-w-testimonial` | 58rem |
+| `max-w-testimonial-compact` | 39rem |
 
 ## Radius
 
@@ -112,6 +115,8 @@ Use as `rounded-<name>`.
 | `rounded-md` | 0.75rem |
 | `rounded-lg` | 1.5rem |
 | `rounded-xl` | 2rem |
+| `rounded-2xl` | 2.25rem |
+| `rounded-3xl` | 3rem |
 | `rounded-full` | 999px |
 
 ## Shadow
@@ -140,6 +145,7 @@ one overrides the token and is always wrong.
 | `text-heading-4` | 1.25rem / 1.75rem / 700 / 0 |
 | `text-lead` | 1.125rem / 1.75rem / 500 / — |
 | `text-body` | 1rem / 1.5rem / 400 / 0 |
+| `text-body-medium` | 1rem / 1.5rem / 500 / 0 |
 | `text-body-bold` | 1rem / 1.5rem / 700 / 0 |
 | `text-small` | 0.875rem / 1.25rem / 400 / — |
 | `text-small-bold` | 0.875rem / 1.25rem / 700 / 0 |

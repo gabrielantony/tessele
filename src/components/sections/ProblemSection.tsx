@@ -1,163 +1,299 @@
 "use client";
 
-import { useRef } from "react";
+import { Fragment, useRef } from "react";
 
 import { useGSAP } from "@gsap/react";
 
 import gsap from "gsap";
 
-import { CustomEase } from "gsap/CustomEase";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-gsap.registerPlugin(useGSAP, CustomEase, ScrollTrigger);
+gsap.registerPlugin(useGSAP, ScrollTrigger);
 
-const FIBONACCI = {
-  orbitDuration: 21,
-  pulseDuration: 2.33,
-  pulseDelay: 1.44,
-  pulseRepeatDelay: 1.44,
-  pulseScale: 1.618,
-  pulseOpacity: 0.34,
-} as const;
+/* ---------------------------------------------------------------------------
+   Geometry, in the 0-100 space of the diagram's square.
 
-const orbitItems = [
+   Every position on this diagram derives from these four numbers -- the SVG
+   reads them for its circle, spokes and arcs, and the cards read them for their
+   `left`/`top`. Nothing measures a rendered box to place anything, which is what
+   the previous orbit did: it derived the cards' inward offset from their
+   rendered width at init, and that number went stale on every resize and was
+   wrong on every viewport where the cards were taller than wide.
+--------------------------------------------------------------------------- */
+const CENTER_X = 50;
+/*
+ * The circle's centre sits below the square's, because the space around it is not
+ * symmetric: one card stands above the circle and two below it, so the top edge
+ * needs ORBIT_RADIUS + half a card of room while the bottom needs only
+ * 0.707 * ORBIT_RADIUS + half a card. Centring the circle would spend that
+ * difference as dead space at the bottom and take it out of the top card's
+ * clearance -- which is where the escape measured 31px before this moved.
+ */
+const CENTER_Y = 55;
+/*
+ * The three numbers that set how much air the diagram has, and the order they
+ * were tuned in: the circle carries the cards as far out as the tallest card
+ * allows, the hub keeps its share of the middle small, and the spoke spans the
+ * gap that opens up between them.
+ *
+ * The binding constraint is the top card, whose own edge reaches
+ * ORBIT_RADIUS + half its height above the centre. The narrowest square this
+ * layout runs at is ~496px, at exactly 1280px of viewport where the section
+ * splits into two columns -- a card is ~25% of that square tall (title, three
+ * lines of description, padding), which leaves ORBIT_RADIUS about 42. 37 keeps a
+ * real margin, and `the diagram holds its cards and hub inside the square` in
+ * tests/layout/sections/problem.spec.mjs is what measures it at every width.
+ */
+const ORBIT_RADIUS = 37;
+// Half the hub's diameter: the hub is `sm:size-[24%]` of the square.
+const HUB_RADIUS = 12;
+const SPOKE_START = HUB_RADIUS + 4;
+const SPOKE_END = 25.5;
+
+const radians = (degrees: number) => (degrees * Math.PI) / 180;
+
+// Screen coordinates: y grows downward, so the sine is subtracted. 90deg is the
+// top of the circle, and angles increase counter-clockwise on screen.
+const pointAt = (angle: number, radius: number) => ({
+  x: CENTER_X + radius * Math.cos(radians(angle)),
+  y: CENTER_Y - radius * Math.sin(radians(angle)),
+});
+
+const trim = (value: number) => Math.round(value * 100) / 100;
+
+const spokePath = (angle: number) => {
+  const from = pointAt(angle, SPOKE_START);
+  const to = pointAt(angle, SPOKE_END);
+
+  return `M ${trim(from.x)} ${trim(from.y)} L ${trim(to.x)} ${trim(to.y)}`;
+};
+
+// How far the sequence travels around the circle to get from one card to the
+// next, clockwise on screen -- which is the direction of decreasing angle.
+const sweep = (from: number, to: number) => (((from - to) % 360) + 360) % 360;
+
+const arcPath = (from: number, to: number) => {
+  const start = pointAt(from, ORBIT_RADIUS);
+  const end = pointAt(to, ORBIT_RADIUS);
+  const largeArc = sweep(from, to) > 180 ? 1 : 0;
+
+  return [
+    `M ${trim(start.x)} ${trim(start.y)}`,
+    `A ${ORBIT_RADIUS} ${ORBIT_RADIUS} 0 ${largeArc} 1 ${trim(end.x)} ${trim(end.y)}`,
+  ].join(" ");
+};
+
+/*
+ * The green line is hidden behind a dash gap as long as the line itself, and
+ * drawing it is one property: `stroke-dashoffset` from its length to zero.
+ *
+ * The length is computed here rather than read from `getTotalLength()` at
+ * runtime because half of these paths live in a `display: none` subtree at any
+ * given viewport -- the circle below 640px, the vertical connectors above it --
+ * and a geometry API on an unrendered element is not something to depend on.
+ * Both shapes have a closed form anyway.
+ */
+const SPOKE_LENGTH = SPOKE_END - SPOKE_START;
+const arcLength = (from: number, to: number) =>
+  trim(ORBIT_RADIUS * radians(sweep(from, to)));
+
+// The stacked layout below 640px: viewBox units of one connector, which is also
+// the length of the line inside it.
+const CONNECTOR = { width: 32, length: 40 } as const;
+
+/*
+ * Array order is the sequence, and both layouts follow it: each factor lights
+ * up in this order, and below 640px the stacked column reads top to bottom in
+ * this same order -- the reader meets Experiência, then Percepção, then
+ * Confiança, building up to the decision. `angle` is the one thing that does
+ * not follow it: it says where a factor sits on the circle, which puts
+ * Percepção at the top regardless of it being the second to light.
+ */
+const FACTORS = [
+  {
+    title: "Experiência",
+    description: "o que elas sentem ao entrar em contato",
+    angle: 225,
+  },
   {
     title: "Percepção",
     description: "o que as pessoas imaginam sobre sua marca",
+    angle: 90,
   },
   {
     title: "Confiança",
     description: "o que faz alguém escolher sua empresa",
+    angle: 315,
   },
-  {
-    title: "Experiência",
-    description: "o que elas sentem ao entrar em contato",
-  },
-];
+] as const;
+
+/* Seconds. One factor lands every `step`; the loop holds on the completed
+   circle, fades it out and starts over. */
+const MOTION = {
+  step: 1.6,
+  pulse: 1.2,
+  pulseStagger: 0.2,
+  spoke: 0.5,
+  card: 0.35,
+  arc: 0.95,
+  hold: 1.2,
+  reset: 0.7,
+  press: 0.16,
+  pressBack: 0.4,
+  completePulse: 1.4,
+  completePulseStagger: 0.18,
+} as const;
 
 export default function ProblemSection() {
   const root = useRef<HTMLElement>(null);
 
   useGSAP(
     () => {
-      const rotor =
-        root.current?.querySelector<HTMLElement>("[data-orbit-rotor]");
+      if (!root.current) return;
 
-      const orbitSlots = gsap.utils.toArray<HTMLElement>("[data-orbit-slot]", root.current);
+      const fills = gsap.utils.toArray<SVGPathElement>("[data-fill]", root.current);
+      const layers = gsap.utils.toArray<SVGGElement>("[data-fill-layer]", root.current);
+      const rings = gsap.utils.toArray<HTMLElement>("[data-card-active]", root.current);
+      const pulses = gsap.utils.toArray<HTMLElement>("[data-pulse]", root.current);
+      const hubButton = gsap.utils.toArray<HTMLElement>("[data-hub-button]", root.current);
 
-      const orbitCards = gsap.utils.toArray<HTMLElement>("[data-orbit-card]", root.current);
+      if (fills.length === 0 || rings.length !== FACTORS.length) return;
 
-      const pulses =
-        gsap.utils.toArray<HTMLElement>("[data-pulse]", root.current);
-
-      if (!rotor || orbitSlots.length === 0 || orbitCards.length === 0) {
-        return;
-      }
-
-      const prefersReducedMotion = window.matchMedia(
+      const reducedMotion = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
       ).matches;
 
-      const angleStep = 360 / orbitSlots.length;
+      /*
+       * Nothing to undo: the resting markup IS the design's own state -- grey
+       * dashed circle, no card lit -- because the green layer carries
+       * `opacity="0"` and the cards' green ring `opacity-0` as attributes rather
+       * than being put there by this hook. So a reduced-motion visitor, and a
+       * visitor whose JS never runs, both get the diagram rather than a frame of
+       * an animation that stopped.
+       */
+      if (reducedMotion) return;
 
-      CustomEase.create(
-        "fibonacciFlow",
-        "M0,0 C0.13,0.55 0.34,1 1,1",
-      );
+      const lengthOf = (path: SVGPathElement) => Number(path.dataset.fillLength);
+
+      const fillsFor = (index: number, kind: "spoke" | "arc") =>
+        fills.filter(
+          (path) =>
+            path.dataset.fill === String(index) && path.dataset.fillKind === kind,
+        );
+
+      const loop = gsap.timeline({ repeat: -1, paused: true });
 
       /*
-       * Cada slot ocupa a área da órbita, mas o conteúdo fica
-       * preso ao topo. Isso impede o flex de esticar os cards.
+       * The cycle's own opening frame, at position 0 so it re-applies on every
+       * repeat. Without it the second cycle would start with the arcs from the
+       * first still drawn: each step resets only its own line, and steps 2 and 3
+       * do not reach their reset until seconds into the cycle.
        */
-      gsap.set(orbitSlots, {
-        rotation: (index) => index * angleStep,
-        transformOrigin: "50% 50%",
-      });
+      loop
+        .set(fills, { strokeDasharray: (_index, path) => lengthOf(path) }, 0)
+        .set(fills, { strokeDashoffset: (_index, path) => lengthOf(path) }, 0)
+        .set(layers, { opacity: 1 }, 0)
+        .set(rings, { opacity: 0 }, 0)
+        .set(hubButton, { scale: 1 }, 0);
 
-      /*
-       * O deslocamento coloca o centro do card sobre a linha
-       * da órbita. A rotação inversa mantém o texto sempre reto.
-       */
-      gsap.set(orbitCards, {
-        yPercent: -50,
-        rotation: (index) => -(index * angleStep),
-        transformOrigin: "50% 50%",
-      });
+      FACTORS.forEach((_factor, index) => {
+        const at = index * MOTION.step;
+        const spokes = fillsFor(index, "spoke");
+        const arcs = fillsFor(index, "arc");
 
-      gsap.set(rotor, { transformOrigin: "50% 50%" });
-
-      gsap.set(pulses, {
-        opacity: 0,
-        scale: 1,
-        transformOrigin: "50% 50%",
-      });
-
-      if (prefersReducedMotion) {
-        return;
-      }
-
-      /*
-       * O rotor e a compensação dos cards vivem na MESMA timeline. Como dois
-       * tweens infinitos separados, eles dependiam de continuar em fase por
-       * 21s para sempre — e qualquer deriva entre os dois inclina o texto
-       * progressivamente. Um relógio só não pode sair de fase consigo mesmo.
-       */
-      const orbit = gsap
-        .timeline({ repeat: -1, paused: true })
-        .to(rotor, {
-          rotation: 360,
-          duration: FIBONACCI.orbitDuration,
-          ease: "none",
-        }, 0)
-        .to(orbitCards, {
-          rotation: "-=360",
-          duration: FIBONACCI.orbitDuration,
-          ease: "none",
-        }, 0);
-
-      const pulseTweens = pulses.map((pulse, index) =>
-        gsap.fromTo(
-          pulse,
+        // The hub answers first, then the line leaves it.
+        loop.fromTo(
+          pulses,
+          { scale: 1, opacity: 0.34 },
           {
-            opacity: FIBONACCI.pulseOpacity,
-            scale: 1,
-          },
-          {
+            scale: 1.75,
             opacity: 0,
-            scale: FIBONACCI.pulseScale,
-            duration: FIBONACCI.pulseDuration,
-            delay: index * FIBONACCI.pulseDelay,
-            repeat: -1,
-            repeatDelay: FIBONACCI.pulseRepeatDelay,
-            ease: "fibonacciFlow",
-            paused: true,
+            duration: MOTION.pulse,
+            ease: "power2.out",
+            stagger: MOTION.pulseStagger,
           },
-        ),
-      );
+          at,
+        );
 
-      const running = [orbit, ...pulseTweens];
+        loop.to(
+          spokes,
+          { strokeDashoffset: 0, duration: MOTION.spoke, ease: "power2.out" },
+          at + 0.1,
+        );
+
+        loop.to(
+          rings[index],
+          { opacity: 1, duration: MOTION.card, ease: "none" },
+          at + 0.45,
+        );
+
+        // Only the circle layout has arcs; the stacked one has a single line per
+        // step, so this leg is simply absent below 640px.
+        if (arcs.length > 0) {
+          loop.to(
+            arcs,
+            { strokeDashoffset: 0, duration: MOTION.arc, ease: "none" },
+            at + 0.55,
+          );
+        }
+      });
 
       /*
-       * Sem isto a órbita gira para sempre, inclusive com a seção fora da tela
-       * — uma animação de transform contínua que nunca para custa bateria e
-       * CPU num lugar onde ninguém está olhando.
+       * The instant the last arc's stroke finishes drawing -- the circle
+       * closes -- the hub gets tapped: a quick press-down that springs back
+       * with an overshoot, echoing someone confirming the decision, and the
+       * same radar rings that ping each factor's step fire once more, bigger,
+       * to mark the moment the circle is whole.
+       */
+      const completeAt = (FACTORS.length - 1) * MOTION.step + 0.55 + MOTION.arc;
+
+      loop
+        .to(
+          hubButton,
+          { scale: 0.92, duration: MOTION.press, ease: "power1.out" },
+          completeAt,
+        )
+        .to(
+          hubButton,
+          { scale: 1, duration: MOTION.pressBack, ease: "back.out(3)" },
+          completeAt + MOTION.press,
+        )
+        .fromTo(
+          pulses,
+          { scale: 1, opacity: 0.5 },
+          {
+            scale: 2.2,
+            opacity: 0,
+            duration: MOTION.completePulse,
+            ease: "power2.out",
+            stagger: MOTION.completePulseStagger,
+          },
+          completeAt + MOTION.press,
+        );
+
+      const settled = FACTORS.length * MOTION.step + MOTION.hold;
+
+      loop
+        .to(layers, { opacity: 0, duration: MOTION.reset, ease: "none" }, settled)
+        .to(rings, { opacity: 0, duration: MOTION.reset, ease: "none" }, settled);
+
+      /*
+       * Off-screen the loop is paused. A timeline that never stops costs battery
+       * and CPU where nobody is looking, and this one runs for as long as the
+       * page is open.
        */
       const gate = ScrollTrigger.create({
         trigger: root.current,
         start: "top bottom",
         end: "bottom top",
         onToggle: (self) => {
-          for (const animation of running) {
-            if (self.isActive) animation.play();
-            else animation.pause();
-          }
+          if (self.isActive) loop.play();
+          else loop.pause();
         },
       });
 
-      // onToggle não dispara para um estado que já era verdadeiro na criação.
-      if (gate.isActive) {
-        for (const animation of running) animation.play();
-      }
+      // onToggle does not fire for a state that was already true at creation.
+      if (gate.isActive) loop.play();
     },
     { scope: root },
   );
@@ -165,131 +301,230 @@ export default function ProblemSection() {
   return (
     <section
       ref={root}
-      className="bg-canvas px-page py-section"
+      className="overflow-x-clip bg-canvas px-page py-section"
     >
-      <div className="mx-auto grid w-full max-w-wide grid-cols-1 items-center gap-space-12 lg:grid-cols-2 lg:gap-space-24">
+      <div className="mx-auto grid w-full max-w-wide grid-cols-1 items-center gap-space-10 xl:grid-cols-2 xl:gap-space-16">
         <div>
           <p className="inline-block rounded-base bg-highlight px-space-3 py-space-1-5 text-label text-ink uppercase">
             Quando tudo vira prioridade
           </p>
 
-          <h2 className="mt-space-6 max-w-copy text-heading-2 text-ink">
+          {/* The nbsp is load-bearing: it ties the highlighted last word to the
+            * one before it, so the heading can never end on a line holding only
+            * "avançar." -- which is what it did at the width this column has from
+            * lg up. `text-balance` evens the rag on top of that, where it is
+            * supported; the tie does not depend on it. */}
+          <h2 className="mt-space-4 max-w-copy text-heading-2 text-balance text-ink">
             Você testa, muda, publica, investe. Mas ainda fica difícil saber o
-            que realmente faz a empresa{" "}
+            que realmente faz a empresa&nbsp;
             <span className="text-highlight">avançar</span>.
           </h2>
 
-          <p className="mt-space-8 max-w-copy text-lead text-muted">
+          {/* The same tie as the heading above, on the closing phrase: without it
+            * this paragraph's last line was "e orçamento." alone -- two words
+            * split from the "tempo, equipe" they belong with. Gluing the whole
+            * closing run moves the wrap earlier instead, so the last line reads
+            * as a full phrase at every width this column takes. */}
+          <p className="mt-space-4 max-w-copy text-lead text-muted">
             Uma campanha funciona por um tempo. O site recebe ajustes. O
             conteúdo continua saindo. Surge uma nova ideia e ela também entra
             na fila. Quando cada decisão nasce isolada, fica difícil separar o
-            que merece mais investimento do que só está consumindo tempo,
-            equipe e orçamento.
+            que merece mais investimento do que só está consumindo
+            tempo,&nbsp;equipe&nbsp;e&nbsp;orçamento.
           </p>
         </div>
 
-        <div className="relative aspect-square w-full max-w-narrow justify-self-center lg:justify-self-end">
-          {/* Órbita fixa */}
+        {/*
+          * Two layouts, one set of cards. From 640px the container is a square and
+          * its children are placed on the circle by percentage; below it the same
+          * children are a plain column with a dashed connector between each pair.
+          *
+          * The switch is there because the cards keep a fixed type size while the
+          * square is fluid: three cards around a circle inside a 280px column is
+          * the arrangement that produced a 14px uppercase word in a 72px box.
+          */}
+        <div
+          data-diagram
+          className="relative flex w-full max-w-narrow flex-col items-center gap-space-3 justify-self-center sm:block sm:aspect-square xl:justify-self-end"
+        >
           <svg
             aria-hidden="true"
             viewBox="0 0 100 100"
-            className="pointer-events-none absolute inset-space-8 h-auto w-auto text-hairline"
+            className="pointer-events-none absolute inset-0 hidden size-full sm:block"
           >
-            <circle
-              cx="50"
-              cy="50"
-              r="49"
+            <g
+              className="text-hairline"
               fill="none"
               stroke="currentColor"
               strokeWidth="0.4"
               strokeDasharray="1.5 1.5"
-            />
+              strokeLinecap="round"
+            >
+              <circle cx={CENTER_X} cy={CENTER_Y} r={ORBIT_RADIUS} />
+
+              {FACTORS.map((factor) => (
+                <path key={factor.title} d={spokePath(factor.angle)} />
+              ))}
+            </g>
+
+            {/* The green pass, drawn over the dashed one it replaces. */}
+            <g
+              data-fill-layer
+              opacity="0"
+              className="text-highlight"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="0.55"
+              strokeLinecap="round"
+            >
+              {FACTORS.map((factor, index) => {
+                const next = FACTORS[(index + 1) % FACTORS.length];
+
+                return (
+                  <Fragment key={factor.title}>
+                    <path
+                      data-fill={index}
+                      data-fill-kind="spoke"
+                      data-fill-length={SPOKE_LENGTH}
+                      d={spokePath(factor.angle)}
+                    />
+
+                    <path
+                      data-fill={index}
+                      data-fill-kind="arc"
+                      data-fill-length={arcLength(factor.angle, next.angle)}
+                      d={arcPath(factor.angle, next.angle)}
+                    />
+                  </Fragment>
+                );
+              })}
+            </g>
           </svg>
 
-          {/* Elementos que percorrem a órbita */}
+          {/*
+            * The hub, and the two rings that leave it on every step.
+            *
+            * Same split as the cards below: `left`/`top` on the wrapper, which a
+            * flow item ignores and an absolute one obeys, so one inline style
+            * serves both layouts. Anything animated lives inside it, clear of the
+            * centring translate GSAP would otherwise overwrite.
+            *
+            * `order-last` is the mobile-only exception: the hub stays the JSX's
+            * first flex child (so it keeps painting under the cards if their
+            * boxes ever touch) but the reader sees it at the very bottom, after
+            * what it is the sum of. `order-*` only takes hold while the parent
+            * is actually `display: flex` -- true below `sm`, where this wrapper
+            * is a flow item -- so it is inert from `sm` up, where the wrapper is
+            * `sm:absolute` and stops participating in flex layout at all.
+            */}
           <div
-            data-orbit-rotor
-            className="pointer-events-none absolute inset-space-8"
+            style={{ left: `${CENTER_X}%`, top: `${CENTER_Y}%` }}
+            className="order-last w-full sm:absolute sm:w-[24%] sm:-translate-x-1/2 sm:-translate-y-1/2"
           >
-            {orbitItems.map((item) => (
+            <div
+              data-hub
+              className="relative mx-auto size-space-32 sm:size-full sm:aspect-square"
+            >
+              <span
+                data-pulse
+                aria-hidden="true"
+                className="absolute inset-0 rounded-full bg-highlight-soft opacity-0"
+              />
+
+              <span
+                data-pulse
+                aria-hidden="true"
+                className="absolute inset-0 rounded-full bg-highlight-soft opacity-0"
+              />
+
               <div
-                key={item.title}
-                data-orbit-slot
-                className="absolute inset-space-0 flex items-start justify-center"
+                data-hub-button
+                className="absolute inset-0 flex items-center justify-center rounded-full bg-highlight px-space-3 text-center"
               >
-                <div
-                  data-orbit-card
-                  className="w-space-24 shrink-0 rounded-lg border border-hairline bg-surface px-space-3 py-space-3 text-center shadow-card sm:w-space-32 sm:px-space-4 sm:py-space-4 lg:w-space-40 lg:px-space-5 lg:py-space-5"
-                >
-                  <p className="text-small-bold text-ink uppercase">
-                    {item.title}
-                  </p>
-
-                  <p className="mt-space-2 text-small text-muted">
-                    {item.description}
-                  </p>
-                </div>
+                <p className="text-body-bold text-ink">Decisão de compra</p>
               </div>
-            ))}
-          </div>
-
-          {/* Conexões fixas com o centro */}
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 100 100"
-            className="pointer-events-none absolute inset-space-8 h-auto w-auto text-hairline"
-          >
-            <line
-              x1="50"
-              y1="40"
-              x2="50"
-              y2="18"
-              stroke="currentColor"
-              strokeWidth="0.4"
-              strokeDasharray="1.5 1.5"
-            />
-
-            <line
-              x1="41"
-              y1="55"
-              x2="22"
-              y2="67"
-              stroke="currentColor"
-              strokeWidth="0.4"
-              strokeDasharray="1.5 1.5"
-            />
-
-            <line
-              x1="59"
-              y1="55"
-              x2="78"
-              y2="67"
-              stroke="currentColor"
-              strokeWidth="0.4"
-              strokeDasharray="1.5 1.5"
-            />
-          </svg>
-
-          {/* Centro */}
-          <div className="pointer-events-none absolute inset-space-0 flex items-center justify-center">
-            <div
-              data-pulse
-              aria-hidden="true"
-              className="absolute size-space-24 rounded-full bg-highlight-soft sm:size-space-32 lg:size-space-40"
-            />
-
-            <div
-              data-pulse
-              aria-hidden="true"
-              className="absolute size-space-24 rounded-full bg-highlight-soft sm:size-space-32 lg:size-space-40"
-            />
-
-            <div className="relative flex size-space-24 items-center justify-center rounded-full bg-highlight px-space-3 text-center sm:size-space-32 sm:px-space-5 lg:size-space-40 lg:px-space-6">
-              <p className="text-body-bold text-ink">
-                Decisão de compra
-              </p>
             </div>
           </div>
+
+          {FACTORS.map((factor, index) => {
+            const place = pointAt(factor.angle, ORBIT_RADIUS);
+
+            return (
+              <Fragment key={factor.title}>
+                {/*
+                  * Position and width live on this wrapper, the animation on the
+                  * card inside it. GSAP writes `transform` when it moves a card,
+                  * and that is the same property the centring translate uses.
+                  *
+                  * Rendered before its own connector so the stacked layout's line
+                  * trails the card instead of leading it: with the hub moved to
+                  * the end (see `data-hub`), a leading line on the first card
+                  * would dangle above nothing. A trailing line always has
+                  * something to lead into -- the next factor, or the hub for
+                  * whichever factor is last -- so nothing needs hiding.
+                  */}
+                <div
+                  style={{ left: `${trim(place.x)}%`, top: `${trim(place.y)}%` }}
+                  className="w-full sm:absolute sm:w-[34%] sm:-translate-x-1/2 sm:-translate-y-1/2"
+                >
+                  <div
+                    data-factor-card
+                    className="relative rounded-lg border border-hairline bg-surface px-space-4 py-space-4 text-center shadow-card"
+                  >
+                    <span
+                      data-card-active
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -inset-px rounded-lg border border-highlight bg-highlight-soft opacity-0"
+                    />
+
+                    <div className="relative">
+                      <p className="text-small-bold text-ink uppercase">
+                        {factor.title}
+                      </p>
+
+                      <p className="mt-space-2 text-small text-muted">
+                        {factor.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* The stacked layout's line, one per step, same fill as a
+                  * spoke -- it lights with this factor's own card, so trailing
+                  * it here reads as that light continuing on toward whatever
+                  * comes next. */}
+                <div
+                  aria-hidden="true"
+                  className="h-space-10 w-space-8 shrink-0 sm:hidden"
+                >
+                  <svg viewBox={`0 0 ${CONNECTOR.width} ${CONNECTOR.length}`} className="size-full">
+                    <path
+                      className="text-hairline"
+                      d={`M ${CONNECTOR.width / 2} 0 L ${CONNECTOR.width / 2} ${CONNECTOR.length}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeDasharray="6 6"
+                      strokeLinecap="round"
+                    />
+
+                    <g data-fill-layer opacity="0" className="text-highlight">
+                      <path
+                        data-fill={index}
+                        data-fill-kind="spoke"
+                        data-fill-length={CONNECTOR.length}
+                        d={`M ${CONNECTOR.width / 2} 0 L ${CONNECTOR.width / 2} ${CONNECTOR.length}`}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.6"
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  </svg>
+                </div>
+              </Fragment>
+            );
+          })}
         </div>
       </div>
     </section>

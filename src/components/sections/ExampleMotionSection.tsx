@@ -51,7 +51,7 @@ export default function ExampleMotionSection() {
       ref={root}
       className="bg-surface-sunken px-page py-section"
     >
-      <div className="mx-auto w-full max-w-(--container-content)">
+      <div className="mx-auto w-full max-w-content">
         <p data-reveal className="text-label text-muted uppercase">
           Motion section
         </p>

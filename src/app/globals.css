@@ -20,6 +20,11 @@
   --color-on-accent-muted: #999e99;
   --color-on-accent-border: #4d594d;
   --color-highlight: #85d02d;
+  /* Same hue and saturation as --color-highlight, dropped to 35% lightness.
+     The bright green is a fill colour -- as a 2px stroke on a white card it
+     nearly disappears, and it gives a lit beam running over it nothing to
+     contrast against. */
+  --color-highlight-deep: #5e9320;
   --color-dark-canvas: #030a06;
   --color-accent-soft: rgb(17 33 24 / 5%);
   --color-highlight-soft: rgb(133 208 45 / 10%);
@@ -58,6 +63,10 @@
   --text-body--line-height: 1.5rem;
   --text-body--font-weight: 400;
   --text-body--letter-spacing: 0;
+  --text-body-medium: 1rem;
+  --text-body-medium--line-height: 1.5rem;
+  --text-body-medium--font-weight: 500;
+  --text-body-medium--letter-spacing: 0;
   --text-body-bold: 1rem;
   --text-body-bold--line-height: 1.5rem;
   --text-body-bold--font-weight: 700;
@@ -113,17 +122,43 @@
   --container-narrow: 48rem;
   --container-content: 68rem;
   --container-wide: 70rem;
+  --container-testimonial: 58rem;
+  --container-testimonial-compact: 39rem;
 
   --radius-sm: 0.25rem;
   --radius-base: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1.5rem;
   --radius-xl: 2rem;
+  /* The two testimonial-card radii, which follow the design's nested-radius
+     rule: outer = inner + padding (12 + 24 = 36; 32 + 16 = 48). Both names
+     exist in stock Tailwind at other values -- redefining them here is the same
+     move --radius-lg and --radius-xl above already make. */
+  --radius-2xl: 2.25rem;
+  --radius-3xl: 3rem;
   --radius-full: 999px;
 
   --shadow-floating: 0 1.25rem 3rem rgb(3 10 6 / 8%);
   --shadow-card: 0 0.5rem 0.75rem rgb(0 0 0 / 2%);
   --shadow-control: 0 0.25rem 0.375rem rgb(0 0 0 / 5%);
+  /* The plan cards sit on the dark section, where a black shadow reads as
+     nothing: compositing black over #112118 barely moves the pixel. So the
+     lift glows in the highlight green instead -- #85d02d is far lighter than
+     the background, which is what makes it visible at all.
+     Both are the same three layers in the same hue, differing only in alpha:
+     CSS interpolates two box-shadow lists only when their lengths match, so a
+     rest/hover pair built any other way snaps instead of easing.
+     Offsets run negative on x, matching --shadow-lifted below: the whole site
+     lights its cards from the upper right, so a straight-down shadow here
+     would be the one thing casting from a different sun. */
+  --shadow-plan:
+    -0.25rem 0.5rem 1rem rgb(133 208 45 / 0%),
+    -0.75rem 1.25rem 2rem rgb(133 208 45 / 2%),
+    -1.5rem 2.5rem 3.5rem rgb(133 208 45 / 3%);
+  --shadow-plan-lifted:
+    -0.25rem 0.5rem 1rem rgb(133 208 45 / 5%),
+    -0.75rem 1.25rem 2rem rgb(133 208 45 / 8%),
+    -1.5rem 2.5rem 3.5rem rgb(133 208 45 / 10%);
   --shadow-lifted:
     -4px 6px 16px rgb(137 130 103 / 8%),
     -15px 25px 29px rgb(137 130 103 / 7%),
@@ -132,10 +167,19 @@
 
   --duration-fast: 160ms;
   --duration-base: 320ms;
+  --duration-slow: 420ms;
   --duration-editorial: 720ms;
   --ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
   --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-fluid: cubic-bezier(0.618, 0, 0.382, 1);
+  /* For something being lifted under the cursor. --ease-fluid is symmetric, so
+     it eases IN as well -- the card hangs still for a moment after the pointer
+     arrives, which is what reads as unnatural. This one leaves immediately and
+     settles past the target before coming to rest: 0.236 / 0.382 are phi^-3 and
+     phi^-2, and the 1.236 overshoot is 2*phi^-1. */
+  --ease-lift: cubic-bezier(0.236, 1.236, 0.382, 1);
+  --duration-lift: 400ms;
 }
 
 /* The font families point at variables that next/font defines on <html>, so they
@@ -148,6 +192,33 @@
 
 :root {
   color-scheme: light;
+}
+
+/* The cases rail keeps horizontal overflow but does not expose a native bar. */
+.cases-rail {
+  scrollbar-width: none;
+}
+
+.cases-rail::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * From lg up the first card sits centred on the page, with the next one showing
+ * past its right edge -- the arrangement in the design.
+ *
+ * The inline padding is what centres it: half of whatever is left once the
+ * card's own width is taken out, and never less than the page gutter. Written
+ * here rather than as a utility because it overrides px-page on the same
+ * element, which unlayered CSS does and an equally specific utility would not.
+ */
+@media (min-width: 64rem) {
+  .cases-rail {
+    padding-inline: max(
+      var(--spacing-page),
+      calc((100% - var(--container-testimonial)) / 2)
+    );
+  }
 }
 
 /* The type scale steps up on wider viewports. Redefining the token here means
@@ -167,6 +238,122 @@
   }
 }
 
+/*
+ * The featured plan gets a light running its perimeter, to pull the eye to that
+ * card among the three.
+ *
+ * It is a conic-gradient sized to the card and then masked down to a 2px ring,
+ * rather than an animated border or a second bordered element: the two masks
+ * cancel each other everywhere except the ring, so the gradient is only ever
+ * visible along the edge. Only --plan-beam-angle changes over time, which
+ * repaints that ring and nothing else -- no layout, no work on the card itself.
+ *
+ * The angle needs @property to animate at all: a plain custom property is a
+ * string to the animation engine and would jump from 0 to 360 instead of
+ * sweeping. Where @property is unsupported the ring simply sits still, which is
+ * also what prefers-reduced-motion gets from the block below.
+ */
+@property --plan-beam-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes plan-beam-sweep {
+  to {
+    --plan-beam-angle: 360deg;
+  }
+}
+
+.plan-beam::before {
+  content: "";
+  position: absolute;
+  /* Matches the card's border-width, so the ring lands on the border itself
+     rather than just inside it. */
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  /* The lit band is brighter than --color-highlight, because it travels over a
+     --color-highlight-deep stroke: a beam the same colour as what it runs on
+     is not a beam. It spans ~120deg so it stays on screen long enough to be
+     read as one moving light rather than a blink at the corners. */
+  background: conic-gradient(
+    from var(--plan-beam-angle),
+    transparent 0deg,
+    transparent 240deg,
+    var(--color-highlight) 285deg,
+    #f2ffd9 315deg,
+    var(--color-highlight) 345deg,
+    transparent 360deg
+  );
+  /* Makes the band read as emitting light rather than being painted on, which
+     is most of what sells the movement at this size. */
+  filter: drop-shadow(0 0 0.25rem rgb(133 208 45 / 70%));
+  /* Unprefixed only, and mask-composite last. The -webkit-mask shorthand is an
+     alias for mask in current browsers, so declaring it afterwards resets
+     mask-composite back to `add` -- which masks nothing away and floods the
+     whole card with the gradient instead of leaving a ring. */
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  /* linear because it is constant motion: any easing would make the light
+     visibly hesitate at the same corner on every pass. */
+  animation: plan-beam-sweep 3s linear infinite;
+}
+
+/*
+ * A grid that only exists where the cursor is.
+ *
+ * The lines are painted across the whole layer and then masked down to a soft
+ * circle that follows the pointer, so what moves is the hole, not the grid --
+ * which is why the lines stay locked to the section instead of sliding with the
+ * cursor. Borrowed from spotlightbg.framer.website (measured 2026-09-01: a 72px
+ * grid at 30% white, masked by `radial-gradient(400px at <x> <y>)`), adapted from
+ * its black ground to this one's canvas.
+ *
+ * --color-hairline is the project's own 1px-line colour rather than a new value,
+ * and the mask fades to nothing at the edge, so only the exact centre ever
+ * reaches its full 12.5%. Everything else is fainter than the token.
+ *
+ * The two --spotlight-* lengths are written by SpotlightGrid on every frame. The
+ * defaults here are what a reader with no JS gets, and they never become visible:
+ * the layer starts at opacity 0 and only that component ever raises it.
+ */
+.spotlight-grid {
+  --spotlight-x: 50%;
+  --spotlight-y: 50%;
+  /* Roughly a third of a desktop viewport, clamped so it does not shrink to a
+     pinhole on a laptop or spread into a wash on a very wide display. Same shape
+     as --spacing-page, for the same reason. */
+  --spotlight-radius: clamp(20rem, 28vw, 34rem);
+
+  background-image:
+    linear-gradient(var(--color-hairline) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-hairline) 1px, transparent 1px);
+  /* 5rem, off the project's spacing scale, rather than the reference's 72px. */
+  background-size: var(--spacing-space-20) var(--spacing-space-20);
+
+  /* Unprefixed only -- see the note on .plan-beam above. */
+  mask: radial-gradient(
+    var(--spotlight-radius) at var(--spotlight-x) var(--spotlight-y),
+    #000 0%,
+    transparent 100%
+  );
+}
+
+/*
+ * Without a fine pointer there is no cursor to follow, and a spotlight parked
+ * wherever the last tap landed is worse than none. Removed rather than left at
+ * opacity 0 so the browser never rasterises the mask on a phone.
+ */
+@media (hover: none), (pointer: coarse) {
+  .spotlight-grid {
+    display: none;
+  }
+}
+
 /* Motion is opt-in to being disabled: anything animated must survive this. */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -177,4 +364,34 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   FOCUS
+
+   Each control declares its own focus ring, next to the rest of its styling --
+   there is no global rule painting one. What lives here is the single thing a
+   component cannot express on its own: whether the ring should appear at all.
+--------------------------------------------------------------------------- */
+
+/*
+ * Rings appear on Tab and on nothing else.
+ *
+ * `:focus-visible` on its own does not give that, because it is true for any
+ * keyboard interaction: click near the cases rail (a scroll container with
+ * tabIndex, so it takes focus silently) and the next arrow key press -- the one
+ * scrolling the page -- lights the rail up. FocusRings records which device
+ * focus came from; this turns the indicator off when it was a pointer.
+ *
+ * Unlayered on purpose: it has to beat the utilities that draw the rings, and
+ * unlayered CSS outranks every Tailwind layer.
+ *
+ * `box-shadow: none` is safe to write this broadly because the rule only ever
+ * applies to an element that is BOTH :focus-visible and pointer-focused -- a
+ * combination a click alone never produces, so it cannot reach an element whose
+ * shadow is decorative.
+ */
+:root[data-focus="pointer"] :focus-visible {
+  outline: none;
+  box-shadow: none;
 }

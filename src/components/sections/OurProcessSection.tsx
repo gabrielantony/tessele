@@ -1,13 +1,20 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type FocusEvent, type PointerEvent } from "react";
 
 import { useGSAP } from "@gsap/react";
 
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { whatsappHref } from "@/lib/whatsapp";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
+
+// Picks up the section's own closing line -- "Vamos traçar o caminho" -- from
+// the visitor's side: they have just read how the studio works and want it
+// applied to their case.
+const WHATSAPP_MESSAGE =
+  "Oi! Vi como vocês trabalham e queria entender como seria pra minha empresa.";
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 const PHI_INVERSE = 1 / PHI;
@@ -51,7 +58,7 @@ const STEPS = [
 export default function OurProcessSection() {
   const root = useRef<HTMLElement>(null);
 
-  useGSAP(
+  const { contextSafe } = useGSAP(
     () => {
       const section = root.current;
 
@@ -180,9 +187,93 @@ export default function OurProcessSection() {
     { scope: root },
   );
 
+  // Read on every event rather than once: either preference can change
+  // mid-session, and a hybrid device can switch pointer type.
+  const prefersReducedMotion = () =>
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const canHover = () =>
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  const seconds = (value: number) => (prefersReducedMotion() ? 0 : value);
+
+  const raiseFooterCta = (button: HTMLAnchorElement, ease: string) => {
+    gsap.to(button, {
+      y: -3,
+      scale: 1.012,
+      duration: seconds(0.377),
+      ease,
+    });
+  };
+
+  const settleFooterCta = (button: HTMLAnchorElement) => {
+    gsap.to(button, {
+      y: 0,
+      scale: 1,
+      duration: seconds(0.61),
+      ease: "power3.out",
+    });
+  };
+
+  const handleFooterCtaPointerEnter = contextSafe(
+    (event: PointerEvent<HTMLAnchorElement>) => {
+      if (!canHover()) return;
+      raiseFooterCta(event.currentTarget, "power3.out");
+    },
+  );
+
+  const handleFooterCtaPointerLeave = contextSafe(
+    (event: PointerEvent<HTMLAnchorElement>) => {
+      if (!canHover()) return;
+      settleFooterCta(event.currentTarget);
+    },
+  );
+
+  const handleFooterCtaPointerDown = contextSafe(
+    (event: PointerEvent<HTMLAnchorElement>) => {
+      gsap.to(event.currentTarget, {
+        y: 0,
+        scale: 0.985,
+        duration: seconds(0.144),
+        ease: "power2.out",
+      });
+    },
+  );
+
+  const handleFooterCtaPointerUp = contextSafe(
+    (event: PointerEvent<HTMLAnchorElement>) => {
+      const button = event.currentTarget;
+      // Releasing returns to the raised state only where a cursor can stay on
+      // the button. On touch there is no hover to return to, so it goes back
+      // to rest.
+      if (!canHover()) {
+        settleFooterCta(button);
+        return;
+      }
+      raiseFooterCta(button, "back.out(1.4)");
+    },
+  );
+
+  const handleFooterCtaPointerCancel = contextSafe(
+    (event: PointerEvent<HTMLAnchorElement>) => settleFooterCta(event.currentTarget),
+  );
+
+  // Chromium focuses anchors on mousedown while Safari does not. Raise only
+  // keyboard focus, otherwise Chromium would overwrite the press tween.
+  const handleFooterCtaFocus = contextSafe(
+    (event: FocusEvent<HTMLAnchorElement>) => {
+      const button = event.currentTarget;
+      if (!button.matches(":focus-visible")) return;
+      raiseFooterCta(button, "power3.out");
+    },
+  );
+
+  const handleFooterCtaBlur = contextSafe(
+    (event: FocusEvent<HTMLAnchorElement>) => settleFooterCta(event.currentTarget),
+  );
+
   return (
     <section
       ref={root}
+      id="como-trabalhamos"
       className="bg-canvas px-page py-section text-ink"
     >
       <div className="mx-auto w-full max-w-wide">
@@ -201,18 +292,18 @@ export default function OurProcessSection() {
             data-motion
             data-title-rule
             aria-hidden="true"
-            className="mt-space-6 h-space-1 w-space-40 origin-left rounded-full bg-highlight"
+            className="mt-space-3 h-space-1 w-[7.5rem] origin-left rounded-full bg-highlight"
           />
         </header>
 
-        <ol className="mt-space-20 grid grid-cols-[repeat(auto-fit,minmax(min(100%,calc(var(--spacing-space-40)*2)),1fr))] gap-space-12">
+        <ol className="mt-space-12 grid grid-cols-[repeat(auto-fit,minmax(min(100%,calc(var(--spacing-space-40)*2)),1fr))] gap-space-10">
           {STEPS.map((step) => (
             <li
               key={step.number}
               data-motion
               data-step
             >
-              <div className="flex items-center gap-space-3">
+              <div className="flex items-center gap-space-2">
                 <span
                   aria-hidden="true"
                   className="size-space-2-5 shrink-0 rounded-full bg-highlight"
@@ -230,22 +321,22 @@ export default function OurProcessSection() {
                 </span>
               </div>
 
-              <p className="mt-space-10 text-metric">
+              <p className="mt-space-6 text-display font-display">
                 {step.number}
               </p>
 
-              <h3 className="mt-space-8 text-heading-4">
+              <h3 className="mt-space-4 text-heading-4">
                 {step.title}
               </h3>
 
-              <p className="mt-space-2 text-body text-muted">
+              <p className="mt-space-1 text-body text-muted">
                 {step.description}
               </p>
             </li>
           ))}
         </ol>
 
-        <div className="relative mt-space-16 pt-space-8">
+        <div className="relative mt-space-12 pt-space-6">
           <div
             data-motion
             data-footer-line
@@ -253,7 +344,7 @@ export default function OurProcessSection() {
             className="absolute inset-x-space-0 top-space-0 origin-left border-t border-hairline"
           />
 
-          <div className="flex flex-wrap items-center justify-between gap-space-6">
+          <div className="flex flex-wrap items-center justify-between gap-space-8">
             <p
               data-motion
               data-footer-copy
@@ -265,8 +356,17 @@ export default function OurProcessSection() {
             <a
               data-motion
               data-cta
-              href="#contato"
-              className="relative rounded-md bg-accent px-space-8 py-space-5 text-action text-on-accent transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:bg-accent-hover"
+              href={whatsappHref(WHATSAPP_MESSAGE)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onPointerEnter={handleFooterCtaPointerEnter}
+              onPointerLeave={handleFooterCtaPointerLeave}
+              onPointerDown={handleFooterCtaPointerDown}
+              onPointerUp={handleFooterCtaPointerUp}
+              onPointerCancel={handleFooterCtaPointerCancel}
+              onFocus={handleFooterCtaFocus}
+              onBlur={handleFooterCtaBlur}
+              className="relative rounded-md bg-accent px-space-8 py-space-4 text-action text-on-accent outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] will-change-transform hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-4 focus-visible:ring-offset-canvas"
             >
               Vamos trabalhar juntos
 
@@ -274,8 +374,11 @@ export default function OurProcessSection() {
                 data-motion
                 data-cta-dot
                 aria-hidden="true"
-                className="absolute right-space-0 top-space-0 size-space-2-5 translate-x-1/2 -translate-y-1/2 rounded-full bg-highlight"
-              />
+                className="absolute -right-space-1-5 -top-space-1-5 size-[1.125rem]"
+              >
+                <span className="absolute inset-0 animate-ping rounded-base bg-highlight opacity-75" />
+                <span className="relative block size-full rounded-base border-[0.1875rem] border-canvas bg-highlight" />
+              </span>
             </a>
           </div>
         </div>
