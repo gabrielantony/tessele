@@ -53,8 +53,6 @@ const PHI_SQUARED = PHI * PHI;
 const DURATION_PRIMARY = PHI_INVERSE;
 const DURATION_SECONDARY =
   PHI_INVERSE * PHI_INVERSE;
-const OVERLAP =
-  DURATION_SECONDARY * PHI_INVERSE;
 
 function fibonacciEaseOut(progress: number) {
   return 1 - Math.pow(1 - progress, PHI_SQUARED);
@@ -748,94 +746,46 @@ export default function FormularioDeContato() {
         return;
       }
 
-      const timeline = gsap.timeline({
-        defaults: {
-          ease: fibonacciEaseOut,
+      const reveal = (
+        targets: HTMLElement[],
+        from: gsap.TweenVars,
+        duration: number,
+      ) => {
+        const timeline = gsap.timeline({
+          paused: true,
+          defaults: {
+            ease: fibonacciEaseOut,
+          },
+        });
+
+        timeline.fromTo(targets, from, {
+          autoAlpha: 1,
+          yPercent: 0,
+          scale: 1,
+          duration,
+        });
+
+        ScrollTrigger.create({
+          trigger: targets[0],
+          start: "top bottom",
+          animation: timeline,
+          toggleActions: "play none none reverse",
+        });
+      };
+
+      reveal(heading, { autoAlpha: 0, yPercent: 10 }, DURATION_PRIMARY);
+      reveal(fields, { autoAlpha: 0, yPercent: 8 }, DURATION_SECONDARY);
+      reveal(relationship, { autoAlpha: 0, yPercent: 6 }, DURATION_SECONDARY);
+      reveal(message, { autoAlpha: 0, yPercent: 6 }, DURATION_SECONDARY);
+      reveal(
+        cta,
+        {
+          autoAlpha: 0,
+          yPercent: 4,
+          scale: PHI_INVERSE + DURATION_SECONDARY,
         },
-        scrollTrigger: {
-          trigger: section,
-          start: "top 75%",
-          toggleActions:
-            "play none none reverse",
-        },
-      });
-
-      timeline
-        .fromTo(
-          heading,
-          {
-            autoAlpha: 0,
-            yPercent: 10,
-          },
-          {
-            autoAlpha: 1,
-            yPercent: 0,
-            duration: DURATION_PRIMARY,
-            immediateRender: false,
-          },
-        )
-
-        .fromTo(
-          fields,
-          {
-            autoAlpha: 0,
-            yPercent: 8,
-          },
-          {
-            autoAlpha: 1,
-            yPercent: 0,
-            duration: DURATION_SECONDARY,
-            immediateRender: false,
-          },
-          `-=${OVERLAP}`,
-        )
-
-        .fromTo(
-          relationship,
-          {
-            autoAlpha: 0,
-            yPercent: 6,
-          },
-          {
-            autoAlpha: 1,
-            yPercent: 0,
-            duration: DURATION_SECONDARY,
-            immediateRender: false,
-          },
-          `-=${OVERLAP}`,
-        )
-
-        .fromTo(
-          message,
-          {
-            autoAlpha: 0,
-            yPercent: 6,
-          },
-          {
-            autoAlpha: 1,
-            yPercent: 0,
-            duration: DURATION_SECONDARY,
-            immediateRender: false,
-          },
-          `-=${OVERLAP}`,
-        )
-
-        .fromTo(
-          cta,
-          {
-            autoAlpha: 0,
-            yPercent: 4,
-            scale: PHI_INVERSE + DURATION_SECONDARY,
-          },
-          {
-            autoAlpha: 1,
-            yPercent: 0,
-            scale: 1,
-            duration: DURATION_SECONDARY,
-            immediateRender: false,
-          },
-          `-=${OVERLAP}`,
-        );
+        DURATION_SECONDARY,
+      );
     },
     {
       scope: root,
