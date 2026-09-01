@@ -231,15 +231,11 @@ function CaseCard({ caseStudy }: { caseStudy: CaseStudy }) {
   return (
     <article
       data-case-card
-      /*
-       * The design gives each variant its own width, radius and padding, and the
-       * radii follow from the padding: the media corner is 32 inside a 16 pad
-       * (48), the avatar corner is 12 inside a 24 pad (36).
-       */
+      /* Each variant carries its own width, radius and padding from the design. */
       className={`flex w-full shrink-0 snap-center flex-col bg-surface shadow-lifted lg:flex-row lg:items-center ${
         media
           ? "max-w-testimonial rounded-3xl p-space-4"
-          : "max-w-testimonial-compact rounded-2xl p-space-6"
+          : "max-w-testimonial-compact rounded-2xl p-space-8"
       }`}
     >
       {media ? (
