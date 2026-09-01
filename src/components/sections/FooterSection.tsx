@@ -8,6 +8,8 @@ import gsap from "gsap";
 
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
+import Wordmark from "@/components/ui/Wordmark";
+
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 const PHI = (1 + Math.sqrt(5)) / 2;
@@ -222,9 +224,7 @@ export default function Footer() {
             aria-hidden="true"
             className="pointer-events-none absolute inset-x-space-0 bottom-space-0 hidden h-space-40 items-center justify-center md:flex"
           >
-            <span className="font-display text-display text-accent-hover">
-              TESSELE
-            </span>
+            <Wordmark />
           </div>
 
           <div
