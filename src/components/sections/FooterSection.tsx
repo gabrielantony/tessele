@@ -220,26 +220,11 @@ export default function Footer() {
             data-footer-reveal
             data-footer-wordmark
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-space-0 bottom-space-0 hidden h-space-40 md:block"
+            className="pointer-events-none absolute inset-x-space-0 bottom-space-0 hidden h-space-40 items-center justify-center md:flex"
           >
-            <svg
-              className="h-space-40 w-full overflow-visible"
-              viewBox="0 0 100 64"
-              preserveAspectRatio="none"
-              role="presentation"
-            >
-              <text
-                x="50%"
-                y="50%"
-                textAnchor="middle"
-                dominantBaseline="central"
-                textLength="88%"
-                lengthAdjust="spacingAndGlyphs"
-                className="fill-accent-hover text-display"
-              >
-                TESSELE
-              </text>
-            </svg>
+            <span className="font-display text-display text-accent-hover">
+              TESSELE
+            </span>
           </div>
 
           <div
