@@ -41,7 +41,7 @@ const PEOPLE: Person[] = [
   {
     name: "Gabriel Antony",
     role: "UX/UI Design e Desenvolvimento",
-    image: "/images/gabriel-antony.jpg",
+    image: "images/gabriel-antony.jpg",
     title: "Design e desenvolvimento precisam conversar desde o começo.",
     description:
       "Desde 2019, Gabriel trabalha com produtos digitais para empresas no Brasil, Canadá e Estados Unidos. Ao longo de mais de 50 projetos, sua atuação passou por UX/UI, pesquisa, arquitetura de informação, design systems, SaaS e desenvolvimento, acompanhando desde a estrutura da experiência até a implementação.\nEssa combinação entre design e tecnologia permite uma visão mais completa do produto, considerando uso, viabilidade, consistência e evolução ao longo do tempo.",
@@ -63,7 +63,7 @@ const PEOPLE: Person[] = [
   {
     name: "Thaís Cuman",
     role: "Estratégia, Marketing e Conteúdo",
-    image: "/images/thais-cuman.jpg",
+    image: "images/thais-cuman.jpg",
     title:
       "O conteúdo foi o ponto de partida. A estratégia passou a ocupar cada vez mais espaço.",
     description:
