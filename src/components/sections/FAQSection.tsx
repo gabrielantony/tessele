@@ -256,13 +256,13 @@ export default function FAQSection() {
       aria-labelledby="faq-heading"
       className="bg-canvas px-page py-section"
     >
-      <div className="mx-auto grid w-full items-start gap-space-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-space-20">
+      <div className="mx-auto grid w-full max-w-wide items-start gap-space-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-space-20">
         <div>
           <h2
             id="faq-heading"
             data-reveal
             data-faq-heading
-            className="max-w-copy text-display-2 text-ink"
+            className="max-w-copy text-heading-2 text-ink"
           >
             O que você pode querer saber antes de começar com a Tessele.
           </h2>
