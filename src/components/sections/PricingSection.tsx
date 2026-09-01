@@ -524,13 +524,9 @@ export default function PlanosEPrecos() {
       }
 
       const timeline = gsap.timeline({
+        paused: true,
         defaults: {
           ease: fibonacciEaseOut,
-        },
-        scrollTrigger: {
-          trigger: root.current,
-          start: "top 75%",
-          toggleActions: "play none none reverse",
         },
       });
 
@@ -559,16 +555,15 @@ export default function PlanosEPrecos() {
           `-=${OVERLAP}`,
         )
         .from(
-  "[data-plan-card]",
-  {
-    opacity: 0,
-    yPercent: 12,
-    duration: DURATION_PRIMARY,
-    stagger: STAGGER,
-    immediateRender: false,
-  },
-  `-=${OVERLAP}`,
-)
+          "[data-plan-card]",
+          {
+            opacity: 0,
+            yPercent: 12,
+            duration: DURATION_PRIMARY,
+            stagger: STAGGER,
+          },
+          `-=${OVERLAP}`,
+        )
         .from(
           "[data-motion-demand]",
           {
@@ -578,6 +573,13 @@ export default function PlanosEPrecos() {
           },
           `-=${OVERLAP}`,
         );
+
+      ScrollTrigger.create({
+        trigger: root.current,
+        start: "top 75%",
+        animation: timeline,
+        toggleActions: "play none none reverse",
+      });
     },
     {
       scope: root,
