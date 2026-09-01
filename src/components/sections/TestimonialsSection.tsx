@@ -568,7 +568,21 @@ export default function CasesSection() {
         onPointerMove={handlePointerMove}
         onPointerUp={finishPointerDrag}
         onPointerCancel={finishPointerDrag}
-        className="cases-rail mt-space-16 flex gap-space-8 overflow-x-auto overscroll-x-contain px-page pb-space-8 snap-x snap-mandatory lg:cursor-grab lg:snap-none lg:active:cursor-grabbing"
+        /*
+         * The vertical padding here is holding the card's shadow, not spacing.
+         *
+         * `overflow-x: auto` leaves `overflow-y: visible`, which CSS coerces to
+         * `auto` -- so the rail clips vertically whether or not that was ever
+         * the intent, and it clips at its padding box. shadow-lifted reaches
+         * 146px below the card and 10px above it, so anything less cut a hard
+         * edge across the shadow.
+         *
+         * Each padding is paired with a margin that gives the space straight
+         * back, leaving the rhythm exactly where it was: 64px above the cards
+         * (48 + 16) and 32px below (160 - 128). Changing one half of a pair
+         * without the other either moves the section or brings the cut back.
+         */
+        className="cases-rail mt-space-12 flex gap-space-8 overflow-x-auto overscroll-x-contain px-page pt-space-4 pb-space-40 -mb-space-32 snap-x snap-mandatory lg:cursor-grab lg:snap-none lg:active:cursor-grabbing"
       >
         {CASES.map((caseStudy) => (
           <CaseCard
@@ -583,9 +597,17 @@ export default function CasesSection() {
        * leitores de tela descarta o rótulo, e os dots são anunciados como dois
        * botões soltos sem dizer a que pertencem.
        */}
+      {/*
+       * `relative` is doing hit-testing work, not layout work. The rail above
+       * gives its shadow room with padding and takes the space back with a
+       * negative margin, so its padding box still lies over everything in the
+       * next 128px -- these controls and the top of the metrics below. A
+       * non-positioned box loses that overlap to the earlier sibling in WebKit,
+       * which swallowed the clicks; positioning these paints them above it.
+       */}
       <div
         role="group"
-        className="mt-space-6 flex justify-center gap-space-3"
+        className="relative z-10 mt-space-6 flex justify-center gap-space-3"
         aria-label="Navegação dos cases"
       >
         {CASES.map((caseStudy, index) => {
@@ -607,7 +629,7 @@ export default function CasesSection() {
         })}
       </div>
 
-      <div className="mx-auto mt-space-16 grid max-w-wide gap-space-8 px-page md:grid-cols-3">
+      <div className="relative z-10 mx-auto mt-space-16 grid max-w-wide gap-space-8 px-page md:grid-cols-3">
         {RELATIONSHIP_METRICS.map((metric) => (
           <div
             key={metric.value}

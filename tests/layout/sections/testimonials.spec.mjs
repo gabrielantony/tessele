@@ -35,6 +35,93 @@ const railCounts = async (page) => {
   return { railId, cards };
 };
 
+/*
+ * Measures, for every case card, how far its painted shadow is cut by each
+ * ancestor that clips.
+ *
+ * Runs whole inside the page like the probe in landing-layout.spec.mjs, so the
+ * helpers it needs are declared in here rather than serialised in from module
+ * scope.
+ */
+const SHADOW_PROBE = () => {
+  /*
+   * Chrome and WebKit both serialise box-shadow with the colour first and
+   * ALWAYS four lengths -- x, y, blur, spread -- even where the author wrote
+   * three. Tailwind's `shadow-*` utility prepends two fully transparent ring
+   * layers; they paint nothing, so counting their zeros as reach would be
+   * wrong in the safe direction and hide a real cut.
+   */
+  const reachOf = (value) => {
+    const layers = [];
+    let depth = 0;
+    let current = "";
+    for (const ch of value) {
+      if (ch === "(") depth += 1;
+      if (ch === ")") depth -= 1;
+      if (ch === "," && depth === 0) {
+        layers.push(current);
+        current = "";
+        continue;
+      }
+      current += ch;
+    }
+    layers.push(current);
+
+    const reach = { left: 0, right: 0, top: 0, bottom: 0 };
+    for (const layer of layers) {
+      if (/rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*0\s*\)/.test(layer)) continue;
+      const lengths = [...layer.matchAll(/(-?\d*\.?\d+)px/g)].map((m) => Number(m[1]));
+      if (lengths.length < 3) continue;
+      const [x, y, blur] = lengths;
+      const out = blur + (lengths[3] ?? 0);
+      reach.left = Math.max(reach.left, out - x);
+      reach.right = Math.max(reach.right, out + x);
+      reach.top = Math.max(reach.top, out - y);
+      reach.bottom = Math.max(reach.bottom, out + y);
+    }
+    return reach;
+  };
+
+  const cards = Array.from(document.querySelectorAll("[data-case-card]"));
+
+  return cards.map((card, index) => {
+    const reach = reachOf(getComputedStyle(card).boxShadow);
+    const box = card.getBoundingClientRect();
+    const painted = {
+      top: box.top - reach.top,
+      bottom: box.bottom + reach.bottom,
+      left: box.left - reach.left,
+    };
+
+    const clippers = [];
+    let node = card.parentElement;
+    while (node) {
+      const style = getComputedStyle(node);
+      if (style.overflowX !== "visible" || style.overflowY !== "visible") {
+        // Overflow clips at the padding box, which is the client box: the
+        // border-box rect inset by the border, sized by clientWidth/Height.
+        const nodeBox = node.getBoundingClientRect();
+        const top = nodeBox.top + node.clientTop;
+        const left = nodeBox.left + node.clientLeft;
+
+        clippers.push({
+          clipper: `${node.tagName.toLowerCase()}.${String(node.className).split(/\s+/)[0]}`,
+          overflow: `${style.overflowX}/${style.overflowY}`,
+          cutTop: Math.round(Math.max(0, top - painted.top)),
+          cutBottom: Math.round(Math.max(0, painted.bottom - (top + node.clientHeight))),
+          // Where the left clip edge lands in the viewport. A left cut is only
+          // acceptable when it happens at or past the viewport edge, where it
+          // reads as the shadow running off the page rather than a drawn line.
+          leftClipAt: Math.round(left),
+        });
+      }
+      node = node.parentElement;
+    }
+
+    return { card: index, reach, paintedLeft: Math.round(painted.left), clippers };
+  });
+};
+
 test.describe("testimonials", () => {
   for (const width of [390, 768, 1280]) {
     test(`the cases rail hides its native scrollbar at ${width}px`, async ({ page }) => {
@@ -58,6 +145,71 @@ test.describe("testimonials", () => {
         state.scrollbarWidth === "none" || state.webkitBarHidden,
         `the rail still shows a native scrollbar (scrollbar-width: ${state.scrollbarWidth})`,
       ).toBe(true);
+    });
+  }
+
+  /*
+   * Reported from the page, not inferred: the card's shadow ended in a hard
+   * horizontal edge just under it. Measured at the time -- 114px cut at the
+   * bottom and 10px at the top, at every width, by the rail itself.
+   *
+   * The rail scrolls sideways so it must clip sideways; that is the feature.
+   * Vertically it must not, and that is the easy thing to get wrong: authoring
+   * `overflow-x: auto` alone leaves `overflow-y: visible`, which CSS coerces to
+   * `auto`. The rail becomes a clipper on an axis nobody asked it to clip.
+   *
+   * Asserting the cut is zero rather than asserting a padding value is
+   * deliberate. Padding is one way to hold the shadow and an
+   * `overflow-clip-margin` would be another; the guarantee is the shadow.
+   */
+  for (const width of [390, 768, 1280, 1600]) {
+    test(`no ancestor cuts the case card shadow vertically at ${width}px`, async ({ page }) => {
+      await gotoLanding(page, width);
+      await page.locator("[data-case-card]").first().scrollIntoViewIfNeeded();
+
+      const report = await page.evaluate(SHADOW_PROBE);
+
+      expect(report.length, "no case card was found").toBeGreaterThan(0);
+      expect(
+        report[0].reach.bottom,
+        "the card carries no downward shadow, so this test is measuring nothing",
+      ).toBeGreaterThan(0);
+      expect(
+        report.flatMap((entry) => entry.clippers).length,
+        "nothing clips the card any more -- if that is intended, this test can go",
+      ).toBeGreaterThan(0);
+
+      const cut = report.flatMap(({ card, clippers }) =>
+        clippers
+          .filter((clip) => clip.cutTop > 0 || clip.cutBottom > 0)
+          .map((clip) => ({ card, ...clip })),
+      );
+
+      expect(cut, `a clipper cuts the card shadow top or bottom: ${JSON.stringify(cut)}`).toEqual([]);
+    });
+  }
+
+  /*
+   * The left side is the one direction the shadow genuinely cannot fit: it
+   * reaches 108px left of the card, and the page gutter is 20px on a phone. So
+   * the rule is not "never cut" but "only cut off the page", where it reads as
+   * the shadow running past the edge instead of a line drawn across it.
+   */
+  for (const width of [390, 1280]) {
+    test(`the case card shadow is only cut off-page on the left at ${width}px`, async ({ page }) => {
+      await gotoLanding(page, width);
+      await page.locator("[data-case-card]").first().scrollIntoViewIfNeeded();
+
+      const [first] = await page.evaluate(SHADOW_PROBE);
+
+      const drawnInside = first.clippers.filter(
+        (clip) => clip.leftClipAt > 0 && clip.leftClipAt > first.paintedLeft,
+      );
+
+      expect(
+        drawnInside,
+        `the left shadow is cut inside the page, which draws an edge: ${JSON.stringify(drawnInside)}`,
+      ).toEqual([]);
     });
   }
 
