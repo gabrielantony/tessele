@@ -256,7 +256,7 @@ export default function FAQSection() {
       aria-labelledby="faq-heading"
       className="bg-canvas px-page py-section"
     >
-      <div className="mx-auto grid w-full items-start gap-space-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-space-20">
+      <div className="mx-auto grid w-full max-w-wide items-start gap-space-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-space-20">
         <div>
           <h2
             id="faq-heading"
