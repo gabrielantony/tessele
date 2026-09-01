@@ -40,8 +40,14 @@ type CaseMedia =
     }
   | {
       kind: "video";
-      src: string;
-      poster?: string;
+      /*
+       * `src` is optional so a case can carry only its poster while the real
+       * file is still missing: a <video> with a poster and no source paints the
+       * still and issues no request, where a src pointing at nothing paints a
+       * black box and logs a network error.
+       */
+      src?: string;
+      poster: string;
       label: string;
     };
 
@@ -49,67 +55,96 @@ type CaseStudy = {
   id: string;
   name: string;
   role: string;
-  media: CaseMedia;
-  services: {
-    symbol: string;
-    label: string;
-  }[];
+  /* Absent renders the avatar slot as an empty tile — see the note on CASES. */
+  avatar?: string;
+  /* The line beside the layout-board icon: what was built for this client. */
+  project: string;
   quote: string;
   metrics: CaseMetric[];
-};
-
-const BRUNO_CASE: CaseStudy = {
-  id: "bruno-pontes",
-  name: "Bruno Pontes",
-  role: "Professor e produtor de conteúdo",
-  media: {
-    kind: "image",
-    src: "images/bruno-pontes.webp",
-    alt: "Bruno Pontes",
-  },
-  services: [
-    {
-      symbol: "◎",
-      label: "Estratégia e marketing",
-    },
-    {
-      symbol: "↗",
-      label: "Tráfego Pago",
-    },
-  ],
-  quote:
-    "“O principal ganho foi deixar de tomar decisão no escuro. A gente passou a entender melhor o que estava trazendo pessoas realmente interessadas, onde fazia sentido investir mais e o que precisava ser interrompido.”",
-  metrics: [
-    {
-      value: "5k+",
-      label: "Visualizações orgânicas",
-    },
-    {
-      value: "132",
-      label: "Novos seguidores",
-    },
-  ],
+  /*
+   * Absent selects the design's second variant: no media column, a narrower
+   * card, a larger inner padding and a smaller corner radius. Not every case
+   * will have footage, so the media column is what varies, not the layout.
+   */
+  media?: CaseMedia;
 };
 
 /*
- * Exemplo de case usando vídeo.
+ * PLACEHOLDER CONTENT — the real cases are still to come.
  *
- * Troque os dados abaixo pelo próximo case real.
- * O poster continua sendo exibido caso o vídeo ainda não tenha carregado
- * e também funciona como estado estático para reduced motion.
+ * Three entries so both variants are on screen at once: two with a media column
+ * (one image, one video) and one without. The images are the site's own service
+ * photos standing in for project shots; the avatars are deliberately left unset
+ * so no stock face can be mistaken for a real client. Replacing any of this is a
+ * data edit, not a markup edit.
  */
-const VIDEO_CASE: CaseStudy = {
-  ...BRUNO_CASE,
-  id: "bruno-pontes-video",
-  media: {
-    kind: "video",
-    src: "videos/bruno-pontes.mp4",
-    poster: "images/bruno-pontes.webp",
-    label: "Case Bruno Pontes",
+const CASES: CaseStudy[] = [
+  {
+    id: "placeholder-image",
+    name: "Nome do cliente",
+    role: "Cargo e empresa",
+    project: "Landing page de serviços para o Aprenda Bem",
+    quote:
+      "\u201cO principal ganho foi deixar de tomar decisão no escuro. A gente passou a entender melhor o que estava trazendo pessoas realmente interessadas, onde fazia sentido investir mais e o que precisava ser interrompido.\u201d",
+    metrics: [
+      {
+        value: "5k+",
+        label: "Visualizações orgânicas",
+      },
+      {
+        value: "132",
+        label: "Novos seguidores",
+      },
+    ],
+    media: {
+      kind: "image",
+      src: "images/services-design.jpg",
+      alt: "Imagem do projeto",
+    },
   },
-};
+  {
+    id: "placeholder-quote-only",
+    name: "Nome do cliente",
+    role: "Cargo e empresa",
+    project: "Estratégia de conteúdo e distribuição",
+    quote:
+      "\u201cSaímos de um calendário improvisado para uma rotina que a equipe consegue sustentar sozinha. O que mudou não foi o volume, foi saber o porquê de cada peça.\u201d",
+    metrics: [
+      {
+        value: "3x",
+        label: "Alcance por publicação",
+      },
+      {
+        value: "18",
+        label: "Pautas em produção",
+      },
+    ],
+  },
+  {
+    id: "placeholder-video",
+    name: "Nome do cliente",
+    role: "Cargo e empresa",
+    project: "Campanha de tráfego pago para captação",
+    quote:
+      "\u201cO investimento parou de ser um chute mensal. Hoje a gente sabe quanto custa uma conversa qualificada e decide com esse número na mão.\u201d",
+    metrics: [
+      {
+        value: "R$ 4,20",
+        label: "Custo por lead",
+      },
+      {
+        value: "47%",
+        label: "Aumento em conversas",
+      },
+    ],
+    media: {
+      kind: "video",
+      poster: "images/services-trafego.jpg",
+      label: "Depoimento em vídeo",
+    },
+  },
+];
 
-const CASES: CaseStudy[] = [BRUNO_CASE, VIDEO_CASE];
 const CASES_RAIL_ID = "cases-rail";
 
 const RELATIONSHIP_METRICS = [
@@ -133,16 +168,42 @@ type DragState = {
   scrollLeft: number;
 };
 
+/*
+ * Path data exported verbatim from the design's `layout-board` layer; only the
+ * stroke was swapped for currentColor so the icon follows the text beside it.
+ */
+function LayoutBoardIcon() {
+  return (
+    <svg
+      className="size-space-5 shrink-0"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M3.33333 7.5H10M10 12.5H16.6667M10 3.33333V16.6667M3.33333 5C3.33333 4.55797 3.50893 4.13405 3.82149 3.82149C4.13405 3.50893 4.55797 3.33333 5 3.33333H15C15.442 3.33333 15.8659 3.50893 16.1785 3.82149C16.4911 4.13405 16.6667 4.55797 16.6667 5V15C16.6667 15.442 16.4911 15.8659 16.1785 16.1785C15.8659 16.4911 15.442 16.6667 15 16.6667H5C4.55797 16.6667 4.13405 16.4911 3.82149 16.1785C3.50893 15.8659 3.33333 15.442 3.33333 15V5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function CaseMedia({ media }: { media: CaseMedia }) {
   if (media.kind === "video") {
+    const hasSource = Boolean(media.src);
+
     return (
       <video
         data-case-video
-        className="h-full w-full object-cover"
+        className="absolute inset-0 block h-full w-full object-cover object-center"
         src={media.src}
         poster={media.poster}
         aria-label={media.label}
-        autoPlay
+        autoPlay={hasSource}
         muted
         loop
         playsInline
@@ -154,71 +215,109 @@ function CaseMedia({ media }: { media: CaseMedia }) {
 
   return (
     <img
-      className="h-full w-full object-cover"
+      className="absolute inset-0 block h-full w-full object-cover object-center"
       src={media.src}
       alt={media.alt}
       loading="lazy"
+      decoding="async"
       draggable={false}
     />
   );
 }
 
 function CaseCard({ caseStudy }: { caseStudy: CaseStudy }) {
+  const { media } = caseStudy;
+
   return (
     <article
       data-case-card
-      className="w-full max-w-wide shrink-0 snap-center overflow-hidden rounded-xl bg-surface p-space-4 shadow-lifted"
+      /*
+       * The design gives each variant its own width, radius and padding, and the
+       * radii follow from the padding: the media corner is 32 inside a 16 pad
+       * (48), the avatar corner is 12 inside a 24 pad (36).
+       */
+      className={`flex w-full shrink-0 snap-center flex-col bg-surface shadow-lifted lg:flex-row lg:items-center ${
+        media
+          ? "max-w-testimonial rounded-3xl p-space-4"
+          : "max-w-testimonial-compact rounded-2xl p-space-6"
+      }`}
     >
-      <div className="grid gap-space-6 md:grid-cols-2 lg:grid-cols-3">
+      {media ? (
         <div
           data-case-media
-          className="relative aspect-square overflow-hidden rounded-lg bg-surface-sunken"
+          /*
+           * A fixed 320px column beside the copy on wide viewports, as designed.
+           * Below that the frame the design was drawn in no longer exists, so
+           * the column becomes a square banner above the copy rather than a
+           * sliver next to it.
+           */
+          className="relative aspect-square min-w-0 shrink-0 overflow-hidden rounded-xl bg-surface-sunken lg:aspect-auto lg:w-80 lg:self-stretch"
         >
-          <CaseMedia media={caseStudy.media} />
-
-          <div className="absolute inset-x-space-0 bottom-space-0 bg-accent px-space-6 py-space-4">
-            <p className="text-body-bold text-on-accent">
-              {caseStudy.name}
-            </p>
-
-            <p className="text-small text-on-accent-muted">
-              {caseStudy.role}
-            </p>
-          </div>
+          <CaseMedia media={media} />
         </div>
+      ) : null}
 
-        <div className="flex flex-col justify-between gap-space-8 p-space-6 lg:col-span-2">
-          <div className="flex flex-col gap-space-8">
-            <div className="flex flex-wrap gap-space-3">
-              {caseStudy.services.map((service) => (
-                <span
-                  key={service.label}
-                  className="inline-flex items-center gap-space-2 rounded-full bg-surface-sunken px-space-4 py-space-2 text-small text-ink"
-                >
-                  <span aria-hidden="true">{service.symbol}</span>
-                  {service.label}
-                </span>
-              ))}
+      <div
+        className={`flex min-w-0 flex-1 flex-col gap-space-8 ${
+          media
+            ? "p-space-4 lg:py-space-2 lg:pl-space-8 lg:pr-space-6"
+            : ""
+        }`}
+      >
+        <div className="flex min-w-0 flex-col gap-space-6">
+          <div className="flex flex-wrap items-center gap-space-4">
+            <div className="size-space-16 shrink-0 overflow-hidden rounded-md bg-surface-sunken">
+              {caseStudy.avatar ? (
+                <img
+                  className="block h-full w-full object-cover object-center"
+                  src={caseStudy.avatar}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  draggable={false}
+                />
+              ) : null}
             </div>
 
-            <blockquote className="text-lead text-ink">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <p className="text-body-bold text-ink">{caseStudy.name}</p>
+
+              <p className="text-body text-muted">{caseStudy.role}</p>
+            </div>
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-space-4">
+            <div className="flex min-w-0 items-center gap-space-2 text-muted">
+              <LayoutBoardIcon />
+
+              <p className="text-body-medium min-w-0 flex-1">
+                {caseStudy.project}
+              </p>
+            </div>
+
+            {/* Regular weight here, against the 500 the lead token carries
+                everywhere else — the design sets this quote in Lead/Desktop. */}
+            <blockquote className="text-lead min-w-0 font-normal text-ink">
               {caseStudy.quote}
             </blockquote>
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-space-8">
-            {caseStudy.metrics.map((metric) => (
-              <div key={metric.label}>
-                <p className="text-metric text-highlight">
-                  {metric.value}
-                </p>
+        <div className="h-px w-full bg-hairline" />
 
-                <p className="mt-space-2 text-small text-muted">
-                  {metric.label}
-                </p>
-              </div>
-            ))}
-          </div>
+        <div className="flex flex-wrap items-start gap-space-10">
+          {caseStudy.metrics.map((metric) => (
+            <div
+              key={metric.label}
+              className="flex min-w-0 flex-1 flex-col"
+            >
+              <p className="text-heading-2 text-highlight">
+                {metric.value}
+              </p>
+
+              <p className="text-body text-muted">{metric.label}</p>
+            </div>
+          ))}
         </div>
       </div>
     </article>
