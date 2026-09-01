@@ -608,7 +608,7 @@ function ServiceCard({
 
           <div
             key={`${service.id}-items`}
-            className="grid min-w-0 grid-cols-1 gap-x-space-8 gap-y-space-5 md:grid-cols-2"
+            className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-x-space-6 gap-y-space-5"
           >
             {service.items.map((item) => (
               <ServiceListItem key={item.label} item={item} />
