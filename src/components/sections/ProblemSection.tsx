@@ -178,10 +178,16 @@ export default function ProblemSection() {
     { scope: root },
   );
 
+  /*
+   * O recorte fica na seção, deliberadamente não no quadrado da órbita: ele
+   * contém apenas as caixas fantasma dos slots rotacionados, que não têm
+   * presença visual. O quadrado permanece sem recorte para que qualquer card
+   * que escape dele continue visível.
+   */
   return (
     <section
       ref={root}
-      className="bg-canvas px-page py-section"
+      className="overflow-x-clip bg-canvas px-page py-section"
     >
       <div className="mx-auto grid w-full max-w-wide grid-cols-1 items-center gap-space-12 lg:grid-cols-2 lg:gap-space-24">
         <div>
