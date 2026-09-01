@@ -198,20 +198,20 @@ function PersonRow({
       </div>
 
       {/* Desktop */}
-      <div className="hidden items-start gap-space-8 lg:grid lg:grid-cols-5">
+      <div className="hidden items-start gap-space-8 lg:grid lg:grid-cols-4">
         {reverse ? (
           <>
             <div className="col-span-3" data-row-content>
               <InfoCard person={person} />
             </div>
 
-            <div className="col-span-2" data-row-profile>
+            <div className="col-span-1" data-row-profile>
               <MemberIdentity person={person} />
             </div>
           </>
         ) : (
           <>
-            <div className="col-span-2" data-row-profile>
+            <div className="col-span-1" data-row-profile>
               <MemberIdentity person={person} />
             </div>
 
