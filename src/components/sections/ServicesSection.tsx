@@ -1080,7 +1080,7 @@ export default function ServicosEEntregas() {
             <span className="text-highlight">diferente</span>.
           </h2>
 
-          <p data-intro className="text-body text-muted">
+          <p data-intro className="text-subtitle text-muted">
             Às vezes, o que precisa mudar é a forma como a empresa se apresenta.
             Em outras, a comunicação, o marketing ou a experiência de quem chega
             até ela. A direção define onde a gente precisa atuar.

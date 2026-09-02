@@ -55,6 +55,7 @@ Use as `text-<name>`. See the modifier table below.
 | `text-heading-3` | 1.5rem | 1.75rem |
 | `text-heading-4` | 1.25rem | — |
 | `text-lead` | 1.125rem | 1.25rem |
+| `text-subtitle` | 1.125rem | — |
 | `text-body` | 1rem | — |
 | `text-body-medium` | 1rem | — |
 | `text-body-bold` | 1rem | — |
@@ -147,6 +148,7 @@ one overrides the token and is always wrong.
 | `text-heading-3` | 1.5rem / 1.28 / 600 / -0.01em |
 | `text-heading-4` | 1.25rem / 1.33 / 700 / 0 |
 | `text-lead` | 1.125rem / 1.75rem / 500 / — |
+| `text-subtitle` | 1.125rem / 1.55 / 400 / 0 |
 | `text-body` | 1rem / 1.5rem / 400 / 0 |
 | `text-body-medium` | 1rem / 1.5rem / 500 / 0 |
 | `text-body-bold` | 1rem / 1.5rem / 700 / 0 |

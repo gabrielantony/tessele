@@ -81,6 +81,27 @@
   --text-lead: 1.125rem;
   --text-lead--line-height: 1.75rem;
   --text-lead--font-weight: 500;
+
+  /* The paragraph under a section heading -- 18px at every width.
+
+     That flatness is the whole reason it is not --text-lead: lead steps to
+     1.25rem at 48rem, and 20px muted copy under a 40px heading read as a second
+     heading rather than as the sentence explaining the first one. Weight 400 is
+     the same call. So it is absent from the 48rem step below on purpose: a
+     subtitle is 18px on a phone and on a 2560px monitor.
+
+     Which of the two to reach for: the intro paragraph of a section header is
+     `subtitle`. `lead` is the hero's own subheading step, where the type above
+     it is 56px and 20px/500 is what holds up next to it. Nothing else should
+     use either -- body copy is `body`.
+
+     The leading is a ratio, the convention the heading roles use, so it follows
+     if the size ever moves. 1.55 rather than body's 1.5: same 42rem measure one
+     size up is a longer line, and a longer line wants more room between them. */
+  --text-subtitle: 1.125rem;
+  --text-subtitle--line-height: 1.55;
+  --text-subtitle--font-weight: 400;
+  --text-subtitle--letter-spacing: 0;
   --text-body: 1rem;
   --text-body--line-height: 1.5rem;
   --text-body--font-weight: 400;
