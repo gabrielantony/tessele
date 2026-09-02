@@ -36,25 +36,28 @@
   --color-border-strong: #e5e5e0;
   --color-control-disabled: #c0c2c1;
 
-  /* The only role that sizes fluidly instead of stepping at 48rem.
-     A headline is the one place where the viewport width decides how the type
-     reads, because it is the widest thing on the page: at 2.5rem in a 375px
-     viewport this page's h1 fell to 13 characters a line over 6 lines, and 6
-     stacked gaps is what reads as loose -- the leading was never the problem.
-     Sizing continuously keeps the measure in range at every width instead of
-     at the two the breakpoint happens to name.
+  /* Every heading role states its line height as a RATIO, not a length. One
+     number then covers both steps of a size that changes at 48rem, so the
+     leading can never drift out of proportion at one width while looking right
+     at the other -- which is what a pair of hard-coded rem values did here.
 
-     The middle term is rem + vw rather than vw alone so the size still answers
-     to the reader's own font-size setting (WCAG 1.4.4); pure vw ignores it.
-     It resolves to 36px up to a 384px viewport, 48px at 768px, and reaches the
-     3.5rem cap at 1024px -- so wide screens keep the size they had, and the
-     768-1024 band, where a flat 3.5rem was widest of all, no longer gets it.
+     The ratios are Gabriel's call, and they sit tighter than the published
+     references on purpose: USWDS puts headings in 1-1.35 and IBM Carbon's curve
+     runs 1.40 at 20px, 1.25 at 32px, 1.199 at 42px. These land at or below the
+     tight end of that. Reviewed on the page at 375px and chosen there, so do
+     not "correct" them back toward the benchmark -- and note that the ratio
+     rising as the size falls IS the typographic rule, not an error to fix.
 
-     The line height is a RATIO, not a length, which is what lets one value
-     follow a size that never stops changing: 1.15 is the USWDS line-height-2
-     token, their recommendation for most headings. At the 3.5rem cap it
-     computes to 64.4px, within a pixel of the 4rem this used to hard-code, so
-     nothing about the desktop headline moves. */
+     Display is also the only role that sizes fluidly instead of stepping. A
+     headline is where viewport width decides how the type reads, because it is
+     the widest thing on the page: at a flat 2.5rem in a 375px viewport this
+     page's h1 fell to 13 characters a line over 6 lines, and six stacked gaps
+     is what reads as loose -- the leading was never that problem. The middle
+     term is rem + vw rather than vw alone so the size still answers to the
+     reader's own font-size setting (WCAG 1.4.4); pure vw ignores it. It holds
+     36px up to a 384px viewport, gives 48px at 768px, and reaches the 3.5rem
+     cap at 1024px, so wide screens keep the size they had while the 768-1024
+     band no longer gets the widest setting of all. */
   --text-display: clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem);
   --text-display--line-height: 1.15;
   --text-display--font-weight: 700;
@@ -64,15 +67,15 @@
   --text-display-2--font-weight: 700;
   --text-display-2--letter-spacing: -0.02em;
   --text-heading-2: 2rem;
-  --text-heading-2--line-height: 2.5rem;
+  --text-heading-2--line-height: 1.2;
   --text-heading-2--font-weight: 700;
   --text-heading-2--letter-spacing: -0.015em;
   --text-heading-3: 1.5rem;
-  --text-heading-3--line-height: 2rem;
+  --text-heading-3--line-height: 1.28;
   --text-heading-3--font-weight: 600;
   --text-heading-3--letter-spacing: -0.01em;
   --text-heading-4: 1.25rem;
-  --text-heading-4--line-height: 1.75rem;
+  --text-heading-4--line-height: 1.33;
   --text-heading-4--font-weight: 700;
   --text-heading-4--letter-spacing: 0;
   --text-lead: 1.125rem;
@@ -242,15 +245,13 @@
 
 /* The type scale steps up on wider viewports. Redefining the token here means
    every utility built from it follows, with no per-component media query.
-   The display roles are absent on purpose: they size fluidly, so they have no
-   step to take here. Everything else does step, because at these sizes the
-   measure stays in range and a jump is cheaper than a clamp per role. */
+   Sizes only: the heading line heights are ratios, so they follow these steps
+   without being restated. The display roles are absent entirely -- they size
+   fluidly and have no step to take. */
 @media (min-width: 48rem) {
   :root {
     --text-heading-2: 2.5rem;
-    --text-heading-2--line-height: 3rem;
     --text-heading-3: 1.75rem;
-    --text-heading-3--line-height: 2.25rem;
     --text-lead: 1.25rem;
     --text-lead--line-height: 1.875rem;
   }

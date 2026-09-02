@@ -143,9 +143,9 @@ one overrides the token and is always wrong.
 |---|---|
 | `text-display` | clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem) / 1.15 / 700 / -0.02em |
 | `text-display-2` | clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem) / 1.15 / 700 / -0.02em |
-| `text-heading-2` | 2rem / 2.5rem / 700 / -0.015em |
-| `text-heading-3` | 1.5rem / 2rem / 600 / -0.01em |
-| `text-heading-4` | 1.25rem / 1.75rem / 700 / 0 |
+| `text-heading-2` | 2rem / 1.2 / 700 / -0.015em |
+| `text-heading-3` | 1.5rem / 1.28 / 600 / -0.01em |
+| `text-heading-4` | 1.25rem / 1.33 / 700 / 0 |
 | `text-lead` | 1.125rem / 1.75rem / 500 / — |
 | `text-body` | 1rem / 1.5rem / 400 / 0 |
 | `text-body-medium` | 1rem / 1.5rem / 500 / 0 |
