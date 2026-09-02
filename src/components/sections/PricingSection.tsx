@@ -766,7 +766,7 @@ export default function PlanosEPrecos() {
           <p
             data-motion-description
             data-motion
-            className="text-body text-on-accent"
+            className="text-subtitle text-on-accent"
           >
             A Tessele pode começar organizando sua presença
             digital ou assumir uma operação mais ampla, com

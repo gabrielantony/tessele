@@ -36,29 +36,94 @@
   --color-border-strong: #e5e5e0;
   --color-control-disabled: #c0c2c1;
 
-  --text-display: 2.5rem;
-  --text-display--line-height: 3rem;
+  /* Every heading role states its line height as a RATIO, not a length. One
+     number then covers both steps of a size that changes at 48rem, so the
+     leading can never drift out of proportion at one width while looking right
+     at the other -- which is what a pair of hard-coded rem values did here.
+
+     The ratios are Gabriel's call, and they sit tighter than the published
+     references on purpose: USWDS puts headings in 1-1.35 and IBM Carbon's curve
+     runs 1.40 at 20px, 1.25 at 32px, 1.199 at 42px. These land at or below the
+     tight end of that. Reviewed on the page at 375px and chosen there, so do
+     not "correct" them back toward the benchmark -- and note that the ratio
+     rising as the size falls IS the typographic rule, not an error to fix.
+
+     Display is also the only role that sizes fluidly instead of stepping. A
+     headline is where viewport width decides how the type reads, because it is
+     the widest thing on the page: at a flat 2.5rem in a 375px viewport this
+     page's h1 fell to 13 characters a line over 6 lines, and six stacked gaps
+     is what reads as loose -- the leading was never that problem. The middle
+     term is rem + vw rather than vw alone so the size still answers to the
+     reader's own font-size setting (WCAG 1.4.4); pure vw ignores it. It holds
+     36px up to a 384px viewport, gives 48px at 768px, and reaches the 3.5rem
+     cap at 1024px, so wide screens keep the size they had while the 768-1024
+     band no longer gets the widest setting of all.
+
+     Nothing in this scale renders on a fractional pixel: every size and every
+     leading is wrapped in round(nearest, ..., 2px), which snaps it to the
+     nearest EVEN pixel. Gabriel's rule, and the ratios above are why it needs
+     saying in CSS rather than in arithmetic -- 1.2 x 32px is 38.4px, 1.28 x 24px
+     is 30.72px, and a ratio almost never lands on an even pixel at both steps
+     of a size that changes at 48rem. Rounding at the point of use is what keeps
+     the two rules from fighting: the ratio stays the stated intent, the rendered
+     leading is 38px and 30px.
+
+     Two things it also buys, which hand-computed rem lengths cannot. The fluid
+     display size is even at EVERY viewport width, not just at the ends of its
+     clamp (52.125px at a 900px viewport before this). And the grid holds when
+     the reader's root font-size is not 16px, where "2.375rem" stops being an
+     even number of pixels and round() does not.
+
+     The cost is browsers older than round(): Chrome 125, Safari 15.4, Firefox
+     118. There the whole declaration is invalid and the leading falls back to
+     `normal`, which for Raleway is ~1.17 -- within a hair of the 1.15-1.2 these
+     roles ask for. Restating every ratio inside an @supports block would buy
+     that back at the price of a second list to keep in sync, which is the drift
+     this comment opens by warning about. */
+  --text-display: round(nearest, clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem), 2px);
+  --text-display--line-height: round(nearest, 1.15em, 2px);
   --text-display--font-weight: 700;
   --text-display--letter-spacing: -0.02em;
-  --text-display-2: 2.5rem;
-  --text-display-2--line-height: 3rem;
+  --text-display-2: round(nearest, clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem), 2px);
+  --text-display-2--line-height: round(nearest, 1.15em, 2px);
   --text-display-2--font-weight: 700;
   --text-display-2--letter-spacing: -0.02em;
   --text-heading-2: 2rem;
-  --text-heading-2--line-height: 2.5rem;
+  --text-heading-2--line-height: round(nearest, 1.2em, 2px);
   --text-heading-2--font-weight: 700;
   --text-heading-2--letter-spacing: -0.015em;
   --text-heading-3: 1.5rem;
-  --text-heading-3--line-height: 2rem;
+  --text-heading-3--line-height: round(nearest, 1.28em, 2px);
   --text-heading-3--font-weight: 600;
   --text-heading-3--letter-spacing: -0.01em;
   --text-heading-4: 1.25rem;
-  --text-heading-4--line-height: 1.75rem;
+  --text-heading-4--line-height: round(nearest, 1.33em, 2px);
   --text-heading-4--font-weight: 700;
   --text-heading-4--letter-spacing: 0;
   --text-lead: 1.125rem;
   --text-lead--line-height: 1.75rem;
   --text-lead--font-weight: 500;
+
+  /* The paragraph under a section heading -- 18px at every width.
+
+     That flatness is the whole reason it is not --text-lead: lead steps to
+     1.25rem at 48rem, and 20px muted copy under a 40px heading read as a second
+     heading rather than as the sentence explaining the first one. Weight 400 is
+     the same call. So it is absent from the 48rem step below on purpose: a
+     subtitle is 18px on a phone and on a 2560px monitor.
+
+     Which of the two to reach for: the intro paragraph of a section header is
+     `subtitle`. `lead` is the hero's own subheading step, where the type above
+     it is 56px and 20px/500 is what holds up next to it. Nothing else should
+     use either -- body copy is `body`.
+
+     The leading is a ratio, the convention the heading roles use, so it follows
+     if the size ever moves. 1.55 rather than body's 1.5: same 42rem measure one
+     size up is a longer line, and a longer line wants more room between them. */
+  --text-subtitle: 1.125rem;
+  --text-subtitle--line-height: round(nearest, 1.55em, 2px);
+  --text-subtitle--font-weight: 400;
+  --text-subtitle--letter-spacing: 0;
   --text-body: 1rem;
   --text-body--line-height: 1.5rem;
   --text-body--font-weight: 400;
@@ -87,7 +152,7 @@
   --text-label--font-weight: 600;
   --text-label--letter-spacing: 0.06em;
   --text-action: 1rem;
-  --text-action--line-height: 1.2;
+  --text-action--line-height: round(nearest, 1.2em, 2px);
   --text-action--font-weight: 600;
   --text-action--letter-spacing: 0;
   --text-metric: 2.25rem;
@@ -124,6 +189,15 @@
   --container-wide: 70rem;
   --container-testimonial: 58rem;
   --container-testimonial-compact: 39rem;
+
+  /* The three sizes the Quote's blooms come in (see .quote-bloom). Written as
+     clamps against the viewport for the same reason --spacing-page is: a bloom
+     fixed in rem is a smudge on a phone and a saucer on a wide display, and the
+     nearest one has to stay smaller than the sentence it passes behind or it
+     stops reading as something further away. */
+  --spacing-bloom-far: clamp(24rem, 46vw, 52rem);
+  --spacing-bloom-mid: clamp(18rem, 34vw, 38rem);
+  --spacing-bloom-near: clamp(9rem, 16vw, 17rem);
 
   --radius-sm: 0.25rem;
   --radius-base: 0.5rem;
@@ -222,17 +296,14 @@
 }
 
 /* The type scale steps up on wider viewports. Redefining the token here means
-   every utility built from it follows, with no per-component media query. */
+   every utility built from it follows, with no per-component media query.
+   Sizes only: the heading line heights are ratios, so they follow these steps
+   without being restated. The display roles are absent entirely -- they size
+   fluidly and have no step to take. */
 @media (min-width: 48rem) {
   :root {
-    --text-display: 3.5rem;
-    --text-display--line-height: 4rem;
-    --text-display-2: 3.5rem;
-    --text-display-2--line-height: 4rem;
     --text-heading-2: 2.5rem;
-    --text-heading-2--line-height: 3rem;
     --text-heading-3: 1.75rem;
-    --text-heading-3--line-height: 2.25rem;
     --text-lead: 1.25rem;
     --text-lead--line-height: 1.875rem;
   }
@@ -352,6 +423,126 @@
   .spotlight-grid {
     display: none;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Soft blooms drifting behind the Quote's sentence.
+
+   The sentence writes itself on a field with nothing else in it, so the only
+   thing that moves is the text -- and text resolving over an empty ground reads
+   as arriving by itself rather than as the page carrying it. These give the
+   scroll something to be measured against: three layers, each drifting at its
+   own rate, which is what parallax actually is. Same job as the ivy cropped into
+   the corners of fathom.framer.media (the reference Gabriel gave, 2026-09-02);
+   that site has botanical artwork to crop and this one has none, so the depth is
+   drawn rather than photographed.
+
+   They are depth, not decoration to be looked at. The sentence stays the
+   brightest thing on the screen, and if one of these ever becomes the thing you
+   notice, it is too strong rather than too small -- which it has been once
+   already, at 26% on the nearest one.
+
+   Positions and drift rates live in QuoteSection, next to the tween that reads
+   them. What lives here is what the blooms are made of.
+--------------------------------------------------------------------------- */
+
+/*
+ * The layer the blooms live in, and the mask is the load-bearing part.
+ *
+ * Clipping alone draws the section's own top edge across the screen: the bloom
+ * lightens the inside of the box and stops dead at the boundary, so a straight
+ * horizontal line appears where the field meets the curtain's ground above it --
+ * both `--color-accent`, both correct, and the seam between them suddenly
+ * visible. Measured at 1440x900: the edge landed 2px under the sentence's last
+ * line, which is the worst place it could have picked.
+ *
+ * So the layer fades to nothing before it reaches either horizontal edge, and
+ * any bloom fades with it wherever it happens to be. That is what lets the
+ * positions below be chosen for the composition and the drifts for the depth,
+ * with neither having to be solved against the section's height: the section is
+ * 66rem and the far bloom is up to 52rem of it, so a rule like "keep every box
+ * inside the clip across its whole travel" has no answer left on a tall window.
+ *
+ * Left and right are deliberately unmasked. Those edges are the page's own, and
+ * a shape running off the side of the screen reads as cropped rather than as
+ * cut -- it is how the reference crops its ivy, and it is the difference between
+ * a bloom that belongs to the corner and a circle floating in a field.
+ *
+ * Unprefixed `mask` only -- see the note on .plan-beam above.
+ */
+.quote-blooms {
+  /*
+   * Asymmetric, and the short end is the top for a reason worth keeping: the
+   * strip the reader sees at the moment the first word lights IS the section's
+   * top, so a fade generous enough to be safe there is a fade that hands the
+   * sentence the empty field this layer exists to fill. Measured at 1440x900
+   * with 14% at both ends: nothing at all was painted behind the opening word.
+   *
+   * 7% is 74px on a 66rem section -- still tens of pixels for a haze this faint
+   * to resolve over, which is all an invisible fade needs. The bottom keeps the
+   * longer one: what abuts it is the Problem section's cream, where a bloom
+   * still fading when the ground changes would be obvious.
+   */
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 7%,
+    #000 88%,
+    transparent 100%
+  );
+}
+
+/*
+ * A radial gradient rather than a solid shape behind `filter: blur()`: at this
+ * size the two are indistinguishable to look at, and the gradient costs no
+ * offscreen buffer to rasterise on every frame of a scrub.
+ */
+.quote-bloom {
+  /*
+   * Four stops rather than three, and the last one at 70%.
+   *
+   * The falloff is what decides whether this reads as haze or as a ball. Two
+   * stops put the whole transition in one narrow band, and at 26% alpha the
+   * nearest bloom came out with a discernible edge and a flat core -- a green
+   * circle sitting next to the sentence, competing with it.
+   *
+   * 70% is a ceiling, not a taste: the gradient is sized to the farthest
+   * corner, so 100% is 0.707 of the box and 70% lands at 0.495 -- just inside
+   * the box's own edge. Any further and the fade is still going when the box
+   * ends, which puts a hard circle back, this time drawn by the element rather
+   * than by the gradient.
+   */
+  background-image: radial-gradient(
+    circle at center,
+    var(--bloom-colour) 0%,
+    color-mix(in oklab, var(--bloom-colour) 64%, transparent) 24%,
+    color-mix(in oklab, var(--bloom-colour) 26%, transparent) 48%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+/*
+ * Two hues, and which one goes where is the whole composition: the cream is
+ * light and the green is the brand.
+ *
+ * The first version put green in all three at 6-11% and the result was nothing
+ * -- 7% of #85d02d over #112118 lands on rgb(25,45,25) against rgb(17,33,24),
+ * a difference you have to be told about to find. These are the alphas that
+ * read on a laptop at arm's length while still leaving the sentence as the
+ * brightest thing on the screen, which is the only rule they have to obey.
+ */
+.quote-bloom-far {
+  --bloom-colour: rgb(250 249 245 / 8%);
+}
+
+.quote-bloom-mid {
+  --bloom-colour: rgb(133 208 45 / 13%);
+}
+
+/* The nearest one is the smallest, so its alpha buys the least area. */
+.quote-bloom-near {
+  --bloom-colour: rgb(133 208 45 / 15%);
 }
 
 /* Motion is opt-in to being disabled: anything animated must survive this. */

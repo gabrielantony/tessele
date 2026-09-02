@@ -54,9 +54,8 @@ export default function Hero() {
         relative
         isolate
         flex
-        min-h-[48.75rem]
+        min-h-[max(48.75rem,100dvh)]
         w-full
-        lg:min-h-screen
         flex-col
         items-center
         justify-center

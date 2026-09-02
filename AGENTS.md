@@ -1,8 +1,8 @@
 # Tessele — landing page
 
 Institutional single page for Tessele: Next.js static export, Tailwind 4, GSAP,
-served by GitHub Pages under the `/tessele/` subpath. The README explains how to
-write a section; this file is the map and the rules.
+served by GitHub Pages at the root of `tessele.com.br`. The README explains how
+to write a section; this file is the map and the rules.
 
 ## Repo map
 
@@ -15,13 +15,14 @@ write a section; this file is the map and the rules.
 | `scripts/generate-tokens-doc.mjs` | Generates `docs/TOKENS.md` |
 | `scripts/serve-export.mjs` | Serves `out/` for the test suite |
 | `tests/layout/` | Playwright: measures the built export, not the dev server |
+| `public/CNAME` | The custom domain (`tessele.com.br`) the export ships with |
 | `.github/workflows/deploy.yml` | Builds on push to `main`, publishes `out/` |
 
 ## Commands
 
 ```sh
 npm ci                 # install from the lockfile (Node >= 22)
-npm run dev            # dev server at http://localhost:3000 (no basePath)
+npm run dev            # dev server at http://localhost:3000
 npm run build          # type-check + static export into out/
 npm run lint           # eslint, including the React hooks rules
 npm test               # playwright; builds and serves the export itself
@@ -34,9 +35,10 @@ One spec, one engine: `npx playwright test tests/layout/sections/about.spec.mjs 
 
 - **Static export, no runtime.** No route handlers, no server actions, no image
   optimizer (`images.unoptimized`). Anything that needs a server does not ship.
-- **Asset paths are relative.** `images/foo.jpg`, never `/images/foo.jpg`:
-  production sets `basePath: "/tessele"`, and an absolute path skips it and
-  resolves at the domain root, where nothing is served.
+- **Asset paths are relative.** `images/foo.jpg`, never `/images/foo.jpg` —
+  the whole export follows this, so a page resolves its assets next to itself
+  wherever the export is served from. `tests/layout/sections/about.spec.mjs`
+  asserts the form.
 - **Utilities only, from tokens.** No `<style>` block, no `.css` file next to a
   section. A value with no token means adding the token to `globals.css`, never
   inlining the number.

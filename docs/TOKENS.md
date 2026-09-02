@@ -31,6 +31,7 @@ Prefix each name with `bg-`, `text-`, `border-` or `ring-`.
 | `on-accent-muted` | #999e99 |
 | `on-accent-border` | #4d594d |
 | `highlight` | #85d02d |
+| `highlight-deep` | #5e9320 |
 | `dark-canvas` | #030a06 |
 | `accent-soft` | rgb(17 33 24 / 5%) |
 | `highlight-soft` | rgb(133 208 45 / 10%) |
@@ -48,12 +49,13 @@ Use as `text-<name>`. See the modifier table below.
 
 | Name | Value | ≥48rem |
 |---|---|---|
-| `text-display` | 2.5rem | 3.5rem |
-| `text-display-2` | 2.5rem | 3.5rem |
+| `text-display` | round(nearest, clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem), 2px) | — |
+| `text-display-2` | round(nearest, clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem), 2px) | — |
 | `text-heading-2` | 2rem | 2.5rem |
 | `text-heading-3` | 1.5rem | 1.75rem |
 | `text-heading-4` | 1.25rem | — |
 | `text-lead` | 1.125rem | 1.25rem |
+| `text-subtitle` | 1.125rem | — |
 | `text-body` | 1rem | — |
 | `text-body-medium` | 1rem | — |
 | `text-body-bold` | 1rem | — |
@@ -90,6 +92,9 @@ Use with any spacing prefix: `p-`, `px-`, `py-`, `m-`, `mt-`, `gap-`, `size-`, `
 | `space-40` | 10rem |
 | `page` | clamp(var(--spacing-space-5), 7.5vw, var(--spacing-space-24)) |
 | `section` | clamp(var(--spacing-space-16), 7.5vw, var(--spacing-space-24)) |
+| `bloom-far` | clamp(24rem, 46vw, 52rem) |
+| `bloom-mid` | clamp(18rem, 34vw, 38rem) |
+| `bloom-near` | clamp(9rem, 16vw, 17rem) |
 
 ## Container width
 
@@ -128,6 +133,8 @@ Use as `shadow-<name>`.
 | `shadow-floating` | 0 1.25rem 3rem rgb(3 10 6 / 8%) |
 | `shadow-card` | 0 0.5rem 0.75rem rgb(0 0 0 / 2%) |
 | `shadow-control` | 0 0.25rem 0.375rem rgb(0 0 0 / 5%) |
+| `shadow-plan` | -0.25rem 0.5rem 1rem rgb(133 208 45 / 0%), -0.75rem 1.25rem 2rem rgb(133 208 45 / 2%), -1.5rem 2.5rem 3.5rem rgb(133 208 45 / 3%) |
+| `shadow-plan-lifted` | -0.25rem 0.5rem 1rem rgb(133 208 45 / 5%), -0.75rem 1.25rem 2rem rgb(133 208 45 / 8%), -1.5rem 2.5rem 3.5rem rgb(133 208 45 / 10%) |
 | `shadow-lifted` | -4px 6px 16px rgb(137 130 103 / 8%), -15px 25px 29px rgb(137 130 103 / 7%), -34px 56px 39px rgb(137 130 103 / 4%), -61px 99px 47px rgb(137 130 103 / 1%) |
 
 ## What the type utilities already carry
@@ -138,12 +145,13 @@ one overrides the token and is always wrong.
 
 | Utility | size / line-height / weight / tracking |
 |---|---|
-| `text-display` | 2.5rem / 3rem / 700 / -0.02em |
-| `text-display-2` | 2.5rem / 3rem / 700 / -0.02em |
-| `text-heading-2` | 2rem / 2.5rem / 700 / -0.015em |
-| `text-heading-3` | 1.5rem / 2rem / 600 / -0.01em |
-| `text-heading-4` | 1.25rem / 1.75rem / 700 / 0 |
+| `text-display` | round(nearest, clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem), 2px) / round(nearest, 1.15em, 2px) / 700 / -0.02em |
+| `text-display-2` | round(nearest, clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem), 2px) / round(nearest, 1.15em, 2px) / 700 / -0.02em |
+| `text-heading-2` | 2rem / round(nearest, 1.2em, 2px) / 700 / -0.015em |
+| `text-heading-3` | 1.5rem / round(nearest, 1.28em, 2px) / 600 / -0.01em |
+| `text-heading-4` | 1.25rem / round(nearest, 1.33em, 2px) / 700 / 0 |
 | `text-lead` | 1.125rem / 1.75rem / 500 / — |
+| `text-subtitle` | 1.125rem / round(nearest, 1.55em, 2px) / 400 / 0 |
 | `text-body` | 1rem / 1.5rem / 400 / 0 |
 | `text-body-medium` | 1rem / 1.5rem / 500 / 0 |
 | `text-body-bold` | 1rem / 1.5rem / 700 / 0 |
@@ -151,7 +159,7 @@ one overrides the token and is always wrong.
 | `text-small-bold` | 0.875rem / 1.25rem / 700 / 0 |
 | `text-small-medium` | 0.875rem / 1.25rem / 500 / 0 |
 | `text-label` | 0.75rem / 1rem / 600 / 0.06em |
-| `text-action` | 1rem / 1.2 / 600 / 0 |
+| `text-action` | 1rem / round(nearest, 1.2em, 2px) / 600 / 0 |
 | `text-metric` | 2.25rem / 2.25rem / 600 / -0.01em |
 
 ## Motion
@@ -160,10 +168,14 @@ one overrides the token and is always wrong.
 |---|---|
 | `var(--duration-fast)` | 160ms |
 | `var(--duration-base)` | 320ms |
+| `var(--duration-slow)` | 420ms |
 | `var(--duration-editorial)` | 720ms |
 | `var(--ease-enter)` | cubic-bezier(0.05, 0.7, 0.1, 1) |
 | `var(--ease-exit)` | cubic-bezier(0.3, 0, 0.8, 0.15) |
 | `var(--ease-out)` | cubic-bezier(0.16, 1, 0.3, 1) |
+| `var(--ease-fluid)` | cubic-bezier(0.618, 0, 0.382, 1) |
+| `var(--ease-lift)` | cubic-bezier(0.236, 1.236, 0.382, 1) |
+| `var(--duration-lift)` | 400ms |
 
 Read `docs/failure-archetypes.md` before writing any scroll sequence. Every
 animated section also needs a `prefers-reduced-motion` path that restores the

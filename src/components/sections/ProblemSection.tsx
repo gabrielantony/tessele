@@ -325,7 +325,7 @@ export default function ProblemSection() {
             * split from the "tempo, equipe" they belong with. Gluing the whole
             * closing run moves the wrap earlier instead, so the last line reads
             * as a full phrase at every width this column takes. */}
-          <p className="mt-space-4 max-w-copy text-lead text-muted">
+          <p className="mt-space-4 max-w-copy text-subtitle text-muted">
             Uma campanha funciona por um tempo. O site recebe ajustes. O
             conteúdo continua saindo. Surge uma nova ideia e ela também entra
             na fila. Quando cada decisão nasce isolada, fica difícil separar o

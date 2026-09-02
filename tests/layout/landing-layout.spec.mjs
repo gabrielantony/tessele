@@ -8,7 +8,11 @@ const HEIGHT = 900;
 // written down so it stays visible -- not a way to quiet a failure. Add one only
 // with the reason.
 const ALLOWED = {
-  overlappingSiblings: [],
+  // The services card stacks every service's title and description in one grid
+  // cell so the card cannot change height when the reader switches tabs. The
+  // overlap is the mechanism: only the active copy is visible, the rest are
+  // there to reserve the height of the longest one at whatever width this is.
+  overlappingSiblings: ["[data-tab-copy-stack]"],
   overflowingParent: [],
 };
 

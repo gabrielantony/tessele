@@ -1,7 +1,7 @@
 /*
- * Serves the static export in out/ under the production basePath, so tests hit
- * the same URLs GitHub Pages will. `next start` cannot do this: output:"export"
- * has no Node server at runtime.
+ * Serves the static export in out/ at the root, so tests hit the same URLs
+ * tessele.com.br will. `next start` cannot do this: output:"export" has no Node
+ * server at runtime.
  *
  * Usage: node scripts/serve-export.mjs [port]
  */
@@ -11,7 +11,6 @@ import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
 
 const PORT = Number(process.argv[2] ?? 4600);
-const BASE_PATH = "/tessele";
 const ROOT = new URL("../out/", import.meta.url).pathname;
 
 const TYPES = {
@@ -29,11 +28,8 @@ const TYPES = {
 };
 
 const resolve = async (urlPath) => {
-  // Strip the basePath, then refuse anything that climbs out of out/.
-  const withoutBase = urlPath.startsWith(BASE_PATH)
-    ? urlPath.slice(BASE_PATH.length)
-    : urlPath;
-  const clean = normalize(decodeURIComponent(withoutBase.split("?")[0]));
+  // Refuse anything that climbs out of out/.
+  const clean = normalize(decodeURIComponent(urlPath.split("?")[0]));
   if (clean.includes("..")) return null;
 
   const candidates = clean.endsWith("/")
@@ -64,4 +60,4 @@ createServer(async (request, response) => {
     "cache-control": "no-store",
   });
   createReadStream(file).pipe(response);
-}).listen(PORT, () => console.log(`export served at http://localhost:${PORT}${BASE_PATH}/`));
+}).listen(PORT, () => console.log(`export served at http://localhost:${PORT}/`));

@@ -262,13 +262,17 @@ export default function FAQSection() {
             className="max-w-copy text-heading-2 text-ink"
           >
             O que você pode querer saber antes de{" "}
-            <span className="text-highlight">começar</span> com a Tessele.
+            {/* The closing run is glued whole rather than only its last two
+              * words: "Tessele." was alone on the fourth line through the
+              * 1024-1141px band, and tying just "a Tessele." would have left
+              * "com" hanging at the end of the line above. */}
+            <span className="text-highlight">começar</span> com&nbsp;a&nbsp;Tessele.
           </h2>
 
           <p
             data-reveal
             data-faq-copy
-            className="mt-space-4 max-w-copy text-lead text-muted"
+            className="mt-space-4 max-w-copy text-subtitle text-muted"
           >
             Reunimos aqui as respostas para as dúvidas mais comuns sobre
             projetos, acompanhamento, escopo e a forma como a Tessele trabalha.

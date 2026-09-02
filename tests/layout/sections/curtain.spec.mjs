@@ -73,6 +73,11 @@ const walkTheCurtain = (page, pxPerFrame = 12) =>
 
       const curtain = panels.length ? panels[0].parentElement : null;
 
+      // The sentence the curtain hands over to. Sampled here because the seam is
+      // where the handover is legible: the panels landing and the first word
+      // lighting are one gesture to the reader, and only one walk sees both.
+      const words = [...document.querySelectorAll("[data-word]")];
+
       const runwayTop = runway.getBoundingClientRect().top + window.scrollY;
       const viewport = window.innerHeight;
 
@@ -94,14 +99,9 @@ const walkTheCurtain = (page, pxPerFrame = 12) =>
             runwayBottom: runway.getBoundingClientRect().bottom,
             curtainTop: curtain ? Math.round(curtain.getBoundingClientRect().top) : null,
             scales: panels.map(scaleY),
-            // Alpha of each panel's hairline; 0 means it has been faded out.
-            hairlines: panels.map((panel) => {
-              const colour = getComputedStyle(panel).borderLeftColor;
-              const alpha = colour.match(/rgba?\(([^)]+)\)/);
-              if (!alpha) return 1;
-              const parts = alpha[1].split(",");
-              return parts.length > 3 ? Number(parts[3]) : 1;
-            }),
+            firstWord: words.length
+              ? Number(getComputedStyle(words[0]).opacity)
+              : null,
           });
           if (frame++ > frameBudget) return done();
           window.scrollBy(0, pxPerFrame);
@@ -212,41 +212,107 @@ test.describe("curtain", () => {
   });
 
   /*
-   * The hairlines are structure while the panels are moving -- same-coloured
-   * panels touching read as one block, and the lines are what make the stagger
-   * legible. Once the curtain is shut they are debris on what is by then just the
-   * Quote section's ground, and they take a whole viewport to scroll up and off.
-   * That travel is the only thing moving on the screen at that point, so it reads
-   * as the transition still running and the sentence feels late for it.
+   * The curtain paints its ground and nothing else -- no seam between the panels,
+   * at any point in the fall.
+   *
+   * This replaces an assertion that measured the seam's colour and required it to
+   * have faded to alpha 0 by the handover. That is a proxy, and it passed on the
+   * behaviour it was meant to prevent: a fade is not a removal, so the line was
+   * painted for the whole fall and then for as long as the shut curtain took to
+   * scroll off -- up to a viewport of travel with nothing else moving. Gabriel
+   * asked for the seam to go (2026-09-02), so the guarantee changes with it: not
+   * "the line is gone in time" but "there is no line".
+   *
+   * Asserted against every edge a seam could come back as, rather than against
+   * `border-left` alone: the next version of this idea would be a box-shadow or
+   * an outline, and it would read as a design choice in the diff.
    */
-  test("no hairline survives the handover", async ({ page }) => {
+  test("the panels paint no seam between them", async ({ page }) => {
     await gotoLanding(page, 1280, { motion: true });
     await waitPastScrollTriggerStartup(page);
 
-    const { frames, viewport } = await walkTheCurtain(page);
+    const edges = await page.evaluate(
+      async ([panelSelector, runwaySelector]) => {
+        const runway = document.querySelector(runwaySelector);
+        const panels = [...document.querySelectorAll(panelSelector)].filter(
+          (panel) => panel.getBoundingClientRect().width > 0,
+        );
 
-    const shut = frames.find((frame) => frame.scales.every((scale) => scale >= FULL));
-    expect(shut, "the curtain never shuts").toBeTruthy();
+        const alpha = (colour) => {
+          const parts = colour.match(/rgba?\(([^)]+)\)/);
+          if (!parts) return 1;
+          const channels = parts[1].split(",");
+          return channels.length > 3 ? Number(channels[3]) : 1;
+        };
 
-    // They have to still be there while it is falling, or they are not doing the
-    // job they exist for.
-    const midFall = frames.find(
-      (frame) =>
-        frame.scales.some((scale) => scale > 0.2) &&
-        frame.scales.some((scale) => scale < 0.8),
+        const painted = (panel) => {
+          const style = getComputedStyle(panel);
+          const found = [];
+          for (const side of ["Left", "Right", "Top", "Bottom"]) {
+            if (
+              parseFloat(style[`border${side}Width`]) > 0 &&
+              alpha(style[`border${side}Color`]) > 0.02
+            ) {
+              found.push(
+                `border-${side.toLowerCase()} ${style[`border${side}Width`]} ${style[`border${side}Color`]}`,
+              );
+            }
+          }
+          if (style.boxShadow && style.boxShadow !== "none") {
+            found.push(`box-shadow ${style.boxShadow}`);
+          }
+          /*
+           * `outline-style` and not width alone: the page declares a focus ring
+           * width globally, so `outline-width` computes to 3px on every element
+           * on the page whether or not anything is painted. Width without a
+           * style paints nothing.
+           */
+          if (
+            style.outlineStyle !== "none" &&
+            parseFloat(style.outlineWidth) > 0 &&
+            alpha(style.outlineColor) > 0.02
+          ) {
+            found.push(
+              `outline ${style.outlineStyle} ${style.outlineWidth} ${style.outlineColor}`,
+            );
+          }
+          return found;
+        };
+
+        // Walked rather than sampled at rest: the seam this replaces was written
+        // by a tween, so a single reading at the top of the page would have seen
+        // whatever the CSS said and none of what the timeline did.
+        const runwayTop = runway.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo(0, Math.max(0, runwayTop - window.innerHeight - 200));
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+        const seen = [];
+        await new Promise((done) => {
+          const budget = (window.innerHeight * 2 + 600) / 12;
+          let frame = 0;
+          const step = () => {
+            for (const panel of panels) {
+              for (const edge of painted(panel)) {
+                seen.push({ y: Math.round(window.scrollY), edge });
+              }
+            }
+            if (frame++ > budget) return done();
+            window.scrollBy(0, 12);
+            requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
+        });
+
+        return { panelCount: panels.length, seen: seen.slice(0, 8), total: seen.length };
+      },
+      [PANEL, RUNWAY],
     );
-    expect(midFall, "the panels never overlap mid-fall").toBeTruthy();
-    expect(
-      Math.max(...midFall.hairlines),
-      "the hairlines are already gone while the panels are still moving, so the stagger has nothing to read against",
-    ).toBeGreaterThan(0.1);
 
-    const release = frames.find((frame) => frame.runwayBottom <= viewport + 1);
-    expect(release, "the hold never releases inside the walk").toBeTruthy();
+    expect(edges.panelCount, "no panels found").toBeGreaterThan(0);
     expect(
-      Math.max(...release.hairlines),
-      `hairlines were still painted at the handover (alphas ${release.hairlines.map((a) => a.toFixed(2)).join(", ")}), so they scroll up over the Quote's ground`,
-    ).toBeLessThanOrEqual(0.02);
+      edges.seen,
+      `a panel painted an edge on ${edges.total} readings across the fall, first at y=${edges.seen[0]?.y}: ${edges.seen[0]?.edge}`,
+    ).toEqual([]);
   });
 
   test("the panels land centre first and edges last", async ({ page }) => {
@@ -283,39 +349,363 @@ test.describe("curtain", () => {
     }
   });
 
+  /*
+   * The panels must cover the width between them, and "touch exactly" is not
+   * the way to ask for it. That was the previous assertion and it passed for
+   * the whole life of a bug it was written to catch: it rounds, and at 1512px
+   * the fifth of a viewport is 302.4px, so a panel ending at 604.8 and the next
+   * starting at 604.8 round to a gap of zero while the rendered pixels have a
+   * 1px column that neither of them paints.
+   *
+   * So the layout numbers are asked the one question they can answer -- is
+   * there a gap, overlap allowed -- and the pixels are asked the real one,
+   * below.
+   */
   test("the shut curtain tiles the viewport with no holes", async ({ page }) => {
+    for (const width of [1280, 1512]) {
+      await gotoLanding(page, width, { motion: true });
+
+      const tiling = await page.evaluate((selector) => {
+        const boxes = [...document.querySelectorAll(selector)]
+          .map((panel) => panel.getBoundingClientRect())
+          .filter((box) => box.width > 0)
+          .sort((a, b) => a.left - b.left);
+
+        const gaps = [];
+        for (let i = 1; i < boxes.length; i += 1) {
+          // Unrounded: rounding is what hid the sub-pixel gap.
+          gaps.push(Number((boxes[i].left - boxes[i - 1].right).toFixed(2)));
+        }
+
+        return {
+          count: boxes.length,
+          left: Math.round(boxes[0].left),
+          right: Math.round(boxes[boxes.length - 1].right),
+          viewport: window.innerWidth,
+          gaps,
+        };
+      }, PANEL);
+
+      expect(tiling.count, `no panels found at ${width}px`).toBeGreaterThan(0);
+
+      /*
+       * Overlap is the answer rather than a tolerated accident: the panels are
+       * one colour, so a pixel of it cannot be seen, and no viewport width
+       * leaves a hole.
+       */
+      expect(
+        tiling.gaps.filter((gap) => gap > 0),
+        `at ${width}px the panels leave gaps of ${tiling.gaps.join(", ")}px between them`,
+      ).toEqual([]);
+      expect(
+        tiling.left,
+        `at ${width}px the curtain does not reach the left edge`,
+      ).toBeLessThanOrEqual(0);
+      expect(
+        tiling.right,
+        `at ${width}px the curtain stops ${tiling.viewport - tiling.right}px short of the right edge`,
+      ).toBeGreaterThanOrEqual(tiling.viewport - 1);
+    }
+  });
+
+  /*
+   * And the same question asked of the pixels, which is where this defect
+   * actually lived: twice now a line has appeared between the panels that no
+   * assertion on colours, borders or layout boxes could see. What showed
+   * through was the runway's own `bg-canvas`, at full strength -- a bright
+   * cream streak on the accent field, running the height of the curtain.
+   *
+   * 1512px is the width that provokes it (a fifth is 302.4px, so two of the
+   * four seams round outward on both sides); 1280px is the control, where the
+   * same layout divides exactly and nothing shows however it is built. Both are
+   * measured, so a fix that only works on round numbers still fails here.
+   *
+   * The screenshot is drawn into a canvas in the page rather than compared to a
+   * stored image: this asks whether a light column exists at all, which is the
+   * property, and it does not have to be updated every time the type or the
+   * blooms change.
+   */
+  test("no seam shows through between the panels", async ({ page }) => {
+    for (const width of [1512, 1280]) {
+      await gotoLanding(page, width, { motion: true });
+      await waitPastScrollTriggerStartup(page);
+
+      // Shut, and scrolling away: the state the streak was reported in.
+      const marks = await page.evaluate((selector) => {
+        const runway = document.querySelector(selector);
+        return {
+          runwayTop: runway.getBoundingClientRect().top + window.scrollY,
+          viewport: window.innerHeight,
+        };
+      }, RUNWAY);
+
+      await page.evaluate(
+        (to) =>
+          new Promise((done) => {
+            const step = () => {
+              const remaining = to - window.scrollY;
+              if (Math.abs(remaining) <= 2) return done();
+              window.scrollBy(0, Math.sign(remaining) * Math.min(28, Math.abs(remaining)));
+              requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+          }),
+        Math.round(marks.runwayTop + 300),
+      );
+
+      const shot = await page.screenshot();
+
+      const scan = await page.evaluate(
+        async ([url, row]) => {
+          const img = new Image();
+          img.src = url;
+          await img.decode();
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+
+          const data = ctx.getImageData(0, row, img.width, 1).data;
+          const tally = new Map();
+          for (let x = 0; x < img.width; x += 1) {
+            const key = `${data[x * 4]},${data[x * 4 + 1]},${data[x * 4 + 2]}`;
+            tally.set(key, (tally.get(key) ?? 0) + 1);
+          }
+          const ground = [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0];
+          const [gr, gg, gb] = ground.split(",").map(Number);
+
+          /*
+           * Lighter than the ground, not merely different: the blooms drifting
+           * behind the sentence below are also not the ground, and they are
+           * hundreds of pixels wide. A seam is thin and bright.
+           */
+          const columns = [];
+          for (let x = 0; x < img.width; x += 1) {
+            const [r, g, b] = [data[x * 4], data[x * 4 + 1], data[x * 4 + 2]];
+            if (r - gr > 24 && g - gg > 24 && b - gb > 24) {
+              columns.push({ x, colour: `rgb(${r},${g},${b})` });
+            }
+          }
+
+          return { ground: `rgb(${ground})`, width: img.width, columns };
+        },
+        [`data:image/png;base64,${shot.toString("base64")}`, 200],
+      );
+
+      expect(
+        scan.ground,
+        `the row sampled at ${width}px is mostly ${scan.ground}, so the curtain was not covering it`,
+      ).toBe("rgb(17,33,24)");
+
+      expect(
+        scan.columns,
+        `at ${width}px a light column shows between the panels at x=${scan.columns.map((column) => column.x).join(", ")} (${scan.columns[0]?.colour} against the ${scan.ground} ground)`,
+      ).toEqual([]);
+    }
+  });
+
+  /*
+   * The section after the curtain paints part of itself inside the curtain's own
+   * box: QuoteSection holds its sentence with `sticky` and `-translate-y-1/2`,
+   * so half the sentence's height sits above its section's top edge -- exactly
+   * the strip the shut curtain occupies. Both are `--color-accent`, so a covered
+   * sentence does not read as an overlap. It reads as the first words never
+   * arriving, and then arriving late once the strip has scrolled clear.
+   *
+   * This cannot be hit-tested: the curtain is `pointer-events-none`, so
+   * `elementFromPoint` walks past it whether or not it paints on top. So the
+   * assertion is on the stacking contexts instead -- the panels raise themselves
+   * to cover the Hero, and the wrapper has to keep that raise to itself.
+   */
+  test("the curtain does not paint over the section it hands over to", async ({ page }) => {
     await gotoLanding(page, 1280, { motion: true });
 
-    const tiling = await page.evaluate((selector) => {
-      const boxes = [...document.querySelectorAll(selector)]
-        .map((panel) => panel.getBoundingClientRect())
-        .filter((box) => box.width > 0)
-        .sort((a, b) => a.left - b.left);
+    const order = await page.evaluate(
+      ([runwaySelector, panelSelector]) => {
+        const runway = document.querySelector(runwaySelector);
+        const wrapper = runway.parentElement;
+        const next = wrapper.nextElementSibling;
+        const sentence = next.querySelector("h2");
+        const docY = (el) => el.getBoundingClientRect().top + window.scrollY;
 
-      const gaps = [];
-      for (let i = 1; i < boxes.length; i += 1) {
-        gaps.push(Math.round(boxes[i].left - boxes[i - 1].right));
-      }
+        // Every z-index the panels sit under, up to but not including the
+        // wrapper: this is the raise that has to stay inside it.
+        const inside = [];
+        for (
+          let el = document.querySelector(panelSelector);
+          el && el !== wrapper;
+          el = el.parentElement
+        ) {
+          const z = getComputedStyle(el).zIndex;
+          if (z !== "auto") inside.push(Number(z));
+        }
 
-      return {
-        count: boxes.length,
-        left: Math.round(boxes[0].left),
-        right: Math.round(boxes[boxes.length - 1].right),
-        viewport: window.innerWidth,
-        gaps,
-      };
-    }, PANEL);
+        const wrapperStyle = getComputedStyle(wrapper);
+        const nextZ = getComputedStyle(next).zIndex;
 
-    expect(tiling.count, "no panels found").toBeGreaterThan(0);
+        return {
+          // How far the sentence reaches above its own section's top edge.
+          overflow: Math.round(docY(next) - docY(sentence)),
+          raisedInside: inside.length ? Math.max(...inside) : 0,
+          wrapperPosition: wrapperStyle.position,
+          wrapperZ: wrapperStyle.zIndex,
+          nextZ: nextZ === "auto" ? 0 : Number(nextZ),
+        };
+      },
+      [RUNWAY, PANEL],
+    );
+
+    /*
+     * The premise. If the sentence stops reaching above its section there is
+     * nothing here to cover, and this test would pass while guarding nothing --
+     * so it fails loudly instead, to be re-read rather than trusted.
+     */
     expect(
-      tiling.gaps.filter((gap) => gap !== 0),
-      "the panels do not touch, so the shut curtain has holes in it",
-    ).toEqual([]);
-    expect(tiling.left, "the curtain does not reach the left edge").toBeLessThanOrEqual(0);
+      order.overflow,
+      "the sentence no longer paints above its own section, so this test guards nothing -- re-read it against whatever replaced the sticky hold",
+    ).toBeGreaterThan(0);
+
     expect(
-      tiling.right,
-      `the curtain stops ${tiling.viewport - tiling.right}px short of the right edge`,
-    ).toBeGreaterThanOrEqual(tiling.viewport - 1);
+      order.raisedInside,
+      "the panels no longer raise themselves over the Hero, so re-read what covers it now",
+    ).toBeGreaterThan(0);
+
+    /*
+     * A stacking context is what confines that raise. Without one the panels'
+     * z-index competes with every later section instead of with the Hero.
+     */
+    expect(
+      order.wrapperZ,
+      `the curtain's wrapper does not establish a stacking context (position ${order.wrapperPosition}, z-index ${order.wrapperZ}), so the panels' z-index ${order.raisedInside} outranks the section below`,
+    ).not.toBe("auto");
+    expect(
+      order.wrapperPosition,
+      "a z-index on a static box establishes nothing",
+    ).not.toBe("static");
+
+    /*
+     * And the wrapper itself may not outrank what follows it. Equal is the
+     * answer rather than lower: paint order then falls to document order, and
+     * the section that comes after wins by coming after.
+     */
+    expect(
+      Number(order.wrapperZ),
+      `the curtain's wrapper sits at z-index ${order.wrapperZ} against the following section's ${order.nextZ}`,
+    ).toBeLessThanOrEqual(order.nextZ);
+  });
+
+  /*
+   * The handover is one gesture: the panels land, and the sentence they deliver
+   * starts writing itself. The scroll between the two is the reader watching a
+   * flat field, and it used to be half a viewport -- the reveal was tied to the
+   * moment the sticky engages, which is 50dvh past the release.
+   *
+   * The band is wide on purpose. It rules out the failure mode without pinning
+   * the pace, which is a design decision and belongs in the component. See
+   * docs/failure-archetypes.md, "Contrato rigoroso sobre um valor que não
+   * deveria existir".
+   */
+  test("the sentence starts writing itself soon after the handover", async ({ page }) => {
+    await gotoLanding(page, 1280, { motion: true });
+    await waitPastScrollTriggerStartup(page);
+
+    const { frames, viewport } = await walkTheCurtain(page);
+
+    const release = frames.find((frame) => frame.runwayBottom <= viewport + 1);
+    expect(release, "the hold never releases inside the walk").toBeTruthy();
+
+    const firstWord = frames.find(
+      (frame) => frame.firstWord !== null && frame.firstWord > 0.02,
+    );
+    expect(
+      firstWord,
+      "the sentence's first word never lights inside the walk, so it now waits longer than the walk is long",
+    ).toBeTruthy();
+
+    const gap = firstWord.y - release.y;
+    expect(
+      gap,
+      `the first word waits ${gap}px of scroll after the curtain lets go (released at y=${release.y}, lit at y=${firstWord.y})`,
+    ).toBeLessThanOrEqual(300);
+
+    /*
+     * The other direction, and the reason this is a band: a word lighting while
+     * the panels are still moving would be read through a curtain that is still
+     * closing, over the Hero it has not finished covering.
+     */
+    expect(
+      gap,
+      `the first word lights ${-gap}px before the curtain has let go`,
+    ).toBeGreaterThanOrEqual(0);
+  });
+
+  /*
+   * The trigger's range is derived from the runway, and the runway's top edge is
+   * the Hero's bottom edge -- so `top bottom` resolves to a *negative* scroll
+   * position whenever the Hero is shorter than the viewport. The browser clamps
+   * the scroll at zero; the scrub does not clamp the progress, so the page loads
+   * with the transition already part-way through and the reader never sees its
+   * first frames.
+   *
+   * The Hero's own height is the only thing standing between the two: it has to
+   * yield at least one viewport at every width, not just where a breakpoint says
+   * so. Measured below `lg` against the helper's 900px height, which is the case
+   * that broke -- the Hero stopped at a fixed 780px there, and the content loaded
+   * already faded and lifted.
+   */
+  test("the curtain has not begun before the reader scrolls", async ({ page }) => {
+    for (const width of [390, 768, 1280]) {
+      await gotoLanding(page, width, { motion: true });
+
+      const atRest = await page.evaluate(
+        ([panelSelector, runwaySelector]) => {
+          const runway = document.querySelector(runwaySelector);
+          const scaleY = (el) => {
+            const transform = getComputedStyle(el).transform;
+            if (transform === "none") return 0;
+            const parts = transform.match(/matrix\(([^)]+)\)/);
+            return parts ? Number(parts[1].split(",")[3]) : 0;
+          };
+
+          return {
+            scrollY: window.scrollY,
+            viewport: window.innerHeight,
+            runwayTop: runway.getBoundingClientRect().top + window.scrollY,
+            scales: [...document.querySelectorAll(panelSelector)]
+              .filter((panel) => panel.getBoundingClientRect().width > 0)
+              .map(scaleY),
+            content: [...document.querySelectorAll("[data-hero-content]")].map(
+              (block) => Number(getComputedStyle(block).opacity),
+            ),
+          };
+        },
+        [PANEL, RUNWAY],
+      );
+
+      expect(atRest.scrollY, "the page did not load at the top").toBe(0);
+
+      /*
+       * The invariant behind the symptom, asserted directly: the scroll position
+       * where the transition starts is `runwayTop - viewport`, and it may not be
+       * negative. Reading the geometry rather than only the rendered state is
+       * what makes a failure here say *why* it failed.
+       */
+      expect(
+        Math.round(atRest.runwayTop - atRest.viewport),
+        `at ${width}px the curtain's range starts ${Math.round(atRest.viewport - atRest.runwayTop)}px above the top of the page, so it is already running on load`,
+      ).toBeGreaterThanOrEqual(0);
+
+      expect(
+        Math.max(...atRest.scales),
+        `at ${width}px a panel is already up before any scroll (scales ${atRest.scales.map((s) => s.toFixed(2)).join(", ")})`,
+      ).toBeLessThanOrEqual(0.001);
+
+      expect(
+        Math.min(...atRest.content),
+        `at ${width}px the Hero's content is already leaving before any scroll (opacities ${atRest.content.map((o) => o.toFixed(2)).join(", ")})`,
+      ).toBe(1);
+    }
   });
 
   /*

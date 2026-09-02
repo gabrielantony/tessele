@@ -601,9 +601,30 @@ function ServiceCard({
               <p className="text-label uppercase text-ink">{service.tag}</p>
             </div>
 
-            <h3 className="text-heading-3 text-ink">{service.title}</h3>
+            {/*
+             * Every service's title and description stack in one grid cell, so
+             * the block is always as tall as the longest of them and switching
+             * tabs cannot resize the card. A min-height would have to be a
+             * per-breakpoint guess: which service is tallest changes with
+             * width, because title and description wrap at different points.
+             */}
+            <div data-tab-copy-stack className="grid min-w-0">
+              {services.map((entry) => (
+                <div
+                  key={entry.id}
+                  aria-hidden={entry.id !== service.id}
+                  className={[
+                    "col-start-1 row-start-1 flex min-w-0 flex-col gap-space-3",
 
-            <p className="text-body text-ink">{service.description}</p>
+                    entry.id === service.id ? "" : "invisible",
+                  ].join(" ")}
+                >
+                  <h3 className="text-heading-3 text-ink">{entry.title}</h3>
+
+                  <p className="text-body text-ink">{entry.description}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div
@@ -1072,11 +1093,15 @@ export default function ServicosEEntregas() {
 
         <header className="flex w-full max-w-copy flex-col items-center gap-space-3 text-center">
           <h2 data-heading className="text-heading-2 text-ink">
-            Cada problema pede uma entrega{" "}
+            {/* The nbsp is load-bearing, the same tie ProblemSection's heading
+              * uses: without it "diferente." was the entire second line at every
+              * width from 768 up. Gluing it to "entrega" moves the wrap one word
+              * earlier instead, so the last line is never a single word. */}
+            Cada problema pede uma entrega&nbsp;
             <span className="text-highlight">diferente</span>.
           </h2>
 
-          <p data-intro className="text-body text-muted">
+          <p data-intro className="text-subtitle text-muted">
             Às vezes, o que precisa mudar é a forma como a empresa se apresenta.
             Em outras, a comunicação, o marketing ou a experiência de quem chega
             até ela. A direção define onde a gente precisa atuar.

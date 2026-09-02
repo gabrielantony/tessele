@@ -84,6 +84,65 @@ test.describe("services", () => {
     });
   }
 
+  /*
+   * Gabriel reported the card jumping height when he switched tabs. Measured
+   * before the fix, the card's own height per tab (Estrategia / Design /
+   * Trafego):
+   *
+   *   375px    964  922  892   (72px jump)
+   *   640px    849  825  825   (24px)
+   *   768px    737  713  713   (24px)
+   *   1024px   705  681  657   (48px)
+   *   1280px   513  525  489   (36px)
+   *
+   * Note which tab is tallest changes with width -- Estrategia below 1280px,
+   * Design above it -- because the title and the description wrap at different
+   * points. That is why the card reserves the tallest copy by stacking every
+   * service's copy in one grid cell instead of carrying a min-height: any single
+   * number would be a guess at every width but the ones measured here.
+   *
+   * This is also the assertion that pays for the `[data-tab-copy-stack]` entry
+   * in landing-layout's overlappingSiblings: that probe no longer looks inside
+   * the stack, so the invariant the stack exists for is measured here.
+   */
+  for (const width of [375, 390, 640, 768, 1024, 1100, 1280, 1600]) {
+    test(`the card keeps its height across tabs at ${width}px`, async ({ page }) => {
+      await gotoLanding(page, width);
+
+      const card = page.locator("[data-card]");
+      await card.scrollIntoViewIfNeeded();
+
+      const tabs = page.locator("[data-tab-button]");
+      const count = await tabs.count();
+      expect(count, "no service tabs found").toBeGreaterThan(1);
+
+      const heights = [];
+      for (let index = 0; index < count; index += 1) {
+        const tab = tabs.nth(index);
+        await tab.click();
+        await page.waitForFunction(
+          (expected) =>
+            document
+              .querySelector('[data-tab-button][aria-selected="true"]')
+              ?.textContent?.trim() === expected,
+          (await tab.textContent())?.trim(),
+        );
+        await page.waitForTimeout(400);
+
+        heights.push({
+          tab: (await tab.textContent())?.trim(),
+          heightPx: Math.round((await card.boundingBox()).height),
+        });
+      }
+
+      const distinct = [...new Set(heights.map((entry) => entry.heightPx))];
+      expect(
+        distinct.length,
+        `the card changes height between tabs: ${JSON.stringify(heights)}`,
+      ).toBe(1);
+    });
+  }
+
   // The photos were hotlinked from images.unsplash.com. A static export that
   // reaches a third party on every load is a dependency nobody declared, so they
   // are served from public/images now -- and this is what keeps them there.
