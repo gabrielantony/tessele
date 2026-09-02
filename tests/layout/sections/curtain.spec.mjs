@@ -99,14 +99,6 @@ const walkTheCurtain = (page, pxPerFrame = 12) =>
             runwayBottom: runway.getBoundingClientRect().bottom,
             curtainTop: curtain ? Math.round(curtain.getBoundingClientRect().top) : null,
             scales: panels.map(scaleY),
-            // Alpha of each panel's hairline; 0 means it has been faded out.
-            hairlines: panels.map((panel) => {
-              const colour = getComputedStyle(panel).borderLeftColor;
-              const alpha = colour.match(/rgba?\(([^)]+)\)/);
-              if (!alpha) return 1;
-              const parts = alpha[1].split(",");
-              return parts.length > 3 ? Number(parts[3]) : 1;
-            }),
             firstWord: words.length
               ? Number(getComputedStyle(words[0]).opacity)
               : null,
@@ -220,41 +212,107 @@ test.describe("curtain", () => {
   });
 
   /*
-   * The hairlines are structure while the panels are moving -- same-coloured
-   * panels touching read as one block, and the lines are what make the stagger
-   * legible. Once the curtain is shut they are debris on what is by then just the
-   * Quote section's ground, and they take a whole viewport to scroll up and off.
-   * That travel is the only thing moving on the screen at that point, so it reads
-   * as the transition still running and the sentence feels late for it.
+   * The curtain paints its ground and nothing else -- no seam between the panels,
+   * at any point in the fall.
+   *
+   * This replaces an assertion that measured the seam's colour and required it to
+   * have faded to alpha 0 by the handover. That is a proxy, and it passed on the
+   * behaviour it was meant to prevent: a fade is not a removal, so the line was
+   * painted for the whole fall and then for as long as the shut curtain took to
+   * scroll off -- up to a viewport of travel with nothing else moving. Gabriel
+   * asked for the seam to go (2026-09-02), so the guarantee changes with it: not
+   * "the line is gone in time" but "there is no line".
+   *
+   * Asserted against every edge a seam could come back as, rather than against
+   * `border-left` alone: the next version of this idea would be a box-shadow or
+   * an outline, and it would read as a design choice in the diff.
    */
-  test("no hairline survives the handover", async ({ page }) => {
+  test("the panels paint no seam between them", async ({ page }) => {
     await gotoLanding(page, 1280, { motion: true });
     await waitPastScrollTriggerStartup(page);
 
-    const { frames, viewport } = await walkTheCurtain(page);
+    const edges = await page.evaluate(
+      async ([panelSelector, runwaySelector]) => {
+        const runway = document.querySelector(runwaySelector);
+        const panels = [...document.querySelectorAll(panelSelector)].filter(
+          (panel) => panel.getBoundingClientRect().width > 0,
+        );
 
-    const shut = frames.find((frame) => frame.scales.every((scale) => scale >= FULL));
-    expect(shut, "the curtain never shuts").toBeTruthy();
+        const alpha = (colour) => {
+          const parts = colour.match(/rgba?\(([^)]+)\)/);
+          if (!parts) return 1;
+          const channels = parts[1].split(",");
+          return channels.length > 3 ? Number(channels[3]) : 1;
+        };
 
-    // They have to still be there while it is falling, or they are not doing the
-    // job they exist for.
-    const midFall = frames.find(
-      (frame) =>
-        frame.scales.some((scale) => scale > 0.2) &&
-        frame.scales.some((scale) => scale < 0.8),
+        const painted = (panel) => {
+          const style = getComputedStyle(panel);
+          const found = [];
+          for (const side of ["Left", "Right", "Top", "Bottom"]) {
+            if (
+              parseFloat(style[`border${side}Width`]) > 0 &&
+              alpha(style[`border${side}Color`]) > 0.02
+            ) {
+              found.push(
+                `border-${side.toLowerCase()} ${style[`border${side}Width`]} ${style[`border${side}Color`]}`,
+              );
+            }
+          }
+          if (style.boxShadow && style.boxShadow !== "none") {
+            found.push(`box-shadow ${style.boxShadow}`);
+          }
+          /*
+           * `outline-style` and not width alone: the page declares a focus ring
+           * width globally, so `outline-width` computes to 3px on every element
+           * on the page whether or not anything is painted. Width without a
+           * style paints nothing.
+           */
+          if (
+            style.outlineStyle !== "none" &&
+            parseFloat(style.outlineWidth) > 0 &&
+            alpha(style.outlineColor) > 0.02
+          ) {
+            found.push(
+              `outline ${style.outlineStyle} ${style.outlineWidth} ${style.outlineColor}`,
+            );
+          }
+          return found;
+        };
+
+        // Walked rather than sampled at rest: the seam this replaces was written
+        // by a tween, so a single reading at the top of the page would have seen
+        // whatever the CSS said and none of what the timeline did.
+        const runwayTop = runway.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo(0, Math.max(0, runwayTop - window.innerHeight - 200));
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+        const seen = [];
+        await new Promise((done) => {
+          const budget = (window.innerHeight * 2 + 600) / 12;
+          let frame = 0;
+          const step = () => {
+            for (const panel of panels) {
+              for (const edge of painted(panel)) {
+                seen.push({ y: Math.round(window.scrollY), edge });
+              }
+            }
+            if (frame++ > budget) return done();
+            window.scrollBy(0, 12);
+            requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
+        });
+
+        return { panelCount: panels.length, seen: seen.slice(0, 8), total: seen.length };
+      },
+      [PANEL, RUNWAY],
     );
-    expect(midFall, "the panels never overlap mid-fall").toBeTruthy();
-    expect(
-      Math.max(...midFall.hairlines),
-      "the hairlines are already gone while the panels are still moving, so the stagger has nothing to read against",
-    ).toBeGreaterThan(0.1);
 
-    const release = frames.find((frame) => frame.runwayBottom <= viewport + 1);
-    expect(release, "the hold never releases inside the walk").toBeTruthy();
+    expect(edges.panelCount, "no panels found").toBeGreaterThan(0);
     expect(
-      Math.max(...release.hairlines),
-      `hairlines were still painted at the handover (alphas ${release.hairlines.map((a) => a.toFixed(2)).join(", ")}), so they scroll up over the Quote's ground`,
-    ).toBeLessThanOrEqual(0.02);
+      edges.seen,
+      `a panel painted an edge on ${edges.total} readings across the fall, first at y=${edges.seen[0]?.y}: ${edges.seen[0]?.edge}`,
+    ).toEqual([]);
   });
 
   test("the panels land centre first and edges last", async ({ page }) => {

@@ -21,13 +21,19 @@ gsap.registerPlugin(ScrollTrigger, useGSAP);
  * make the Quote know a Hero sits above it.
  *
  * Choreography borrowed from smart-site-282803.framer.app (measured 2026-09-01:
- * five 20%-wide panels, 1px hairline between them, collapsing centre-out). There
- * it is a preloader retracting upward off the top edge; here the panels grow from
- * the bottom edge instead, which is the one place this departs from the reference
- * and does so deliberately. That gesture is on a timer and owes the scroll nothing;
- * this one is the scroll, and the section it hands over to arrives from below -- so
- * dark rising from the bottom travels the way the reader's own input is already
- * pointing. Growing down from the top fights it.
+ * five 20%-wide panels, 1px hairline between them, collapsing centre-out). It
+ * departs from the reference in two places, both deliberately.
+ *
+ * The panels grow from the bottom edge rather than retracting off the top. That
+ * gesture is on a timer and owes the scroll nothing; this one is the scroll, and
+ * the section it hands over to arrives from below -- so dark rising from the
+ * bottom travels the way the reader's own input is already pointing. Growing
+ * down from the top fights it.
+ *
+ * And there is no hairline between the panels. The reference is a preloader: it
+ * is gone in a second and its seams go with it. Here the shut curtain is on
+ * screen for as long as it takes to scroll a viewport, and a line that has
+ * finished doing its job is just a line (Gabriel, 2026-09-02).
  */
 
 const PANELS = [0, 1, 2, 3, 4];
@@ -179,10 +185,9 @@ export default function CurtainTransition({ children }: { children: ReactNode })
           /*
            * `scaleY` rather than `height`, which is what the reference animates:
            * height is a layout property and forces reflow every frame, scaleY runs
-           * on the compositor. On a solid fill the two are identical to look at,
-           * and a vertical hairline does not deform under a Y-only scale. The
-           * panels carry `origin-bottom`, so this grows each one upward from the
-           * bottom edge of the screen.
+           * on the compositor. On a solid fill the two are identical to look at.
+           * The panels carry `origin-bottom`, so this grows each one upward from
+           * the bottom edge of the screen.
            */
           const fall = CURTAIN_END - CURTAIN_START;
 
@@ -209,33 +214,19 @@ export default function CurtainTransition({ children }: { children: ReactNode })
           );
 
           /*
-           * The hairlines go with the last panel, over the hold beat.
+           * Nothing follows the fall.
            *
-           * They earn their keep only while the panels are moving: same-coloured
-           * panels touching read as one block, and the lines are what make the
-           * centre-out stagger legible. Once the curtain is shut they stop being
-           * structure and become debris -- four lines on what is now just the
-           * Quote section's ground, which then take a whole viewport to scroll up
-           * and off. That travel is the only thing moving on the screen at that
-           * point, so it reads as the transition still going, and the sentence
-           * feels late because of it.
-           *
-           * Fading them across CURTAIN_END to 1 puts the fade in the beat that was
-           * already a hold, so it costs no scroll and the curtain is a plain field
-           * of `--color-accent` at the moment it is handed over.
+           * The panels each carried a 1px hairline, faded out across CURTAIN_END
+           * to 1 so that the handover happened on a plain field. A fade is not a
+           * removal, though: the line was painted for the whole fall and then for
+           * as long as the shut curtain took to scroll off, which is up to a
+           * viewport of travel with nothing else moving on the screen. Taking the
+           * seam out takes this tween with it, and CURTAIN_END is now only what
+           * its name says -- the end of the fall, and the beat before the release.
            */
-          timeline.to(
-            panels,
-            {
-              borderLeftColor: "rgba(0, 0, 0, 0)",
-              ease: "none",
-              duration: 1 - CURTAIN_END,
-            },
-            CURTAIN_END,
-          );
 
           return () => {
-            gsap.set(panels, { clearProps: "willChange,borderLeftColor" });
+            gsap.set(panels, { clearProps: "willChange" });
           };
         },
       );
@@ -315,13 +306,19 @@ export default function CurtainTransition({ children }: { children: ReactNode })
                  */
                 "h-full flex-1 origin-bottom scale-y-0 bg-accent",
                 /*
-                 * Panels of the same colour touching each other read as one block
-                 * and the stagger nearly disappears. The hairline is what makes it
-                 * legible as five panels. Hidden panels take no space, so below
-                 * `md` the third panel's border lands exactly on the divider
-                 * between the visible thirds.
+                 * No seam between the panels. Each carried a 1px hairline so that
+                 * five same-coloured panels touching would still read as five --
+                 * and it did its job for the length of the fall and then went on
+                 * being a line on a field that had nothing else in it, all the way
+                 * up the screen. Gabriel called it (2026-09-02) and it goes.
+                 *
+                 * What the stagger reads against instead is the one thing the
+                 * hairline was never needed for: while the panels are rising their
+                 * top edges are at five different heights against the Hero's cream
+                 * ground behind them, which is where the centre-out gesture is
+                 * legible. The seams only ever separated panels that had already
+                 * arrived, where there is no gesture left to read.
                  */
-                panel > 0 ? "border-l border-on-accent-border" : "",
                 WIDE_ONLY.has(panel) ? "hidden md:block" : "",
               ]
                 .filter(Boolean)
