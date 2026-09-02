@@ -104,7 +104,7 @@ function Stats({ stats }: { stats: Stat[] }) {
     <div className="@container">
       <div
         data-stats
-        className="grid grid-cols-1 gap-space-6 @min-[35rem]:grid-cols-3"
+        className="grid grid-cols-1 gap-space-8 @min-[35rem]:grid-cols-3"
       >
         {stats.map((stat) => (
           <div key={stat.label} className="flex flex-col gap-space-2">
@@ -142,7 +142,7 @@ function MemberIdentity({
         <div className="min-w-0">
           <h3 className="text-heading-4 text-ink">{person.name}</h3>
 
-          <p className="mt-space-1 text-body text-muted">{person.role}</p>
+          <p className="mt-space-1 text-body-medium text-muted">{person.role}</p>
         </div>
       </div>
     );
@@ -164,7 +164,7 @@ function MemberIdentity({
       <div>
         <h3 className="text-heading-4 text-ink">{person.name}</h3>
 
-        <p className="mt-space-1 text-body text-muted">{person.role}</p>
+        <p className="mt-space-1 text-body-medium text-muted">{person.role}</p>
       </div>
     </div>
   );

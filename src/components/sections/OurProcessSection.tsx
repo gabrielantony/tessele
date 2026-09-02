@@ -329,7 +329,7 @@ export default function OurProcessSection() {
                 {step.title}
               </h3>
 
-              <p className="mt-space-1 text-body text-muted">
+              <p className="mt-space-2 text-body text-muted">
                 {step.description}
               </p>
             </li>

@@ -268,7 +268,7 @@ export default function FAQSection() {
           <p
             data-reveal
             data-faq-copy
-            className="mt-space-4 max-w-copy text-lead text-muted"
+            className="mt-space-4 max-w-copy text-body text-muted"
           >
             Reunimos aqui as respostas para as dúvidas mais comuns sobre
             projetos, acompanhamento, escopo e a forma como a Tessele trabalha.
