@@ -1072,7 +1072,11 @@ export default function ServicosEEntregas() {
 
         <header className="flex w-full max-w-copy flex-col items-center gap-space-3 text-center">
           <h2 data-heading className="text-heading-2 text-ink">
-            Cada problema pede uma entrega{" "}
+            {/* The nbsp is load-bearing, the same tie ProblemSection's heading
+              * uses: without it "diferente." was the entire second line at every
+              * width from 768 up. Gluing it to "entrega" moves the wrap one word
+              * earlier instead, so the last line is never a single word. */}
+            Cada problema pede uma entrega&nbsp;
             <span className="text-highlight">diferente</span>.
           </h2>
 

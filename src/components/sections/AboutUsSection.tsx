@@ -407,7 +407,10 @@ export default function AboutUs() {
             <span className="text-highlight">
               mais completa
             </span>{" "}
-            de trabalhar.
+            {/* Glued: "trabalhar." was alone on the last line from 835px up on
+              * Chromium and 847px up on WebKit -- i.e. at nearly every desktop
+              * width, not an edge case. */}
+            de&nbsp;trabalhar.
           </h2>
         </header>
 

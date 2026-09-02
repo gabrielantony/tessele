@@ -262,7 +262,11 @@ export default function FAQSection() {
             className="max-w-copy text-heading-2 text-ink"
           >
             O que você pode querer saber antes de{" "}
-            <span className="text-highlight">começar</span> com a Tessele.
+            {/* The closing run is glued whole rather than only its last two
+              * words: "Tessele." was alone on the fourth line through the
+              * 1024-1141px band, and tying just "a Tessele." would have left
+              * "com" hanging at the end of the line above. */}
+            <span className="text-highlight">começar</span> com&nbsp;a&nbsp;Tessele.
           </h2>
 
           <p
