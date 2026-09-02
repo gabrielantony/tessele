@@ -57,25 +57,47 @@
      reader's own font-size setting (WCAG 1.4.4); pure vw ignores it. It holds
      36px up to a 384px viewport, gives 48px at 768px, and reaches the 3.5rem
      cap at 1024px, so wide screens keep the size they had while the 768-1024
-     band no longer gets the widest setting of all. */
-  --text-display: clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem);
-  --text-display--line-height: 1.15;
+     band no longer gets the widest setting of all.
+
+     Nothing in this scale renders on a fractional pixel: every size and every
+     leading is wrapped in round(nearest, ..., 2px), which snaps it to the
+     nearest EVEN pixel. Gabriel's rule, and the ratios above are why it needs
+     saying in CSS rather than in arithmetic -- 1.2 x 32px is 38.4px, 1.28 x 24px
+     is 30.72px, and a ratio almost never lands on an even pixel at both steps
+     of a size that changes at 48rem. Rounding at the point of use is what keeps
+     the two rules from fighting: the ratio stays the stated intent, the rendered
+     leading is 38px and 30px.
+
+     Two things it also buys, which hand-computed rem lengths cannot. The fluid
+     display size is even at EVERY viewport width, not just at the ends of its
+     clamp (52.125px at a 900px viewport before this). And the grid holds when
+     the reader's root font-size is not 16px, where "2.375rem" stops being an
+     even number of pixels and round() does not.
+
+     The cost is browsers older than round(): Chrome 125, Safari 15.4, Firefox
+     118. There the whole declaration is invalid and the leading falls back to
+     `normal`, which for Raleway is ~1.17 -- within a hair of the 1.15-1.2 these
+     roles ask for. Restating every ratio inside an @supports block would buy
+     that back at the price of a second list to keep in sync, which is the drift
+     this comment opens by warning about. */
+  --text-display: round(nearest, clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem), 2px);
+  --text-display--line-height: round(nearest, 1.15em, 2px);
   --text-display--font-weight: 700;
   --text-display--letter-spacing: -0.02em;
-  --text-display-2: clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem);
-  --text-display-2--line-height: 1.15;
+  --text-display-2: round(nearest, clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem), 2px);
+  --text-display-2--line-height: round(nearest, 1.15em, 2px);
   --text-display-2--font-weight: 700;
   --text-display-2--letter-spacing: -0.02em;
   --text-heading-2: 2rem;
-  --text-heading-2--line-height: 1.2;
+  --text-heading-2--line-height: round(nearest, 1.2em, 2px);
   --text-heading-2--font-weight: 700;
   --text-heading-2--letter-spacing: -0.015em;
   --text-heading-3: 1.5rem;
-  --text-heading-3--line-height: 1.28;
+  --text-heading-3--line-height: round(nearest, 1.28em, 2px);
   --text-heading-3--font-weight: 600;
   --text-heading-3--letter-spacing: -0.01em;
   --text-heading-4: 1.25rem;
-  --text-heading-4--line-height: 1.33;
+  --text-heading-4--line-height: round(nearest, 1.33em, 2px);
   --text-heading-4--font-weight: 700;
   --text-heading-4--letter-spacing: 0;
   --text-lead: 1.125rem;
@@ -99,7 +121,7 @@
      if the size ever moves. 1.55 rather than body's 1.5: same 42rem measure one
      size up is a longer line, and a longer line wants more room between them. */
   --text-subtitle: 1.125rem;
-  --text-subtitle--line-height: 1.55;
+  --text-subtitle--line-height: round(nearest, 1.55em, 2px);
   --text-subtitle--font-weight: 400;
   --text-subtitle--letter-spacing: 0;
   --text-body: 1rem;
@@ -130,7 +152,7 @@
   --text-label--font-weight: 600;
   --text-label--letter-spacing: 0.06em;
   --text-action: 1rem;
-  --text-action--line-height: 1.2;
+  --text-action--line-height: round(nearest, 1.2em, 2px);
   --text-action--font-weight: 600;
   --text-action--letter-spacing: 0;
   --text-metric: 2.25rem;

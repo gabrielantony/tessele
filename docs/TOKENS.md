@@ -49,8 +49,8 @@ Use as `text-<name>`. See the modifier table below.
 
 | Name | Value | ≥48rem |
 |---|---|---|
-| `text-display` | clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem) | — |
-| `text-display-2` | clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem) | — |
+| `text-display` | round(nearest, clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem), 2px) | — |
+| `text-display-2` | round(nearest, clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem), 2px) | — |
 | `text-heading-2` | 2rem | 2.5rem |
 | `text-heading-3` | 1.5rem | 1.75rem |
 | `text-heading-4` | 1.25rem | — |
@@ -142,13 +142,13 @@ one overrides the token and is always wrong.
 
 | Utility | size / line-height / weight / tracking |
 |---|---|
-| `text-display` | clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem) / 1.15 / 700 / -0.02em |
-| `text-display-2` | clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem) / 1.15 / 700 / -0.02em |
-| `text-heading-2` | 2rem / 1.2 / 700 / -0.015em |
-| `text-heading-3` | 1.5rem / 1.28 / 600 / -0.01em |
-| `text-heading-4` | 1.25rem / 1.33 / 700 / 0 |
+| `text-display` | round(nearest, clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem), 2px) / round(nearest, 1.15em, 2px) / 700 / -0.02em |
+| `text-display-2` | round(nearest, clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem), 2px) / round(nearest, 1.15em, 2px) / 700 / -0.02em |
+| `text-heading-2` | 2rem / round(nearest, 1.2em, 2px) / 700 / -0.015em |
+| `text-heading-3` | 1.5rem / round(nearest, 1.28em, 2px) / 600 / -0.01em |
+| `text-heading-4` | 1.25rem / round(nearest, 1.33em, 2px) / 700 / 0 |
 | `text-lead` | 1.125rem / 1.75rem / 500 / — |
-| `text-subtitle` | 1.125rem / 1.55 / 400 / 0 |
+| `text-subtitle` | 1.125rem / round(nearest, 1.55em, 2px) / 400 / 0 |
 | `text-body` | 1rem / 1.5rem / 400 / 0 |
 | `text-body-medium` | 1rem / 1.5rem / 500 / 0 |
 | `text-body-bold` | 1rem / 1.5rem / 700 / 0 |
@@ -156,7 +156,7 @@ one overrides the token and is always wrong.
 | `text-small-bold` | 0.875rem / 1.25rem / 700 / 0 |
 | `text-small-medium` | 0.875rem / 1.25rem / 500 / 0 |
 | `text-label` | 0.75rem / 1rem / 600 / 0.06em |
-| `text-action` | 1rem / 1.2 / 600 / 0 |
+| `text-action` | 1rem / round(nearest, 1.2em, 2px) / 600 / 0 |
 | `text-metric` | 2.25rem / 2.25rem / 600 / -0.01em |
 
 ## Motion
