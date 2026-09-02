@@ -319,6 +319,27 @@ export default function CurtainTransition({ children }: { children: ReactNode })
                  * legible. The seams only ever separated panels that had already
                  * arrived, where there is no gesture left to read.
                  */
+                /*
+                 * And every panel after the first overlaps the one before it by a
+                 * pixel, which is what stops the seam coming back as a hole.
+                 *
+                 * `flex-1` divides the viewport, and the viewport is usually not
+                 * divisible: at 1512px five panels are 302.4px each, so their edges
+                 * land at 302.39, 604.8, 907.19 and 1209.59. Two of those four
+                 * round outward on both sides and leave a 1px column that no panel
+                 * paints -- and what shows through it is the runway's `bg-canvas`,
+                 * measured as a full-strength rgb(250,249,245) line at x=604 and
+                 * x=1209. Which is why it read as a bright white streak rather than
+                 * as a hairline, and why it was always two rather than four.
+                 *
+                 * At 1280 the same layout is exact (256px each) and nothing shows,
+                 * so this is invisible on some displays and obvious on the next one
+                 * along. An overlap is the fix that does not depend on the
+                 * arithmetic working out: the panels are all one colour, so a pixel
+                 * of overlap cannot be seen, and there is no width at which it
+                 * leaves a gap.
+                 */
+                panel > 0 ? "-ml-px" : "",
                 WIDE_ONLY.has(panel) ? "hidden md:block" : "",
               ]
                 .filter(Boolean)

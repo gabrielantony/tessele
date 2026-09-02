@@ -349,39 +349,160 @@ test.describe("curtain", () => {
     }
   });
 
+  /*
+   * The panels must cover the width between them, and "touch exactly" is not
+   * the way to ask for it. That was the previous assertion and it passed for
+   * the whole life of a bug it was written to catch: it rounds, and at 1512px
+   * the fifth of a viewport is 302.4px, so a panel ending at 604.8 and the next
+   * starting at 604.8 round to a gap of zero while the rendered pixels have a
+   * 1px column that neither of them paints.
+   *
+   * So the layout numbers are asked the one question they can answer -- is
+   * there a gap, overlap allowed -- and the pixels are asked the real one,
+   * below.
+   */
   test("the shut curtain tiles the viewport with no holes", async ({ page }) => {
-    await gotoLanding(page, 1280, { motion: true });
+    for (const width of [1280, 1512]) {
+      await gotoLanding(page, width, { motion: true });
 
-    const tiling = await page.evaluate((selector) => {
-      const boxes = [...document.querySelectorAll(selector)]
-        .map((panel) => panel.getBoundingClientRect())
-        .filter((box) => box.width > 0)
-        .sort((a, b) => a.left - b.left);
+      const tiling = await page.evaluate((selector) => {
+        const boxes = [...document.querySelectorAll(selector)]
+          .map((panel) => panel.getBoundingClientRect())
+          .filter((box) => box.width > 0)
+          .sort((a, b) => a.left - b.left);
 
-      const gaps = [];
-      for (let i = 1; i < boxes.length; i += 1) {
-        gaps.push(Math.round(boxes[i].left - boxes[i - 1].right));
-      }
+        const gaps = [];
+        for (let i = 1; i < boxes.length; i += 1) {
+          // Unrounded: rounding is what hid the sub-pixel gap.
+          gaps.push(Number((boxes[i].left - boxes[i - 1].right).toFixed(2)));
+        }
 
-      return {
-        count: boxes.length,
-        left: Math.round(boxes[0].left),
-        right: Math.round(boxes[boxes.length - 1].right),
-        viewport: window.innerWidth,
-        gaps,
-      };
-    }, PANEL);
+        return {
+          count: boxes.length,
+          left: Math.round(boxes[0].left),
+          right: Math.round(boxes[boxes.length - 1].right),
+          viewport: window.innerWidth,
+          gaps,
+        };
+      }, PANEL);
 
-    expect(tiling.count, "no panels found").toBeGreaterThan(0);
-    expect(
-      tiling.gaps.filter((gap) => gap !== 0),
-      "the panels do not touch, so the shut curtain has holes in it",
-    ).toEqual([]);
-    expect(tiling.left, "the curtain does not reach the left edge").toBeLessThanOrEqual(0);
-    expect(
-      tiling.right,
-      `the curtain stops ${tiling.viewport - tiling.right}px short of the right edge`,
-    ).toBeGreaterThanOrEqual(tiling.viewport - 1);
+      expect(tiling.count, `no panels found at ${width}px`).toBeGreaterThan(0);
+
+      /*
+       * Overlap is the answer rather than a tolerated accident: the panels are
+       * one colour, so a pixel of it cannot be seen, and no viewport width
+       * leaves a hole.
+       */
+      expect(
+        tiling.gaps.filter((gap) => gap > 0),
+        `at ${width}px the panels leave gaps of ${tiling.gaps.join(", ")}px between them`,
+      ).toEqual([]);
+      expect(
+        tiling.left,
+        `at ${width}px the curtain does not reach the left edge`,
+      ).toBeLessThanOrEqual(0);
+      expect(
+        tiling.right,
+        `at ${width}px the curtain stops ${tiling.viewport - tiling.right}px short of the right edge`,
+      ).toBeGreaterThanOrEqual(tiling.viewport - 1);
+    }
+  });
+
+  /*
+   * And the same question asked of the pixels, which is where this defect
+   * actually lived: twice now a line has appeared between the panels that no
+   * assertion on colours, borders or layout boxes could see. What showed
+   * through was the runway's own `bg-canvas`, at full strength -- a bright
+   * cream streak on the accent field, running the height of the curtain.
+   *
+   * 1512px is the width that provokes it (a fifth is 302.4px, so two of the
+   * four seams round outward on both sides); 1280px is the control, where the
+   * same layout divides exactly and nothing shows however it is built. Both are
+   * measured, so a fix that only works on round numbers still fails here.
+   *
+   * The screenshot is drawn into a canvas in the page rather than compared to a
+   * stored image: this asks whether a light column exists at all, which is the
+   * property, and it does not have to be updated every time the type or the
+   * blooms change.
+   */
+  test("no seam shows through between the panels", async ({ page }) => {
+    for (const width of [1512, 1280]) {
+      await gotoLanding(page, width, { motion: true });
+      await waitPastScrollTriggerStartup(page);
+
+      // Shut, and scrolling away: the state the streak was reported in.
+      const marks = await page.evaluate((selector) => {
+        const runway = document.querySelector(selector);
+        return {
+          runwayTop: runway.getBoundingClientRect().top + window.scrollY,
+          viewport: window.innerHeight,
+        };
+      }, RUNWAY);
+
+      await page.evaluate(
+        (to) =>
+          new Promise((done) => {
+            const step = () => {
+              const remaining = to - window.scrollY;
+              if (Math.abs(remaining) <= 2) return done();
+              window.scrollBy(0, Math.sign(remaining) * Math.min(28, Math.abs(remaining)));
+              requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+          }),
+        Math.round(marks.runwayTop + 300),
+      );
+
+      const shot = await page.screenshot();
+
+      const scan = await page.evaluate(
+        async ([url, row]) => {
+          const img = new Image();
+          img.src = url;
+          await img.decode();
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+
+          const data = ctx.getImageData(0, row, img.width, 1).data;
+          const tally = new Map();
+          for (let x = 0; x < img.width; x += 1) {
+            const key = `${data[x * 4]},${data[x * 4 + 1]},${data[x * 4 + 2]}`;
+            tally.set(key, (tally.get(key) ?? 0) + 1);
+          }
+          const ground = [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0];
+          const [gr, gg, gb] = ground.split(",").map(Number);
+
+          /*
+           * Lighter than the ground, not merely different: the blooms drifting
+           * behind the sentence below are also not the ground, and they are
+           * hundreds of pixels wide. A seam is thin and bright.
+           */
+          const columns = [];
+          for (let x = 0; x < img.width; x += 1) {
+            const [r, g, b] = [data[x * 4], data[x * 4 + 1], data[x * 4 + 2]];
+            if (r - gr > 24 && g - gg > 24 && b - gb > 24) {
+              columns.push({ x, colour: `rgb(${r},${g},${b})` });
+            }
+          }
+
+          return { ground: `rgb(${ground})`, width: img.width, columns };
+        },
+        [`data:image/png;base64,${shot.toString("base64")}`, 200],
+      );
+
+      expect(
+        scan.ground,
+        `the row sampled at ${width}px is mostly ${scan.ground}, so the curtain was not covering it`,
+      ).toBe("rgb(17,33,24)");
+
+      expect(
+        scan.columns,
+        `at ${width}px a light column shows between the panels at x=${scan.columns.map((column) => column.x).join(", ")} (${scan.columns[0]?.colour} against the ${scan.ground} ground)`,
+      ).toEqual([]);
+    }
   });
 
   /*
