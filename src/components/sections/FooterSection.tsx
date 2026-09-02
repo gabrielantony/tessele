@@ -176,7 +176,7 @@ export default function Footer() {
           <h2
             data-footer-reveal
             data-footer-heading
-            className="text-heading-2 text-center text-on-accent !text-[1.5rem] !leading-[2rem] md:!text-[2.5rem] md:!leading-[3rem]"
+            className="text-heading-3 text-center text-on-accent md:text-heading-2"
           >
             Marketing, design e desenvolvimento para empresas que precisam
             decidir e construir o próximo passo.

@@ -31,6 +31,7 @@ Prefix each name with `bg-`, `text-`, `border-` or `ring-`.
 | `on-accent-muted` | #999e99 |
 | `on-accent-border` | #4d594d |
 | `highlight` | #85d02d |
+| `highlight-deep` | #5e9320 |
 | `dark-canvas` | #030a06 |
 | `accent-soft` | rgb(17 33 24 / 5%) |
 | `highlight-soft` | rgb(133 208 45 / 10%) |
@@ -128,6 +129,8 @@ Use as `shadow-<name>`.
 | `shadow-floating` | 0 1.25rem 3rem rgb(3 10 6 / 8%) |
 | `shadow-card` | 0 0.5rem 0.75rem rgb(0 0 0 / 2%) |
 | `shadow-control` | 0 0.25rem 0.375rem rgb(0 0 0 / 5%) |
+| `shadow-plan` | -0.25rem 0.5rem 1rem rgb(133 208 45 / 0%), -0.75rem 1.25rem 2rem rgb(133 208 45 / 2%), -1.5rem 2.5rem 3.5rem rgb(133 208 45 / 3%) |
+| `shadow-plan-lifted` | -0.25rem 0.5rem 1rem rgb(133 208 45 / 5%), -0.75rem 1.25rem 2rem rgb(133 208 45 / 8%), -1.5rem 2.5rem 3.5rem rgb(133 208 45 / 10%) |
 | `shadow-lifted` | -4px 6px 16px rgb(137 130 103 / 8%), -15px 25px 29px rgb(137 130 103 / 7%), -34px 56px 39px rgb(137 130 103 / 4%), -61px 99px 47px rgb(137 130 103 / 1%) |
 
 ## What the type utilities already carry
@@ -160,10 +163,14 @@ one overrides the token and is always wrong.
 |---|---|
 | `var(--duration-fast)` | 160ms |
 | `var(--duration-base)` | 320ms |
+| `var(--duration-slow)` | 420ms |
 | `var(--duration-editorial)` | 720ms |
 | `var(--ease-enter)` | cubic-bezier(0.05, 0.7, 0.1, 1) |
 | `var(--ease-exit)` | cubic-bezier(0.3, 0, 0.8, 0.15) |
 | `var(--ease-out)` | cubic-bezier(0.16, 1, 0.3, 1) |
+| `var(--ease-fluid)` | cubic-bezier(0.618, 0, 0.382, 1) |
+| `var(--ease-lift)` | cubic-bezier(0.236, 1.236, 0.382, 1) |
+| `var(--duration-lift)` | 400ms |
 
 Read `docs/failure-archetypes.md` before writing any scroll sequence. Every
 animated section also needs a `prefers-reduced-motion` path that restores the
