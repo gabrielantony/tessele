@@ -244,7 +244,20 @@ export default function CurtainTransition({ children }: { children: ReactNode })
   );
 
   return (
-    <div ref={root} className="relative">
+    /*
+     * `z-0` makes this a stacking context, and that is what keeps the panels'
+     * `z-10` a statement about the Hero rather than about the page.
+     *
+     * Without it the panels outrank every following section, and the next one
+     * along paints part of itself inside this wrapper's box: QuoteSection holds
+     * its sentence with `sticky` and `-translate-y-1/2`, so half the sentence's
+     * height sits above its own section's top edge -- exactly the strip the shut
+     * curtain occupies. Same colour, so it does not read as an overlap; it reads
+     * as the sentence's first words never arriving. Confining the z-index here
+     * costs nothing (the curtain only ever needs to cover what it wraps) and no
+     * section downstream has to know a curtain exists to outrank it.
+     */
+    <div ref={root} className="relative z-0">
       {children}
 
       {/*

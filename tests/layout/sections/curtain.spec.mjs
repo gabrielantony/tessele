@@ -73,6 +73,11 @@ const walkTheCurtain = (page, pxPerFrame = 12) =>
 
       const curtain = panels.length ? panels[0].parentElement : null;
 
+      // The sentence the curtain hands over to. Sampled here because the seam is
+      // where the handover is legible: the panels landing and the first word
+      // lighting are one gesture to the reader, and only one walk sees both.
+      const words = [...document.querySelectorAll("[data-word]")];
+
       const runwayTop = runway.getBoundingClientRect().top + window.scrollY;
       const viewport = window.innerHeight;
 
@@ -102,6 +107,9 @@ const walkTheCurtain = (page, pxPerFrame = 12) =>
               const parts = alpha[1].split(",");
               return parts.length > 3 ? Number(parts[3]) : 1;
             }),
+            firstWord: words.length
+              ? Number(getComputedStyle(words[0]).opacity)
+              : null,
           });
           if (frame++ > frameBudget) return done();
           window.scrollBy(0, pxPerFrame);
@@ -316,6 +324,141 @@ test.describe("curtain", () => {
       tiling.right,
       `the curtain stops ${tiling.viewport - tiling.right}px short of the right edge`,
     ).toBeGreaterThanOrEqual(tiling.viewport - 1);
+  });
+
+  /*
+   * The section after the curtain paints part of itself inside the curtain's own
+   * box: QuoteSection holds its sentence with `sticky` and `-translate-y-1/2`,
+   * so half the sentence's height sits above its section's top edge -- exactly
+   * the strip the shut curtain occupies. Both are `--color-accent`, so a covered
+   * sentence does not read as an overlap. It reads as the first words never
+   * arriving, and then arriving late once the strip has scrolled clear.
+   *
+   * This cannot be hit-tested: the curtain is `pointer-events-none`, so
+   * `elementFromPoint` walks past it whether or not it paints on top. So the
+   * assertion is on the stacking contexts instead -- the panels raise themselves
+   * to cover the Hero, and the wrapper has to keep that raise to itself.
+   */
+  test("the curtain does not paint over the section it hands over to", async ({ page }) => {
+    await gotoLanding(page, 1280, { motion: true });
+
+    const order = await page.evaluate(
+      ([runwaySelector, panelSelector]) => {
+        const runway = document.querySelector(runwaySelector);
+        const wrapper = runway.parentElement;
+        const next = wrapper.nextElementSibling;
+        const sentence = next.querySelector("h2");
+        const docY = (el) => el.getBoundingClientRect().top + window.scrollY;
+
+        // Every z-index the panels sit under, up to but not including the
+        // wrapper: this is the raise that has to stay inside it.
+        const inside = [];
+        for (
+          let el = document.querySelector(panelSelector);
+          el && el !== wrapper;
+          el = el.parentElement
+        ) {
+          const z = getComputedStyle(el).zIndex;
+          if (z !== "auto") inside.push(Number(z));
+        }
+
+        const wrapperStyle = getComputedStyle(wrapper);
+        const nextZ = getComputedStyle(next).zIndex;
+
+        return {
+          // How far the sentence reaches above its own section's top edge.
+          overflow: Math.round(docY(next) - docY(sentence)),
+          raisedInside: inside.length ? Math.max(...inside) : 0,
+          wrapperPosition: wrapperStyle.position,
+          wrapperZ: wrapperStyle.zIndex,
+          nextZ: nextZ === "auto" ? 0 : Number(nextZ),
+        };
+      },
+      [RUNWAY, PANEL],
+    );
+
+    /*
+     * The premise. If the sentence stops reaching above its section there is
+     * nothing here to cover, and this test would pass while guarding nothing --
+     * so it fails loudly instead, to be re-read rather than trusted.
+     */
+    expect(
+      order.overflow,
+      "the sentence no longer paints above its own section, so this test guards nothing -- re-read it against whatever replaced the sticky hold",
+    ).toBeGreaterThan(0);
+
+    expect(
+      order.raisedInside,
+      "the panels no longer raise themselves over the Hero, so re-read what covers it now",
+    ).toBeGreaterThan(0);
+
+    /*
+     * A stacking context is what confines that raise. Without one the panels'
+     * z-index competes with every later section instead of with the Hero.
+     */
+    expect(
+      order.wrapperZ,
+      `the curtain's wrapper does not establish a stacking context (position ${order.wrapperPosition}, z-index ${order.wrapperZ}), so the panels' z-index ${order.raisedInside} outranks the section below`,
+    ).not.toBe("auto");
+    expect(
+      order.wrapperPosition,
+      "a z-index on a static box establishes nothing",
+    ).not.toBe("static");
+
+    /*
+     * And the wrapper itself may not outrank what follows it. Equal is the
+     * answer rather than lower: paint order then falls to document order, and
+     * the section that comes after wins by coming after.
+     */
+    expect(
+      Number(order.wrapperZ),
+      `the curtain's wrapper sits at z-index ${order.wrapperZ} against the following section's ${order.nextZ}`,
+    ).toBeLessThanOrEqual(order.nextZ);
+  });
+
+  /*
+   * The handover is one gesture: the panels land, and the sentence they deliver
+   * starts writing itself. The scroll between the two is the reader watching a
+   * flat field, and it used to be half a viewport -- the reveal was tied to the
+   * moment the sticky engages, which is 50dvh past the release.
+   *
+   * The band is wide on purpose. It rules out the failure mode without pinning
+   * the pace, which is a design decision and belongs in the component. See
+   * docs/failure-archetypes.md, "Contrato rigoroso sobre um valor que não
+   * deveria existir".
+   */
+  test("the sentence starts writing itself soon after the handover", async ({ page }) => {
+    await gotoLanding(page, 1280, { motion: true });
+    await waitPastScrollTriggerStartup(page);
+
+    const { frames, viewport } = await walkTheCurtain(page);
+
+    const release = frames.find((frame) => frame.runwayBottom <= viewport + 1);
+    expect(release, "the hold never releases inside the walk").toBeTruthy();
+
+    const firstWord = frames.find(
+      (frame) => frame.firstWord !== null && frame.firstWord > 0.02,
+    );
+    expect(
+      firstWord,
+      "the sentence's first word never lights inside the walk, so it now waits longer than the walk is long",
+    ).toBeTruthy();
+
+    const gap = firstWord.y - release.y;
+    expect(
+      gap,
+      `the first word waits ${gap}px of scroll after the curtain lets go (released at y=${release.y}, lit at y=${firstWord.y})`,
+    ).toBeLessThanOrEqual(300);
+
+    /*
+     * The other direction, and the reason this is a band: a word lighting while
+     * the panels are still moving would be read through a curtain that is still
+     * closing, over the Hero it has not finished covering.
+     */
+    expect(
+      gap,
+      `the first word lights ${-gap}px before the curtain has let go`,
+    ).toBeGreaterThanOrEqual(0);
   });
 
   /*
