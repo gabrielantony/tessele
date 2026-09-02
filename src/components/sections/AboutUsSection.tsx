@@ -87,18 +87,33 @@ const PEOPLE: Person[] = [
 
 function Stats({ stats }: { stats: Stat[] }) {
   return (
-    // Três stats devem usar uma ou três colunas para não isolar uma métrica.
-    <div
-      data-stats
-      className="grid grid-cols-1 gap-space-6 sm:grid-cols-3"
-    >
-      {stats.map((stat) => (
-        <div key={stat.label} className="flex flex-col gap-space-2">
-          <strong className="text-metric text-ink">{stat.value}</strong>
+    /*
+     * One column or three -- never two, which would orphan a metric -- and three
+     * only where three actually fit. The widest label ("Projetos
+     * internacionais") measures 10.5rem at max-content, identically in all three
+     * engines, so three of them plus two 1.5rem gaps need 34.5rem. Under that, a
+     * three-column grid does not fail visibly by overflowing: it silently breaks
+     * every label across two lines.
+     *
+     * The query is on the container rather than the viewport because the card's
+     * width is not monotonic in viewport width. At lg the profile column appears
+     * beside it and takes 290px, so the card holds 452px of content at 1024px
+     * against 701px at 900px. No viewport breakpoint can get 1024 right without
+     * getting 900 or 1280 wrong.
+     */
+    <div className="@container">
+      <div
+        data-stats
+        className="grid grid-cols-1 gap-space-6 @min-[35rem]:grid-cols-3"
+      >
+        {stats.map((stat) => (
+          <div key={stat.label} className="flex flex-col gap-space-2">
+            <strong className="text-metric text-ink">{stat.value}</strong>
 
-          <span className="text-body text-muted">{stat.label}</span>
-        </div>
-      ))}
+            <span className="text-body text-muted">{stat.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
