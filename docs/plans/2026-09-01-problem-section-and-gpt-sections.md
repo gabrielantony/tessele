@@ -11,7 +11,7 @@
 > removed and point there. Phases 3 to 6, about the other sections, are untouched
 > by this.
 
-Repo: `tessele-site` (Next 16, static export to GitHub Pages under `/tessele/`).
+Repo: `tessele` (Next 16, static export to GitHub Pages under `/tessele/`).
 Branch: `feat/landing-sections`. Written 2026-09-01.
 
 Successor to `2026-09-01-landing-responsive-fixes.md`, whose phases 1 and 2 landed in

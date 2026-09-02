@@ -48,7 +48,19 @@ test.describe("about", () => {
     expect(external, "about photos point at a third-party origin").toEqual([]);
   });
 
-  for (const width of [390, 768, 1024, 1280, 1600]) {
+  /*
+   * Same widths as the orphan loop below, because the two constraints pull
+   * against each other and a width checked by only one of them is where the
+   * next regression lands: 1024px passed the orphan check with three columns of
+   * 134px, and 640px still wrapped "Projetos internacionais" while no wrap test
+   * looked there.
+   *
+   * The card's width is not monotonic in viewport width -- at lg the 290px
+   * profile column appears beside it, so the card holds 452px of content at
+   * 1024px against 701px at 900px -- which is why the column count is a
+   * container query in the component and not a viewport breakpoint.
+   */
+  for (const width of [390, 430, 640, 768, 900, 1024, 1152, 1280, 1600]) {
     test(`no stat label wraps at ${width}px`, async ({ page }) => {
       await gotoLanding(page, width);
 
@@ -84,7 +96,7 @@ test.describe("about", () => {
    *
    * One column or three, never two.
    */
-  for (const width of [390, 430, 640, 768, 900, 1024, 1280, 1600]) {
+  for (const width of [390, 430, 640, 768, 900, 1024, 1152, 1280, 1600]) {
     test(`the three stats never sit in two columns at ${width}px`, async ({ page }) => {
       await gotoLanding(page, width);
 

@@ -23,7 +23,7 @@ Rules for adding entries:
 ## Optional framework lifecycle treated as universal
 - **Archetype:** client code can wait forever for a framework lifecycle event when the integration that emits it is optional or absent, leaving the feature in its fallback state without an error.
 - **Ask when planning:** for every framework lifecycle event the feature depends on, what enables that event in this app, and what equivalent browser lifecycle path activates and cleans up the feature when the integration is absent?
-- **Escaped in:** friction curtain activation without Astro client routing (2026-07-16)
+- **Escaped in:** friction curtain activation waiting on a client-routing lifecycle event the app never emitted (2026-07-16, earlier prototype)
 
 ## Handoff geométrico entre renderizações com progressos temporais diferentes
 - **Archetype:** superfícies visualmente equivalentes podem ter a mesma geometria estática e ainda produzir sobreposição ou salto quando são renderizadas por controllers independentes, capturadas em progressos temporais diferentes ou trocadas em frames distintos.

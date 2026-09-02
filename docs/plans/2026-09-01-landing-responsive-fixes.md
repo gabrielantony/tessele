@@ -1,6 +1,6 @@
 # Landing responsive fixes — plan
 
-Repo: `tessele-site` (Next 16, static export to GitHub Pages under `/tessele/`).
+Repo: `tessele` (Next 16, static export to GitHub Pages under `/tessele/`).
 Branch: `feat/landing-sections`. Written 2026-09-01.
 
 Every number below was measured against `npm run build` output in Chromium, WebKit and an
@@ -105,8 +105,6 @@ comment says to delete it once it is no longer a reference.
 
 ## Out of scope
 
-- The Astro repo at `~/GitHub/Tessele`. Its own responsive work is finished and green on
-  `feat/landing-figma-revamp`; nothing here touches it.
 - Design fidelity to the Figma. Nothing in this plan claims a section does or does not match a
   design — these are cases where the page contradicts itself or the browser.
 - `PlansSection` vs `PricingSection` — a product question.
