@@ -49,8 +49,8 @@ Use as `text-<name>`. See the modifier table below.
 
 | Name | Value | ≥48rem |
 |---|---|---|
-| `text-display` | 2.5rem | 3.5rem |
-| `text-display-2` | 2.5rem | 3.5rem |
+| `text-display` | clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem) | — |
+| `text-display-2` | clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem) | — |
 | `text-heading-2` | 2rem | 2.5rem |
 | `text-heading-3` | 1.5rem | 1.75rem |
 | `text-heading-4` | 1.25rem | — |
@@ -141,8 +141,8 @@ one overrides the token and is always wrong.
 
 | Utility | size / line-height / weight / tracking |
 |---|---|
-| `text-display` | 2.5rem / 3rem / 700 / -0.02em |
-| `text-display-2` | 2.5rem / 3rem / 700 / -0.02em |
+| `text-display` | clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem) / 1.15 / 700 / -0.02em |
+| `text-display-2` | clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem) / 1.15 / 700 / -0.02em |
 | `text-heading-2` | 2rem / 2.5rem / 700 / -0.015em |
 | `text-heading-3` | 1.5rem / 2rem / 600 / -0.01em |
 | `text-heading-4` | 1.25rem / 1.75rem / 700 / 0 |

@@ -36,12 +36,31 @@
   --color-border-strong: #e5e5e0;
   --color-control-disabled: #c0c2c1;
 
-  --text-display: 2.5rem;
-  --text-display--line-height: 3rem;
+  /* The only role that sizes fluidly instead of stepping at 48rem.
+     A headline is the one place where the viewport width decides how the type
+     reads, because it is the widest thing on the page: at 2.5rem in a 375px
+     viewport this page's h1 fell to 13 characters a line over 6 lines, and 6
+     stacked gaps is what reads as loose -- the leading was never the problem.
+     Sizing continuously keeps the measure in range at every width instead of
+     at the two the breakpoint happens to name.
+
+     The middle term is rem + vw rather than vw alone so the size still answers
+     to the reader's own font-size setting (WCAG 1.4.4); pure vw ignores it.
+     It resolves to 36px up to a 384px viewport, 48px at 768px, and reaches the
+     3.5rem cap at 1024px -- so wide screens keep the size they had, and the
+     768-1024 band, where a flat 3.5rem was widest of all, no longer gets it.
+
+     The line height is a RATIO, not a length, which is what lets one value
+     follow a size that never stops changing: 1.15 is the USWDS line-height-2
+     token, their recommendation for most headings. At the 3.5rem cap it
+     computes to 64.4px, within a pixel of the 4rem this used to hard-code, so
+     nothing about the desktop headline moves. */
+  --text-display: clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem);
+  --text-display--line-height: 1.15;
   --text-display--font-weight: 700;
   --text-display--letter-spacing: -0.02em;
-  --text-display-2: 2.5rem;
-  --text-display-2--line-height: 3rem;
+  --text-display-2: clamp(2.25rem, 1.5rem + 3.125vw, 3.5rem);
+  --text-display-2--line-height: 1.15;
   --text-display-2--font-weight: 700;
   --text-display-2--letter-spacing: -0.02em;
   --text-heading-2: 2rem;
@@ -222,13 +241,12 @@
 }
 
 /* The type scale steps up on wider viewports. Redefining the token here means
-   every utility built from it follows, with no per-component media query. */
+   every utility built from it follows, with no per-component media query.
+   The display roles are absent on purpose: they size fluidly, so they have no
+   step to take here. Everything else does step, because at these sizes the
+   measure stays in range and a jump is cheaper than a clamp per role. */
 @media (min-width: 48rem) {
   :root {
-    --text-display: 3.5rem;
-    --text-display--line-height: 4rem;
-    --text-display-2: 3.5rem;
-    --text-display-2--line-height: 4rem;
     --text-heading-2: 2.5rem;
     --text-heading-2--line-height: 3rem;
     --text-heading-3: 1.75rem;
