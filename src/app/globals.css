@@ -190,6 +190,15 @@
   --container-testimonial: 58rem;
   --container-testimonial-compact: 39rem;
 
+  /* The three sizes the Quote's blooms come in (see .quote-bloom). Written as
+     clamps against the viewport for the same reason --spacing-page is: a bloom
+     fixed in rem is a smudge on a phone and a saucer on a wide display, and the
+     nearest one has to stay smaller than the sentence it passes behind or it
+     stops reading as something further away. */
+  --spacing-bloom-far: clamp(24rem, 46vw, 52rem);
+  --spacing-bloom-mid: clamp(18rem, 34vw, 38rem);
+  --spacing-bloom-near: clamp(9rem, 16vw, 17rem);
+
   --radius-sm: 0.25rem;
   --radius-base: 0.5rem;
   --radius-md: 0.75rem;
@@ -414,6 +423,126 @@
   .spotlight-grid {
     display: none;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Soft blooms drifting behind the Quote's sentence.
+
+   The sentence writes itself on a field with nothing else in it, so the only
+   thing that moves is the text -- and text resolving over an empty ground reads
+   as arriving by itself rather than as the page carrying it. These give the
+   scroll something to be measured against: three layers, each drifting at its
+   own rate, which is what parallax actually is. Same job as the ivy cropped into
+   the corners of fathom.framer.media (the reference Gabriel gave, 2026-09-02);
+   that site has botanical artwork to crop and this one has none, so the depth is
+   drawn rather than photographed.
+
+   They are depth, not decoration to be looked at. The sentence stays the
+   brightest thing on the screen, and if one of these ever becomes the thing you
+   notice, it is too strong rather than too small -- which it has been once
+   already, at 26% on the nearest one.
+
+   Positions and drift rates live in QuoteSection, next to the tween that reads
+   them. What lives here is what the blooms are made of.
+--------------------------------------------------------------------------- */
+
+/*
+ * The layer the blooms live in, and the mask is the load-bearing part.
+ *
+ * Clipping alone draws the section's own top edge across the screen: the bloom
+ * lightens the inside of the box and stops dead at the boundary, so a straight
+ * horizontal line appears where the field meets the curtain's ground above it --
+ * both `--color-accent`, both correct, and the seam between them suddenly
+ * visible. Measured at 1440x900: the edge landed 2px under the sentence's last
+ * line, which is the worst place it could have picked.
+ *
+ * So the layer fades to nothing before it reaches either horizontal edge, and
+ * any bloom fades with it wherever it happens to be. That is what lets the
+ * positions below be chosen for the composition and the drifts for the depth,
+ * with neither having to be solved against the section's height: the section is
+ * 66rem and the far bloom is up to 52rem of it, so a rule like "keep every box
+ * inside the clip across its whole travel" has no answer left on a tall window.
+ *
+ * Left and right are deliberately unmasked. Those edges are the page's own, and
+ * a shape running off the side of the screen reads as cropped rather than as
+ * cut -- it is how the reference crops its ivy, and it is the difference between
+ * a bloom that belongs to the corner and a circle floating in a field.
+ *
+ * Unprefixed `mask` only -- see the note on .plan-beam above.
+ */
+.quote-blooms {
+  /*
+   * Asymmetric, and the short end is the top for a reason worth keeping: the
+   * strip the reader sees at the moment the first word lights IS the section's
+   * top, so a fade generous enough to be safe there is a fade that hands the
+   * sentence the empty field this layer exists to fill. Measured at 1440x900
+   * with 14% at both ends: nothing at all was painted behind the opening word.
+   *
+   * 7% is 74px on a 66rem section -- still tens of pixels for a haze this faint
+   * to resolve over, which is all an invisible fade needs. The bottom keeps the
+   * longer one: what abuts it is the Problem section's cream, where a bloom
+   * still fading when the ground changes would be obvious.
+   */
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 7%,
+    #000 88%,
+    transparent 100%
+  );
+}
+
+/*
+ * A radial gradient rather than a solid shape behind `filter: blur()`: at this
+ * size the two are indistinguishable to look at, and the gradient costs no
+ * offscreen buffer to rasterise on every frame of a scrub.
+ */
+.quote-bloom {
+  /*
+   * Four stops rather than three, and the last one at 70%.
+   *
+   * The falloff is what decides whether this reads as haze or as a ball. Two
+   * stops put the whole transition in one narrow band, and at 26% alpha the
+   * nearest bloom came out with a discernible edge and a flat core -- a green
+   * circle sitting next to the sentence, competing with it.
+   *
+   * 70% is a ceiling, not a taste: the gradient is sized to the farthest
+   * corner, so 100% is 0.707 of the box and 70% lands at 0.495 -- just inside
+   * the box's own edge. Any further and the fade is still going when the box
+   * ends, which puts a hard circle back, this time drawn by the element rather
+   * than by the gradient.
+   */
+  background-image: radial-gradient(
+    circle at center,
+    var(--bloom-colour) 0%,
+    color-mix(in oklab, var(--bloom-colour) 64%, transparent) 24%,
+    color-mix(in oklab, var(--bloom-colour) 26%, transparent) 48%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+/*
+ * Two hues, and which one goes where is the whole composition: the cream is
+ * light and the green is the brand.
+ *
+ * The first version put green in all three at 6-11% and the result was nothing
+ * -- 7% of #85d02d over #112118 lands on rgb(25,45,25) against rgb(17,33,24),
+ * a difference you have to be told about to find. These are the alphas that
+ * read on a laptop at arm's length while still leaving the sentence as the
+ * brightest thing on the screen, which is the only rule they have to obey.
+ */
+.quote-bloom-far {
+  --bloom-colour: rgb(250 249 245 / 8%);
+}
+
+.quote-bloom-mid {
+  --bloom-colour: rgb(133 208 45 / 13%);
+}
+
+/* The nearest one is the smallest, so its alpha buys the least area. */
+.quote-bloom-near {
+  --bloom-colour: rgb(133 208 45 / 15%);
 }
 
 /* Motion is opt-in to being disabled: anything animated must survive this. */

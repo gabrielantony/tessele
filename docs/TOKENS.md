@@ -92,6 +92,9 @@ Use with any spacing prefix: `p-`, `px-`, `py-`, `m-`, `mt-`, `gap-`, `size-`, `
 | `space-40` | 10rem |
 | `page` | clamp(var(--spacing-space-5), 7.5vw, var(--spacing-space-24)) |
 | `section` | clamp(var(--spacing-space-16), 7.5vw, var(--spacing-space-24)) |
+| `bloom-far` | clamp(24rem, 46vw, 52rem) |
+| `bloom-mid` | clamp(18rem, 34vw, 38rem) |
+| `bloom-near` | clamp(9rem, 16vw, 17rem) |
 
 ## Container width
 

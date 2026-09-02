@@ -59,6 +59,50 @@ const revealDistance = () => Math.round(Math.min(620, window.innerHeight));
  */
 const BOTTOM_CLEARANCE = 40;
 
+/*
+ * The blooms behind the sentence, and how each one drifts.
+ *
+ * `drift` is the travel a bloom gets on top of the scroll the page is already
+ * giving it, as a fraction of the viewport, across the whole time the section
+ * is on screen. A fraction rather than a pixel count so the gesture is the same
+ * on a laptop and on a phone -- the mirror of the reading distance above, which
+ * is a pixel count for the opposite reason: reading is a property of the
+ * sentence, drift is a property of the screen it crosses.
+ *
+ * The sign is the depth cue, and it is the part worth getting right. Everything
+ * on the page already travels up at the speed of the scroll; what separates
+ * near from far is only whether a thing beats that speed or falls behind it.
+ * So `far` is NEGATIVE -- it drifts down against the page and so climbs the
+ * screen slower than the field it sits in, which is what distance looks like --
+ * and `near` is the largest positive, leading the page and crossing the frame
+ * while the sentence is being read.
+ *
+ * The first version had all three positive, which is three speeds and no
+ * distance: everything led the page and the whole layer read as one sheet
+ * sliding past at slightly different rates.
+ *
+ * Same job as the ivy cropped into the corners of fathom.framer.media, the
+ * reference Gabriel gave for this -- that site has botanical artwork to crop
+ * and this one has none, so the depth is drawn instead of photographed.
+ */
+const BLOOMS = [
+  {
+    key: "far",
+    drift: -0.14,
+    className: "quote-bloom-far -left-[14%] top-[2%] size-bloom-far",
+  },
+  {
+    key: "mid",
+    drift: 0.22,
+    className: "quote-bloom-mid -right-[12%] top-[38%] size-bloom-mid",
+  },
+  {
+    key: "near",
+    drift: 0.6,
+    className: "quote-bloom-near left-[16%] top-[64%] size-bloom-near",
+  },
+];
+
 export default function QuoteSection() {
   const root = useRef<HTMLElement>(null);
 
@@ -73,6 +117,13 @@ export default function QuoteSection() {
         "(prefers-reduced-motion: reduce)",
       ).matches;
 
+      /*
+       * The blooms stay under reduced motion and only their drift goes. They
+       * are not motion: they are what the section looks like, and a reader who
+       * asked for less movement did not ask for a plainer page. Their resting
+       * position is the composition -- the drift is a departure from it and
+       * back, not a journey to somewhere better.
+       */
       if (reducedMotion) {
         gsap.set(words, { opacity: 1 });
 
@@ -80,6 +131,48 @@ export default function QuoteSection() {
       }
 
       gsap.set(words, { opacity: 0, willChange: "opacity" });
+
+      /*
+       * One tween per bloom rather than one staggered tween over all three:
+       * they differ in the only property that matters here, so a stagger would
+       * have to be undone per element anyway.
+       *
+       * Its own ScrollTrigger, separate from the reveal's, because the two
+       * measure different things. The reveal is pegged to the sentence arriving
+       * and lasts a reading distance; the drift runs for exactly as long as the
+       * section is on screen, which is the only range over which a parallax
+       * layer can be moved without it arriving early or stopping in view.
+       */
+      for (const bloom of BLOOMS) {
+        const [element] = gsap.utils.toArray<HTMLElement>(
+          `[data-quote-bloom="${bloom.key}"]`,
+          root.current,
+        );
+
+        /*
+         * Half the drift each side of the CSS position, so the position in the
+         * markup is the middle of the travel rather than one end of it. That is
+         * what makes it the composition: it is what the section looks like at
+         * rest, what a reader with reduced motion gets, and what the layout is
+         * judged on -- and the drift is a departure from it and back.
+         */
+        gsap.fromTo(
+          element,
+          { y: () => window.innerHeight * bloom.drift * 0.5 },
+          {
+            y: () => -window.innerHeight * bloom.drift * 0.5,
+            ease: "none",
+            willChange: "transform",
+            scrollTrigger: {
+              trigger: root.current,
+              start: "top bottom",
+              end: "bottom top",
+              scrub: true,
+              invalidateOnRefresh: true,
+            },
+          },
+        );
+      }
 
       const timeline = gsap.timeline({
         scrollTrigger: {
@@ -175,6 +268,7 @@ export default function QuoteSection() {
 
       return () => {
         gsap.set(words, { clearProps: "willChange" });
+        gsap.set("[data-quote-bloom]", { clearProps: "willChange,transform" });
       };
     },
     { scope: root },
@@ -216,6 +310,39 @@ export default function QuoteSection() {
      * and the sticky child would have nothing to stick against.
      */
     <section ref={root} className="relative h-[66rem] w-full bg-accent">
+      {/*
+       * The blooms, and the box that clips them.
+       *
+       * `overflow-hidden` belongs here and not on the section: it does the one
+       * thing the section cannot do without breaking the hold, because an
+       * ancestor with a non-visible overflow becomes the sticky child's
+       * scrollport. This box is the child's sibling, so it clips its own
+       * contents and the hold never learns about it. Without a clipper the
+       * blooms hang off both edges -- and a box that paints past the right edge
+       * of the page is exactly the horizontal scroll this project's layout
+       * suite exists to catch.
+       *
+       * `aria-hidden` and no text: there is nothing here to read, and a screen
+       * reader that announced three empty divs would be describing the paint.
+       *
+       * First in the DOM, and that is what puts it behind the sentence. Both it
+       * and the sticky child are positioned, so paint order is document order
+       * and no z-index has to be spent -- which keeps this section out of the
+       * stacking-context argument that the curtain above it had to settle.
+       */}
+      <div
+        aria-hidden="true"
+        className="quote-blooms absolute inset-0 overflow-hidden"
+      >
+        {BLOOMS.map((bloom) => (
+          <div
+            key={bloom.key}
+            data-quote-bloom={bloom.key}
+            className={`quote-bloom absolute rounded-full ${bloom.className}`}
+          />
+        ))}
+      </div>
+
       <div className="sticky top-[50dvh] -translate-y-1/2 px-page">
         <h2
           aria-label={QUOTE}
