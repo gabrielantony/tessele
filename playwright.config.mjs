@@ -7,7 +7,6 @@ import { defineConfig, devices } from "@playwright/test";
 // (and cross-testing) each other's servers -- reuseExistingServer below makes
 // a shared port silently serve a stale build.
 export const PREVIEW_PORT = Number(process.env.PREVIEW_PORT ?? 4610);
-export const BASE_PATH = "/tessele/";
 
 export default defineConfig({
   testDir: "./tests/layout",
@@ -22,11 +21,11 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : [["list"]],
   webServer: {
     command: `npm run build && node scripts/serve-export.mjs ${PREVIEW_PORT}`,
-    url: `http://localhost:${PREVIEW_PORT}${BASE_PATH}`,
+    url: `http://localhost:${PREVIEW_PORT}/`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
   },
-  use: { baseURL: `http://localhost:${PREVIEW_PORT}${BASE_PATH}` },
+  use: { baseURL: `http://localhost:${PREVIEW_PORT}/` },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },

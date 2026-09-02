@@ -118,5 +118,7 @@ a scroll sequence.
 ## Deploy
 
 `.github/workflows/deploy.yml` builds on push to `main` and publishes `out/`.
-`basePath` is set to `/tessele` for production builds only, in `next.config.ts` —
-dev stays at the root. Change it there if the URL changes.
+The site is served at the root of **tessele.com.br**: `public/CNAME` carries the
+custom domain into the export, and `next.config.ts` sets no `basePath`, so dev
+and production share the same URLs. Both files change together if the domain
+moves, and the domain must also be set in the repo's Pages settings.

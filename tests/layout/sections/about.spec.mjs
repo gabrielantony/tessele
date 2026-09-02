@@ -22,10 +22,12 @@ const SECTION = "section:has([data-info-card])";
 test.describe("about", () => {
   // The files themselves are Gabriel's to provide -- asserting they LOAD would
   // park this section red on someone else's todo. What is in this section's gift
-  // is the path form, and it is wrong today: `/images/...` is absolute, so it
-  // resolves to the domain root and skips the export's `basePath: "/tessele"`.
-  // That is why the photos render 0x0 rather than merely 404-ing.
-  test("photo paths resolve under the export's basePath", async ({ page }) => {
+  // is the path form: relative, the convention the whole export follows, so the
+  // landing page keeps resolving its assets next to itself. An absolute
+  // `/images/...` used to skip the old `/tessele` basePath and render 0x0; on
+  // tessele.com.br it would resolve, which is exactly why the form is asserted
+  // here rather than left to whichever host the export happens to sit on.
+  test("photo paths are relative, like the rest of the export", async ({ page }) => {
     await gotoLanding(page, 1280);
 
     const srcs = await page.evaluate(
@@ -41,7 +43,7 @@ test.describe("about", () => {
     const absolute = srcs.filter((src) => src?.startsWith("/"));
     expect(
       absolute,
-      "these bypass the basePath and resolve at the domain root, where nothing is served",
+      "these leave the export's relative-path convention and pin the assets to a host root",
     ).toEqual([]);
 
     const external = srcs.filter((src) => /^https?:\/\//.test(src ?? ""));

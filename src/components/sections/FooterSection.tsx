@@ -258,8 +258,9 @@ export default function Footer() {
         >
           <p>© 2026 Tessele Estúdio</p>
 
-          {/* next/link, not a plain <a>: the production build serves the site
-              from the /tessele subpath, and Link is what prepends it. */}
+          {/* next/link, not a plain <a>: Link is what applies the export's
+              routing config -- trailingSlash today, a basePath if the site ever
+              moves off the root of tessele.com.br. */}
           <Link
             href="/privacidade"
             className="transition-colors duration-(--duration-fast) ease-(--ease-out) hover:text-highlight focus-visible:text-highlight"
