@@ -1,6 +1,6 @@
 # Landing responsive fixes — plan
 
-Repo: `tessele-site` (Next 16, static export to GitHub Pages under `/tessele/`).
+Repo: `tessele` (Next 16, static export to GitHub Pages under `/tessele/`).
 Branch: `feat/landing-sections`. Written 2026-09-01.
 
 Every number below was measured against `npm run build` output in Chromium, WebKit and an

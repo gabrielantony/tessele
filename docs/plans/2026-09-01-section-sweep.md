@@ -1,6 +1,6 @@
 # Section sweep — master coordination plan
 
-Repo: `tessele-site`. Base branch: `feat/landing-sections`. Written 2026-09-01, after
+Repo: `tessele`. Base branch: `feat/landing-sections`. Written 2026-09-01, after
 `67a008c` landed the last real sections (About, FAQ, Contact, Footer) and retired
 `PlansSection`. Baseline: **87/87 green** in chromium, webkit and mobile-safari.
 
