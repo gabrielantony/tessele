@@ -319,6 +319,74 @@ test.describe("curtain", () => {
   });
 
   /*
+   * The trigger's range is derived from the runway, and the runway's top edge is
+   * the Hero's bottom edge -- so `top bottom` resolves to a *negative* scroll
+   * position whenever the Hero is shorter than the viewport. The browser clamps
+   * the scroll at zero; the scrub does not clamp the progress, so the page loads
+   * with the transition already part-way through and the reader never sees its
+   * first frames.
+   *
+   * The Hero's own height is the only thing standing between the two: it has to
+   * yield at least one viewport at every width, not just where a breakpoint says
+   * so. Measured below `lg` against the helper's 900px height, which is the case
+   * that broke -- the Hero stopped at a fixed 780px there, and the content loaded
+   * already faded and lifted.
+   */
+  test("the curtain has not begun before the reader scrolls", async ({ page }) => {
+    for (const width of [390, 768, 1280]) {
+      await gotoLanding(page, width, { motion: true });
+
+      const atRest = await page.evaluate(
+        ([panelSelector, runwaySelector]) => {
+          const runway = document.querySelector(runwaySelector);
+          const scaleY = (el) => {
+            const transform = getComputedStyle(el).transform;
+            if (transform === "none") return 0;
+            const parts = transform.match(/matrix\(([^)]+)\)/);
+            return parts ? Number(parts[1].split(",")[3]) : 0;
+          };
+
+          return {
+            scrollY: window.scrollY,
+            viewport: window.innerHeight,
+            runwayTop: runway.getBoundingClientRect().top + window.scrollY,
+            scales: [...document.querySelectorAll(panelSelector)]
+              .filter((panel) => panel.getBoundingClientRect().width > 0)
+              .map(scaleY),
+            content: [...document.querySelectorAll("[data-hero-content]")].map(
+              (block) => Number(getComputedStyle(block).opacity),
+            ),
+          };
+        },
+        [PANEL, RUNWAY],
+      );
+
+      expect(atRest.scrollY, "the page did not load at the top").toBe(0);
+
+      /*
+       * The invariant behind the symptom, asserted directly: the scroll position
+       * where the transition starts is `runwayTop - viewport`, and it may not be
+       * negative. Reading the geometry rather than only the rendered state is
+       * what makes a failure here say *why* it failed.
+       */
+      expect(
+        Math.round(atRest.runwayTop - atRest.viewport),
+        `at ${width}px the curtain's range starts ${Math.round(atRest.viewport - atRest.runwayTop)}px above the top of the page, so it is already running on load`,
+      ).toBeGreaterThanOrEqual(0);
+
+      expect(
+        Math.max(...atRest.scales),
+        `at ${width}px a panel is already up before any scroll (scales ${atRest.scales.map((s) => s.toFixed(2)).join(", ")})`,
+      ).toBeLessThanOrEqual(0.001);
+
+      expect(
+        Math.min(...atRest.content),
+        `at ${width}px the Hero's content is already leaving before any scroll (opacities ${atRest.content.map((o) => o.toFixed(2)).join(", ")})`,
+      ).toBe(1);
+    }
+  });
+
+  /*
    * Five panels at 375px would be 75px each -- too narrow to read as panels, and
    * the centre-out stagger becomes noise. Three is the answer below `md`, and the
    * count has to be odd at both widths or there is no centre column for the
