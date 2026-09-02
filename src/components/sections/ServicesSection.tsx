@@ -601,9 +601,30 @@ function ServiceCard({
               <p className="text-label uppercase text-ink">{service.tag}</p>
             </div>
 
-            <h3 className="text-heading-3 text-ink">{service.title}</h3>
+            {/*
+             * Every service's title and description stack in one grid cell, so
+             * the block is always as tall as the longest of them and switching
+             * tabs cannot resize the card. A min-height would have to be a
+             * per-breakpoint guess: which service is tallest changes with
+             * width, because title and description wrap at different points.
+             */}
+            <div data-tab-copy-stack className="grid min-w-0">
+              {services.map((entry) => (
+                <div
+                  key={entry.id}
+                  aria-hidden={entry.id !== service.id}
+                  className={[
+                    "col-start-1 row-start-1 flex min-w-0 flex-col gap-space-3",
 
-            <p className="text-body text-ink">{service.description}</p>
+                    entry.id === service.id ? "" : "invisible",
+                  ].join(" ")}
+                >
+                  <h3 className="text-heading-3 text-ink">{entry.title}</h3>
+
+                  <p className="text-body text-ink">{entry.description}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div
