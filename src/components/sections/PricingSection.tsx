@@ -476,20 +476,29 @@ function PlanCard({
             className={[
               "absolute left-1/2 top-space-0",
               "-translate-x-1/2 -translate-y-1/2",
-              "flex items-center gap-space-1",
+              // 6px, not 4: --text-label is tracked out at 0.06em, which opens
+              // the gaps between letters to about 3px. At 4px the icon sat
+              // closer to the word than the word's own letters sit to each
+              // other, and read as stuck to it.
+              "flex items-center gap-space-1-5",
               "whitespace-nowrap rounded-base",
-              // Assimétrico de propósito: o ícone é um contorno de 1.4 num box
-              // de 16px, leve ao lado do label 600 em caixa alta, então o
-              // centro de massa do conjunto cai à direita do centro
-              // geométrico. Tirar um passo da esquerda puxa o conteúdo de
-              // volta -- a caixa continua centrada, o que anda é o que se lê.
-              "bg-highlight pl-space-2-5 pr-space-3 py-space-1",
+              "bg-highlight px-space-3 py-space-1",
               "text-label uppercase text-accent",
               "shadow-control",
             ].join(" ")}
           >
             <AwardIcon />
-            <span>Mais escolhido</span>
+
+            {/* letter-spacing is added after the last letter too, so the label
+                box carries 0.72px of tracking the eye reads as padding -- on a
+                centred badge that lands as a lean to the left. Cancelling it
+                here rather than trimming the right padding keeps the padding
+                symmetric and follows the token if its tracking ever changes.
+                Measured, with the trim: 12.80px of air before the icon's ink,
+                12.43px after the final O. */}
+            <span className="me-[calc(var(--text-label--letter-spacing)*-1)]">
+              Mais escolhido
+            </span>
           </div>
         )}
 
