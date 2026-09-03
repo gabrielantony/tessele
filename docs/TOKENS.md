@@ -24,7 +24,7 @@ Prefix each name with `bg-`, `text-`, `border-` or `ring-`.
 | `surface` | #ffffff |
 | `surface-glass` | rgb(255 255 255 / 78%) |
 | `ink` | #030a06 |
-| `muted` | #666a66 |
+| `muted` | #575651 |
 | `accent` | #112118 |
 | `accent-hover` | #1a3224 |
 | `on-accent` | #faf9f5 |
