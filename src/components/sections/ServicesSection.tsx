@@ -3,10 +3,9 @@
 import { useRef, useState, type RefObject } from "react";
 
 import {
+  IconAd2,
   IconArticle,
   IconBolt,
-  IconBrandGoogle,
-  IconBrandMeta,
   IconBrowser,
   IconCode,
   IconDevices,
@@ -16,6 +15,7 @@ import {
   IconFlask,
   IconLayoutDashboard,
   IconPalette,
+  IconRadar,
   IconReportAnalytics,
   IconRocket,
   IconRoute,
@@ -117,6 +117,26 @@ type ServiceIcon = TablerIcon;
  */
 const ICON_STROKE = 1.7;
 
+/*
+ * Ties the last two words of a run of text together, so no paragraph or heading
+ * in this section can end on a line holding a single word.
+ *
+ * This lives in the render rather than in the strings for one reason: the same
+ * `&nbsp;` typed by hand into the copy is a fix that survives exactly until the
+ * next person edits the sentence and does not know the character is there. The
+ * heading above the tabs still carries its own hand-typed tie, because that one
+ * moves the wrap an extra word earlier than this rule needs.
+ *
+ * Tying only the last pair is enough: a non-breaking space cannot be broken, so
+ * the pair either stays on the line it is on or moves down together. What it
+ * does not promise is a pretty penultimate line -- it promises the last line is
+ * never one word, which is what `no copy in the section ends on a widow` in
+ * tests/layout/sections/services.spec.mjs measures.
+ */
+function noWidow(text: string) {
+  return text.replace(/\s+(\S+)\s*$/u, "\u00A0$1");
+}
+
 type ServiceItem = {
   icon: ServiceIcon;
   label: string;
@@ -145,9 +165,9 @@ const services: Service[] = [
     tabIcon: IconTargetArrow,
     tag: "Direção",
     title:
-      "Diagnóstico, planejamento e gestão de marketing digital, nessa ordem.",
+      "Planejamento de marketing é, antes de tudo, decidir o que fica de fora.",
     description:
-      "A gente começa por um diagnóstico do que já está rodando, onde estão os gargalos e quais objetivos do negócio o marketing pode de fato mover. Disso sai um plano com prioridades, canais e o que entra em cada trimestre, e é ele que decide a execução de conteúdo, redes e campanhas. Serve para empresas que já investem em marketing e não conseguem dizer o que está funcionando.",
+      "Antes de qualquer execução, a gente entende o momento da empresa: o que já está rodando, o que está travando e quais objetivos merecem atenção agora. Desse diagnóstico sai um plano de marketing com prioridades e canais definidos, e é ele que orienta conteúdo, redes sociais e campanhas. O marketing deixa de ser uma sequência de ações e passa a responder a decisões do negócio.",
     image: "images/services-estrategia.jpg",
     imageAlt: "Peças de xadrez sobre um tabuleiro.",
     items: [
@@ -183,9 +203,9 @@ const services: Service[] = [
     tabIcon: IconCode,
     tag: "Criação",
     title:
-      "Criação de sites, landing pages e identidade visual, com design e desenvolvimento na mesma mão.",
+      "Quem desenha o site é quem escreve o código, e a intenção chega inteira na tela.",
     description:
-      "A gente cuida de UX/UI e de desenvolvimento no mesmo projeto, do wireframe ao código em produção, sem repassar o site para um time de fora no meio do caminho. Identidade visual, tipografia e componentes ficam documentados, então a página seguinte nasce consistente com as anteriores. Serve para empresas cujo site não sustenta mais o que a empresa virou.",
+      "Da identidade visual ao site ou à interface de um produto, cada entrega parte do que a empresa precisa comunicar e do que as pessoas precisam conseguir fazer ali. UX/UI e desenvolvimento acontecem no mesmo projeto, do wireframe ao código em produção, então o que foi decidido no design não se perde na implementação. Tipografia, cores e componentes ficam documentados, e a próxima página nasce coerente com as anteriores.",
     image: "images/services-design.jpg",
     imageAlt: "Notebook aberto em uma mesa de trabalho.",
     items: [
@@ -221,23 +241,23 @@ const services: Service[] = [
     tabIcon: IconTrendingUp,
     tag: "Conversão",
     title:
-      "Gestão de tráfego pago no Google Ads e no Meta Ads, medida por custo por lead e não por alcance.",
+      "Anúncio não conserta oferta. Por isso a campanha é a última coisa a subir.",
     description:
-      "A gente estrutura as campanhas na Rede de Pesquisa e no Performance Max do Google Ads e nos posicionamentos de Instagram e Facebook do Meta Ads. Oferta, público e página de destino ficam definidos antes de a campanha subir, e o desempenho é lido por CPL, CPA e ROAS em relatório mensal. Serve para empresas que já vendem e precisam de oportunidades que não dependam de indicação.",
-    image: "images/services-trafego.jpg",
+      "A campanha parte de um objetivo, uma oferta, um público e uma página de destino que fazem sentido juntos. Só então ela sobe: Pesquisa e Performance Max no Google Ads, Instagram e Facebook no Meta Ads. Daí em diante a gente acompanha custo por lead, CPA e ROAS mês a mês, para saber o que merece escala e o que precisa mudar.",
+    image: "images/Service-Ads-1.jpg",
     imageAlt: "Dashboard com gráficos de desempenho.",
     items: [
       {
-        icon: IconBrandGoogle,
-        label: "Google Ads",
-      },
-      {
-        icon: IconBrandMeta,
-        label: "Meta Ads",
+        icon: IconAd2,
+        label: "Google Ads e Meta Ads",
       },
       {
         icon: IconUsersGroup,
         label: "Remarketing e públicos",
+      },
+      {
+        icon: IconRadar,
+        label: "Rastreamento de conversões",
       },
       {
         icon: IconFilter,
@@ -303,7 +323,7 @@ function ServiceTab({
         "cursor-pointer",
         "items-center",
         "justify-center",
-        "gap-space-2",
+        "gap-space-2-5",
         "rounded-full",
         "px-space-4",
         "py-space-3",
@@ -361,7 +381,7 @@ function ServiceListItem({ item }: { item: ServiceItem }) {
   return (
     <div
       data-tab-item
-      className="flex min-w-0 items-center gap-space-2 text-ink"
+      className="flex min-w-0 items-center gap-space-2-5 text-ink"
     >
       <span
         data-tab-item-icon
@@ -440,9 +460,13 @@ function ServiceCard({
                     entry.id === service.id ? "" : "invisible",
                   ].join(" ")}
                 >
-                  <h3 className="text-heading-3 text-ink">{entry.title}</h3>
+                  <h3 className="text-heading-3 text-ink">
+                    {noWidow(entry.title)}
+                  </h3>
 
-                  <p className="text-body text-ink">{entry.description}</p>
+                  <p className="text-body text-ink">
+                    {noWidow(entry.description)}
+                  </p>
                 </div>
               ))}
             </div>
@@ -925,14 +949,10 @@ export default function ServicosEEntregas() {
             <span className="text-highlight">diferente</span>.
           </h2>
 
-          {/* Names the three fronts outright instead of gesturing at them.
-            * The paragraph it replaced ("Às vezes... Em outras...") never said
-            * which services exist, so neither a search result nor an answer
-            * engine could lift a sentence from it that stands on its own. */}
           <p data-intro className="text-subtitle text-muted">
-            A Tessele trabalha em três frentes: estratégia e marketing, design e
-            desenvolvimento e tráfego pago. Qual delas entra, e em que ordem,
-            quem define é o diagnóstico do negócio.
+            {noWidow(
+              "Às vezes, o que precisa mudar é a forma como a empresa se apresenta. Em outras, é o site, o conteúdo ou a campanha que leva as pessoas até ela. O diagnóstico diz onde a gente entra.",
+            )}
           </p>
         </header>
 
