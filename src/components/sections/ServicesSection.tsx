@@ -448,8 +448,29 @@ function ServiceCard({
              * tabs cannot resize the card. A min-height would have to be a
              * per-breakpoint guess: which service is tallest changes with
              * width, because title and description wrap at different points.
+             *
+             * Below 48rem that reservation is switched off, and the leftover
+             * space is why. Measured slack under the ACTIVE copy, per width:
+             * 96px at 320 and 360, 72-78px at 414-460, 48px at 480. On a phone
+             * the card does not fit the screen anyway, so the height the
+             * reservation buys is height nobody can see changing -- it only
+             * ever shows up as a blank gap between the paragraph and the rule
+             * below it. Gabriel's call: take the jump, lose the gap.
+             *
+             * From 48rem up the reservation stays, and the same table is why:
+             * the slack is just as real there (84px at 1200px, where the copy
+             * column is 503px wide) but the whole card is on screen, so a jump
+             * of that size is the more visible of the two defects.
+             *
+             * The switch is on the VIEWPORT rather than on the copy column,
+             * against this project's usual rule, because the column's width
+             * does not predict the slack: 496px of column at a 640px viewport
+             * reserves 48px, and 503px at 1200px reserves 84px. The type scale
+             * steps up at 48rem, so the same column wraps differently on each
+             * side of it -- which makes 48rem the honest question to ask, and
+             * it is the one breakpoint this page already has.
              */}
-            <div data-tab-copy-stack className="grid min-w-0">
+            <div data-tab-copy-stack className="relative grid min-w-0">
               {services.map((entry) => (
                 <div
                   key={entry.id}
@@ -457,7 +478,12 @@ function ServiceCard({
                   className={[
                     "col-start-1 row-start-1 flex min-w-0 flex-col gap-space-3",
 
-                    entry.id === service.id ? "" : "invisible",
+                    // Out of flow below 48rem so it reserves no height, still
+                    // laid out so its geometry stays measurable -- the widow
+                    // check reads every service on one page load.
+                    entry.id === service.id
+                      ? ""
+                      : "invisible absolute inset-x-0 top-0 md:static",
                   ].join(" ")}
                 >
                   <h3 className="text-heading-3 text-ink">

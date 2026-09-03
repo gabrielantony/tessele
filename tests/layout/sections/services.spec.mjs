@@ -104,8 +104,15 @@ test.describe("services", () => {
    * This is also the assertion that pays for the `[data-tab-copy-stack]` entry
    * in landing-layout's overlappingSiblings: that probe no longer looks inside
    * the stack, so the invariant the stack exists for is measured here.
+   *
+   * It starts at 768px because the reservation does. Below 48rem the inactive
+   * copies are out of flow on purpose -- the reserved height was showing as a
+   * blank gap on a card that does not fit a phone screen anyway -- so the band
+   * that used to be tested here (375, 390, 640) is held by the no-slack test
+   * below instead. Two properties, one per side of the breakpoint; neither
+   * width band is unmeasured.
    */
-  for (const width of [375, 390, 640, 768, 1024, 1100, 1280, 1600]) {
+  for (const width of [768, 1024, 1100, 1280, 1600]) {
     test(`the card keeps its height across tabs at ${width}px`, async ({ page }) => {
       await gotoLanding(page, width);
 
@@ -140,6 +147,78 @@ test.describe("services", () => {
         distinct.length,
         `the card changes height between tabs: ${JSON.stringify(heights)}`,
       ).toBe(1);
+    });
+  }
+
+  /*
+   * The other half of that decision. Below 48rem the reservation is off, so the
+   * guarantee above cannot be asked for -- and the property that replaces it has
+   * to be measured, or switching the mechanism off would just remove a check.
+   *
+   * What the reader complained about was the gap: the reserved height showed up
+   * as blank space between the paragraph and the rule under it, 96px of it at
+   * 360px. So the assertion is that the copy stack is exactly as tall as the
+   * copy standing in it -- no slack under the active service, on every tab.
+   *
+   * Measured on the stack rather than on the card: the card's height also moves
+   * with the photo and the item list, which are allowed to differ per service.
+   * The stack is the box the reservation lived in, so it is the box that has to
+   * report none.
+   */
+  for (const width of [320, 360, 375, 390, 430, 640, 767]) {
+    test(`the copy stack reserves no slack under the active copy at ${width}px`, async ({
+      page,
+    }) => {
+      await gotoLanding(page, width);
+
+      const section = page.locator("[data-name='servicos-e-entregas']");
+      await section.scrollIntoViewIfNeeded();
+
+      const tabs = page.locator("[data-tab-button]");
+      const count = await tabs.count();
+      expect(count, "no service tabs found").toBeGreaterThan(1);
+
+      const slack = [];
+      for (let index = 0; index < count; index += 1) {
+        const tab = tabs.nth(index);
+        await tab.click();
+        await page.waitForFunction(
+          (expected) =>
+            document
+              .querySelector('[data-tab-button][aria-selected="true"]')
+              ?.textContent?.trim() === expected,
+          (await tab.textContent())?.trim(),
+        );
+        await page.waitForTimeout(400);
+
+        slack.push({
+          tab: (await tab.textContent())?.trim(),
+          ...(await page.evaluate(() => {
+            const stack = document.querySelector("[data-tab-copy-stack]");
+            const active = Array.from(stack.children).find(
+              (el) => getComputedStyle(el).visibility !== "hidden",
+            );
+            const kids = Array.from(active.children).map((k) =>
+              k.getBoundingClientRect(),
+            );
+            const natural =
+              Math.max(...kids.map((r) => r.bottom)) -
+              Math.min(...kids.map((r) => r.top));
+            return {
+              slackPx: Math.round(stack.getBoundingClientRect().height - natural),
+            };
+          })),
+        });
+      }
+
+      // 1px, not 0: the natural height is derived from client rects, which are
+      // fractional, and the stack's own height is not.
+      for (const entry of slack) {
+        expect(
+          entry.slackPx,
+          `blank space left under the active copy: ${JSON.stringify(slack)}`,
+        ).toBeLessThanOrEqual(1);
+      }
     });
   }
 
@@ -212,6 +291,70 @@ test.describe("services", () => {
 
     return out;
   };
+
+  /*
+   * The guard the widow check above needs and cannot give itself. It reads every
+   * service's copy on one page load, which only works while the inactive ones
+   * are still LAID OUT -- and its own shape is to skip anything with fewer than
+   * two line boxes, so a copy with no geometry at all is indistinguishable from
+   * a copy that is fine. Take the inactive services out of the layout with
+   * `display: none` instead of `position: absolute` and the widow check goes on
+   * passing while measuring a third of what it claims to.
+   *
+   * So the geometry is asserted here, at the widths where the inactive copies
+   * are out of flow. Verified to fail as intended: swapping the entry class to
+   * `hidden` reports 2 of 3 services with no rects.
+   */
+  for (const width of [320, 360, 375, 390, 430, 640, 767]) {
+    test(`every service's copy stays measurable at ${width}px`, async ({ page }) => {
+      await gotoLanding(page, width);
+
+      const section = page.locator("[data-name='servicos-e-entregas']");
+      await section.scrollIntoViewIfNeeded();
+
+      const measured = await page.evaluate(() => {
+        const stack = document.querySelector("[data-tab-copy-stack]");
+        if (!stack) return [{ error: "copy stack not found" }];
+        return Array.from(stack.children).map((entry) => {
+          const box = entry.getBoundingClientRect();
+          const rects = ["h3", "p"].map((tag) => {
+            const el = entry.querySelector(tag);
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const lines = Array.from(range.getClientRects()).filter(
+              (rect) => rect.width > 0.5 && rect.height > 0.5,
+            );
+            return { tag, lines: lines.length };
+          });
+          return {
+            title: (entry.querySelector("h3")?.textContent ?? "").trim().slice(0, 24),
+            widthPx: Math.round(box.width),
+            rects,
+          };
+        });
+      });
+
+      expect(measured.length, "the stack does not hold every service").toBe(3);
+
+      // Same width for all three, active or not: the widow check compares wraps
+      // across them, and a copy laid out at a different width would be measuring
+      // a line break the reader never sees.
+      const widths = [...new Set(measured.map((entry) => entry.widthPx))];
+      expect(
+        widths.length,
+        `services are laid out at different widths: ${JSON.stringify(measured)}`,
+      ).toBe(1);
+
+      for (const entry of measured) {
+        for (const rect of entry.rects) {
+          expect(
+            rect.lines,
+            `${entry.title} has a ${rect.tag} with no line boxes to measure: ${JSON.stringify(measured)}`,
+          ).toBeGreaterThan(0);
+        }
+      }
+    });
+  }
 
   for (const width of [375, 390, 430, 640, 767, 768, 900, 1024, 1280, 1600]) {
     test(`no copy in the section ends on a widow at ${width}px`, async ({ page }) => {
