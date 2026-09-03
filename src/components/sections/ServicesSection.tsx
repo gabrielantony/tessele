@@ -2,6 +2,31 @@
 
 import { useRef, useState, type RefObject } from "react";
 
+import {
+  IconArticle,
+  IconBolt,
+  IconBrandGoogle,
+  IconBrandMeta,
+  IconBrowser,
+  IconCode,
+  IconDevices,
+  IconFileDescription,
+  IconFilter,
+  IconFlag,
+  IconFlask,
+  IconLayoutDashboard,
+  IconPalette,
+  IconReportAnalytics,
+  IconRocket,
+  IconRoute,
+  IconShare3,
+  IconSpeakerphone,
+  IconTargetArrow,
+  IconTrendingUp,
+  IconUsersGroup,
+  type Icon as TablerIcon,
+} from "@tabler/icons-react";
+
 import { useGSAP } from "@gsap/react";
 
 import gsap from "gsap";
@@ -76,27 +101,21 @@ function prefersReducedMotion() {
    TYPES
 ====================================================== */
 
-type ServiceIcon =
-  | "target"
-  | "code"
-  | "trending"
-  | "clipboard"
-  | "chart"
-  | "edit"
-  | "share"
-  | "rocket"
-  | "message"
-  | "palette"
-  | "layout"
-  | "browser"
-  | "smartphone"
-  | "prototype"
-  | "zap"
-  | "dollar"
-  | "users"
-  | "linechart"
-  | "click"
-  | "search";
+/*
+ * Icons come from @tabler/icons-react rather than being drawn here. Tabler is
+ * the page's icon set, and the local switch this replaced was 230 lines of
+ * hand-drawn paths approximating it -- shapes that read as "an icon like
+ * Tabler's" rather than the icon. Each service carries the component itself, so
+ * adding a service is an import plus an entry in `services` and nothing else.
+ */
+type ServiceIcon = TablerIcon;
+
+/*
+ * Tabler draws its outline set at stroke 2 on a 24px grid. At `size-space-5`
+ * (20px) that reads heavier than the rest of the page, so the section keeps the
+ * 1.7 the hand-drawn icons used -- the weight is unchanged from before the swap.
+ */
+const ICON_STROKE = 1.7;
 
 type ServiceItem = {
   icon: ServiceIcon;
@@ -123,320 +142,118 @@ const services: Service[] = [
   {
     id: "estrategia",
     tab: "Estratégia e marketing",
-    tabIcon: "target",
+    tabIcon: IconTargetArrow,
     tag: "Direção",
     title:
-      "Estratégia para escolher onde investir esforço e transformar isso em execução.",
+      "Diagnóstico, planejamento e gestão de marketing digital, nessa ordem.",
     description:
-      "Antes de qualquer execução, é preciso entender o momento da empresa, o que está funcionando, onde estão os gargalos e quais prioridades realmente merecem atenção. A partir desse diagnóstico, marketing deixa de ser uma sequência de ações e passa a responder a decisões concretas do negócio.",
+      "A gente começa por um diagnóstico do que já está rodando, onde estão os gargalos e quais objetivos do negócio o marketing pode de fato mover. Disso sai um plano com prioridades, canais e o que entra em cada trimestre, e é ele que decide a execução de conteúdo, redes e campanhas. Serve para empresas que já investem em marketing e não conseguem dizer o que está funcionando.",
     image: "images/services-estrategia.jpg",
     imageAlt: "Peças de xadrez sobre um tabuleiro.",
     items: [
       {
-        icon: "clipboard",
-        label: "Planejamento estratégico",
+        icon: IconRoute,
+        label: "Planejamento de marketing",
       },
       {
-        icon: "chart",
+        icon: IconSpeakerphone,
         label: "Gestão de marketing digital",
       },
       {
-        icon: "edit",
+        icon: IconArticle,
         label: "Estratégia de conteúdo",
       },
       {
-        icon: "share",
+        icon: IconShare3,
         label: "Gestão de redes sociais",
       },
       {
-        icon: "rocket",
+        icon: IconRocket,
         label: "Campanhas e lançamentos",
       },
       {
-        icon: "message",
-        label: "Direção de comunicação",
+        icon: IconFlag,
+        label: "Posicionamento de marca",
       },
     ],
   },
   {
     id: "design",
     tab: "Design & Desenvolvimento",
-    tabIcon: "code",
+    tabIcon: IconCode,
     tag: "Criação",
     title:
-      "Design e desenvolvimento para transformar estratégia em uma experiência clara.",
+      "Criação de sites, landing pages e identidade visual, com design e desenvolvimento na mesma mão.",
     description:
-      "Da identidade ao produto digital, cada entrega parte do que a empresa precisa comunicar e do que as pessoas precisam conseguir fazer. A forma acompanha essa lógica para construir pontos de contato consistentes com o negócio.",
+      "A gente cuida de UX/UI e de desenvolvimento no mesmo projeto, do wireframe ao código em produção, sem repassar o site para um time de fora no meio do caminho. Identidade visual, tipografia e componentes ficam documentados, então a página seguinte nasce consistente com as anteriores. Serve para empresas cujo site não sustenta mais o que a empresa virou.",
     image: "images/services-design.jpg",
     imageAlt: "Notebook aberto em uma mesa de trabalho.",
     items: [
       {
-        icon: "palette",
+        icon: IconPalette,
         label: "Identidade visual",
       },
       {
-        icon: "layout",
-        label: "Design de interfaces",
+        icon: IconLayoutDashboard,
+        label: "Design de interface",
       },
       {
-        icon: "browser",
+        icon: IconBrowser,
         label: "Sites institucionais",
       },
       {
-        icon: "smartphone",
-        label: "Experiências responsivas",
+        icon: IconDevices,
+        label: "Design responsivo",
       },
       {
-        icon: "prototype",
-        label: "Landing pages",
+        icon: IconFileDescription,
+        label: "Landing pages de conversão",
       },
       {
-        icon: "zap",
-        label: "Desenvolvimento e otimização",
+        icon: IconBolt,
+        label: "Desenvolvimento front-end",
       },
     ],
   },
   {
     id: "trafego",
     tab: "Tráfego Pago",
-    tabIcon: "trending",
+    tabIcon: IconTrendingUp,
     tag: "Conversão",
     title:
-      "Mídia paga com direção para transformar investimento em oportunidades reais.",
+      "Gestão de tráfego pago no Google Ads e no Meta Ads, medida por custo por lead e não por alcance.",
     description:
-      "A campanha parte de um objetivo claro, uma oferta, um público e uma jornada coerente. A partir daí, investimento e desempenho são acompanhados para entender o que merece escala e onde é preciso ajustar.",
+      "A gente estrutura as campanhas na Rede de Pesquisa e no Performance Max do Google Ads e nos posicionamentos de Instagram e Facebook do Meta Ads. Oferta, público e página de destino ficam definidos antes de a campanha subir, e o desempenho é lido por CPL, CPA e ROAS em relatório mensal. Serve para empresas que já vendem e precisam de oportunidades que não dependam de indicação.",
     image: "images/services-trafego.jpg",
     imageAlt: "Dashboard com gráficos de desempenho.",
     items: [
       {
-        icon: "dollar",
+        icon: IconBrandGoogle,
         label: "Google Ads",
       },
       {
-        icon: "users",
+        icon: IconBrandMeta,
         label: "Meta Ads",
       },
       {
-        icon: "linechart",
-        label: "Análise de desempenho",
+        icon: IconUsersGroup,
+        label: "Remarketing e públicos",
       },
       {
-        icon: "click",
-        label: "Estratégia de conversão",
+        icon: IconFilter,
+        label: "Otimização de conversão",
       },
       {
-        icon: "search",
-        label: "Pesquisa e segmentação",
+        icon: IconFlask,
+        label: "Testes de anúncio e oferta",
       },
       {
-        icon: "chart",
-        label: "Relatórios e otimizações",
+        icon: IconReportAnalytics,
+        label: "Relatório de CPL e ROAS",
       },
     ],
   },
 ];
-
-/* ======================================================
-   ICON
-====================================================== */
-
-function Icon({
-  type,
-  className = "",
-}: {
-  type: ServiceIcon;
-  className?: string;
-}) {
-  const commonProps = {
-    className,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.7,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-  };
-
-  switch (type) {
-    case "target":
-      return (
-        <svg {...commonProps}>
-          <circle cx="12" cy="12" r="8" />
-          <circle cx="12" cy="12" r="4" />
-          <circle cx="12" cy="12" r="1" />
-        </svg>
-      );
-
-    case "code":
-      return (
-        <svg {...commonProps}>
-          <path d="M8 8L4 12L8 16" />
-          <path d="M16 8L20 12L16 16" />
-          <path d="M14 4L10 20" />
-        </svg>
-      );
-
-    case "trending":
-      return (
-        <svg {...commonProps}>
-          <path d="M4 17L10 11L14 15L21 8" />
-          <path d="M16 8H21V13" />
-        </svg>
-      );
-
-    case "clipboard":
-      return (
-        <svg {...commonProps}>
-          <rect x="6" y="4" width="12" height="16" rx="2" />
-          <path d="M9 4.5V3H15V4.5" />
-          <path d="M9 9H15" />
-          <path d="M9 13H15" />
-        </svg>
-      );
-
-    case "chart":
-      return (
-        <svg {...commonProps}>
-          <path d="M5 19V13" />
-          <path d="M10 19V9" />
-          <path d="M15 19V5" />
-          <path d="M20 19V11" />
-        </svg>
-      );
-
-    case "edit":
-      return (
-        <svg {...commonProps}>
-          <path d="M5 19L6 14L16 4L20 8L10 18L5 19Z" />
-          <path d="M14 6L18 10" />
-        </svg>
-      );
-
-    case "share":
-      return (
-        <svg {...commonProps}>
-          <circle cx="6" cy="12" r="2" />
-          <circle cx="18" cy="6" r="2" />
-          <circle cx="18" cy="18" r="2" />
-          <path d="M8 11L16 7" />
-          <path d="M8 13L16 17" />
-        </svg>
-      );
-
-    case "rocket":
-      return (
-        <svg {...commonProps}>
-          <path d="M14 5C17 3 20 4 20 4C20 4 21 7 19 10L13 16L8 11L14 5Z" />
-          <path d="M8 11L5 12L4 16L8 15" />
-          <path d="M13 16L12 20L8 21L9 16" />
-          <circle cx="16" cy="8" r="1.5" />
-        </svg>
-      );
-
-    case "message":
-      return (
-        <svg {...commonProps}>
-          <path d="M5 5H19V16H10L6 20V16H5V5Z" />
-        </svg>
-      );
-
-    case "palette":
-      return (
-        <svg {...commonProps}>
-          <path d="M12 4C7 4 4 7 4 12C4 16 7 19 11 19H13C14 19 15 18 15 17C15 16 14 15 14 14C14 13 15 12 16 12H18C19 12 20 11 20 10C20 6 16 4 12 4Z" />
-          <circle cx="8" cy="10" r="1" />
-          <circle cx="11" cy="7" r="1" />
-          <circle cx="15" cy="8" r="1" />
-        </svg>
-      );
-
-    case "layout":
-      return (
-        <svg {...commonProps}>
-          <rect x="4" y="5" width="16" height="14" rx="2" />
-          <path d="M4 10H20" />
-          <path d="M10 10V19" />
-        </svg>
-      );
-
-    case "browser":
-      return (
-        <svg {...commonProps}>
-          <rect x="3" y="5" width="18" height="14" rx="2" />
-          <path d="M3 9H21" />
-          <circle cx="6" cy="7" r=".5" />
-          <circle cx="8" cy="7" r=".5" />
-        </svg>
-      );
-
-    case "smartphone":
-      return (
-        <svg {...commonProps}>
-          <rect x="7" y="3" width="10" height="18" rx="2" />
-          <path d="M11 18H13" />
-        </svg>
-      );
-
-    case "prototype":
-      return (
-        <svg {...commonProps}>
-          <rect x="5" y="4" width="14" height="16" rx="2" />
-          <path d="M9 8H15" />
-          <path d="M9 12H15" />
-          <path d="M9 16H13" />
-        </svg>
-      );
-
-    case "zap":
-      return (
-        <svg {...commonProps}>
-          <path d="M13 2L5 14H11L10 22L19 9H13L13 2Z" />
-        </svg>
-      );
-
-    case "dollar":
-      return (
-        <svg {...commonProps}>
-          <path d="M12 3V21" />
-          <path d="M16 7H10C8 7 7 8 7 10C7 12 8 13 10 13H14C16 13 17 14 17 16C17 18 16 19 14 19H8" />
-        </svg>
-      );
-
-    case "users":
-      return (
-        <svg {...commonProps}>
-          <circle cx="9" cy="9" r="3" />
-          <path d="M4 19C4 16 6 14 9 14C12 14 14 16 14 19" />
-          <path d="M15 7C17 7 19 8.5 19 11" />
-          <path d="M16 14C19 14 21 16 21 19" />
-        </svg>
-      );
-
-    case "linechart":
-      return (
-        <svg {...commonProps}>
-          <path d="M4 18L9 13L13 15L20 7" />
-          <path d="M4 5V19H20" />
-        </svg>
-      );
-
-    case "click":
-      return (
-        <svg {...commonProps}>
-          <path d="M8 4L16 12L12 13L15 18L12 20L9 15L6 18L8 4Z" />
-        </svg>
-      );
-
-    case "search":
-      return (
-        <svg {...commonProps}>
-          <circle cx="10" cy="10" r="5" />
-          <path d="M14 14L20 20" />
-        </svg>
-      );
-  }
-}
 
 /* ======================================================
    SERVICE TAB
@@ -464,6 +281,8 @@ function ServiceTab({
 
   onPressEnd: (button: HTMLButtonElement) => void;
 }) {
+  const TabIcon = service.tabIcon;
+
   return (
     <button
       type="button"
@@ -517,7 +336,7 @@ function ServiceTab({
           active ? "text-highlight" : "text-muted group-hover:text-ink",
         ].join(" ")}
       >
-        <Icon type={service.tabIcon} className="size-space-5" />
+        <TabIcon className="size-space-5" stroke={ICON_STROKE} />
       </span>
 
       <span
@@ -537,6 +356,8 @@ function ServiceTab({
 ====================================================== */
 
 function ServiceListItem({ item }: { item: ServiceItem }) {
+  const ItemIcon = item.icon;
+
   return (
     <div
       data-tab-item
@@ -546,7 +367,7 @@ function ServiceListItem({ item }: { item: ServiceItem }) {
         data-tab-item-icon
         className="flex size-space-5 shrink-0 items-center justify-center"
       >
-        <Icon type={item.icon} className="size-space-5" />
+        <ItemIcon className="size-space-5" stroke={ICON_STROKE} />
       </span>
 
       <p data-tab-item-label className="min-w-0 text-body">
@@ -1101,10 +922,14 @@ export default function ServicosEEntregas() {
             <span className="text-highlight">diferente</span>.
           </h2>
 
+          {/* Names the three fronts outright instead of gesturing at them.
+            * The paragraph it replaced ("Às vezes... Em outras...") never said
+            * which services exist, so neither a search result nor an answer
+            * engine could lift a sentence from it that stands on its own. */}
           <p data-intro className="text-subtitle text-muted">
-            Às vezes, o que precisa mudar é a forma como a empresa se apresenta.
-            Em outras, a comunicação, o marketing ou a experiência de quem chega
-            até ela. A direção define onde a gente precisa atuar.
+            A Tessele trabalha em três frentes: estratégia e marketing, design e
+            desenvolvimento e tráfego pago. Qual delas entra, e em que ordem,
+            quem define é o diagnóstico do negócio.
           </p>
         </header>
 
