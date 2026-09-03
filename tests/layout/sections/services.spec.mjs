@@ -143,6 +143,88 @@ test.describe("services", () => {
     });
   }
 
+  /*
+   * Gabriel's rule, given after the copy rewrite: no line of copy in this
+   * section may hold a single word. It is a rule about the rendered result, so
+   * it is measured as one -- the assertion counts the words that actually land
+   * on the last line box, not whether the source string contains a `&nbsp;`.
+   * A fix that ties the words a different way, or a wrap that never needed
+   * tying at this width, both pass.
+   *
+   * Every service's title and description is measured on one page load, active
+   * tab or not: `[data-tab-copy-stack]` lays all three in the same grid cell
+   * and hides the inactive ones with `visibility`, which leaves their geometry
+   * intact and identical to what the reader gets after clicking the tab.
+   *
+   * A non-breaking space is ordinary whitespace to `\S+` here, on purpose: a
+   * tied pair has to count as the two words the reader sees on that line, or
+   * the measurement would be of the mechanism instead of the outcome.
+   */
+  const WIDOWS = () => {
+    const out = [];
+    const section = document.querySelector("[data-name='servicos-e-entregas']");
+    if (!section) return [{ error: "services section not found" }];
+
+    for (const el of section.querySelectorAll("h2, h3, p")) {
+      const text = (el.textContent ?? "").trim();
+      if (!text) continue;
+
+      const whole = document.createRange();
+      whole.selectNodeContents(el);
+
+      // One rect per rendered line box. Inline children can add slivers, so the
+      // last line is found by its offset rather than by taking the last entry.
+      const lines = Array.from(whole.getClientRects()).filter(
+        (rect) => rect.width > 0.5 && rect.height > 0.5,
+      );
+      if (lines.length < 2) continue;
+
+      const lastTop = Math.max(...lines.map((rect) => rect.top));
+
+      // A TreeWalker rather than el.childNodes: the section heading splits its
+      // last word into a <span> to colour it, so words do not all share a node.
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let onLastLine = 0;
+      let node;
+      while ((node = walker.nextNode())) {
+        const value = node.textContent ?? "";
+        const words = /\S+/g;
+        let match;
+        while ((match = words.exec(value))) {
+          const range = document.createRange();
+          range.setStart(node, match.index);
+          range.setEnd(node, match.index + match[0].length);
+          const box = range.getBoundingClientRect();
+          if (box.width === 0 && box.height === 0) continue;
+          if (Math.abs(box.top - lastTop) < 2) onLastLine += 1;
+        }
+      }
+
+      if (onLastLine < 2) {
+        out.push({
+          tag: el.tagName,
+          lines: lines.length,
+          wordsOnLastLine: onLastLine,
+          text: text.slice(0, 70),
+        });
+      }
+    }
+
+    return out;
+  };
+
+  for (const width of [375, 390, 430, 640, 767, 768, 900, 1024, 1280, 1600]) {
+    test(`no copy in the section ends on a widow at ${width}px`, async ({ page }) => {
+      await gotoLanding(page, width);
+
+      const section = page.locator("[data-name='servicos-e-entregas']");
+      await section.scrollIntoViewIfNeeded();
+
+      const widows = await page.evaluate(WIDOWS);
+      expect(widows, "copy ending on a line with one word").toEqual([]);
+    });
+  }
+
   // The photos were hotlinked from images.unsplash.com. A static export that
   // reaches a third party on every load is a dependency nobody declared, so they
   // are served from public/images now -- and this is what keeps them there.
