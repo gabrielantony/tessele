@@ -133,19 +133,31 @@ export default function Footer() {
           `-=${OVERLAP}`,
         )
         .from(
-          selector("[data-footer-wordmark]"),
-          {
-            autoAlpha: 0,
-            duration: DURATION_SECONDARY,
-          },
-          `-=${OVERLAP}`,
-        )
-        .from(
           selector("[data-footer-legal]"),
           {
             autoAlpha: 0,
             y: "var(--spacing-space-2)",
             duration: DURATION_SECONDARY,
+          },
+          `-=${OVERLAP}`,
+        )
+        // Last beat, and a masked reveal rather than a fade. The card already
+        // clips (`overflow-hidden`) and the mark is pinned to its bottom edge,
+        // so one height of downward offset parks it entirely behind that edge
+        // and it rises into place through the mask -- the mark reads as having
+        // been there all along, uncovered, instead of materialising out of
+        // nothing. Rising is the only direction its own anchor allows: coming
+        // down from above would mean crossing the copy it sits under.
+        //
+        // `DURATION_PRIMARY`, not `_SECONDARY`: the travel here is the mark's
+        // full height, an order of magnitude past the `space-2`/`space-3`
+        // nudges above, and the same duration over that distance reads as a
+        // flick.
+        .from(
+          selector("[data-footer-wordmark]"),
+          {
+            yPercent: 100,
+            duration: DURATION_PRIMARY,
           },
           `-=${OVERLAP}`,
         );
