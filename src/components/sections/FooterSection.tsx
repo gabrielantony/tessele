@@ -21,8 +21,7 @@ const PHI_SQUARED = PHI * PHI;
 
 const DURATION_PRIMARY = PHI_INVERSE;
 const DURATION_SECONDARY = PHI_INVERSE * PHI_INVERSE;
-const STAGGER = DURATION_SECONDARY * PHI_INVERSE;
-const OVERLAP = STAGGER;
+const OVERLAP = DURATION_SECONDARY * PHI_INVERSE;
 
 function fibonacciEaseOut(progress: number) {
   return 1 - Math.pow(1 - progress, PHI_SQUARED);
@@ -122,13 +121,17 @@ export default function Footer() {
           y: "var(--spacing-space-6)",
           duration: DURATION_PRIMARY,
         })
+        // The three columns arrive as one beat, not one at a time. A stagger
+        // asserts an order the eye should follow, and these are peers sitting
+        // side by side on a single row -- there is no first or third to read.
+        // Staggering them invented a sequence and put three separate moves on
+        // screen where the footer only ever had one band of content.
         .from(
           selector("[data-footer-column]"),
           {
             autoAlpha: 0,
             y: "var(--spacing-space-3)",
             duration: DURATION_SECONDARY,
-            stagger: STAGGER,
           },
           `-=${OVERLAP}`,
         )
