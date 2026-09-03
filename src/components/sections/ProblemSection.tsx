@@ -61,11 +61,17 @@ const pointAt = (angle: number, radius: number) => ({
 
 const trim = (value: number) => Math.round(value * 100) / 100;
 
+/*
+ * Written from the card end inward, which is the direction it draws: a line
+ * revealed by `stroke-dashoffset` uncovers itself from the path's first point,
+ * so the point order IS the direction of travel. The factor sends its answer to
+ * the decision, not the other way round.
+ */
 const spokePath = (angle: number) => {
-  const from = pointAt(angle, SPOKE_START);
-  const to = pointAt(angle, SPOKE_END);
+  const fromCard = pointAt(angle, SPOKE_END);
+  const toHub = pointAt(angle, SPOKE_START);
 
-  return `M ${trim(from.x)} ${trim(from.y)} L ${trim(to.x)} ${trim(to.y)}`;
+  return `M ${trim(fromCard.x)} ${trim(fromCard.y)} L ${trim(toHub.x)} ${trim(toHub.y)}`;
 };
 
 // How far the sequence travels around the circle to get from one card to the
@@ -96,6 +102,19 @@ const arcPath = (from: number, to: number) => {
 const SPOKE_LENGTH = SPOKE_END - SPOKE_START;
 const arcLength = (from: number, to: number) =>
   trim(ORBIT_RADIUS * radians(sweep(from, to)));
+
+/*
+ * How much longer than the line the hiding gap is, in the same 0-100 units.
+ *
+ * A gap exactly as long as the line is not enough, for two reasons that both
+ * showed up as a green stub sitting at the end of an arc before its step had
+ * run. The closed forms above are a hair off what the renderer measures -- 9.5
+ * against 9.5035 for a spoke -- and a `round` linecap paints a dash of any
+ * length at all, however small, as a full-width dot. One unit of slack is ~300x
+ * the error and costs nothing: the gap only has to be long enough to hide the
+ * line, and the dash only long enough to cover it.
+ */
+const DASH_SLACK = 1;
 
 // The stacked layout below 640px: viewBox units of one connector, which is also
 // the length of the line inside it.
@@ -137,9 +156,22 @@ const PHI = (1 + Math.sqrt(5)) / 2;
 const PHI_INVERSE = 1 / PHI;
 const PHI_SQUARED = PHI * PHI;
 
-const DURATION_PRIMARY = PHI_INVERSE;
-const DURATION_SECONDARY = DURATION_PRIMARY * PHI_INVERSE;
-const OVERLAP = DURATION_SECONDARY * PHI_INVERSE;
+/*
+ * One ladder of durations, each rung 1/phi of the one above it. The entrance and
+ * the diagram's own sequence both step on it, so there is a single set of numbers
+ * behind everything that moves here rather than a golden-ratio entrance next to a
+ * handful of typed-in tenths -- which is what the sequence used to be, and why it
+ * ran a second and a half longer than it needed to.
+ */
+const BEAT_LONG = PHI_INVERSE;
+const BEAT = BEAT_LONG * PHI_INVERSE;
+const BEAT_SHORT = BEAT * PHI_INVERSE;
+const BEAT_TICK = BEAT_SHORT * PHI_INVERSE;
+
+// The entrance's rungs, under the names the other sections give them.
+const DURATION_PRIMARY = BEAT_LONG;
+const DURATION_SECONDARY = BEAT;
+const OVERLAP = BEAT_SHORT;
 
 const ENTER_Y_PERCENT = PHI * 10;
 
@@ -149,41 +181,45 @@ function fibonacciEaseOut(progress: number) {
 
 /*
  * Seconds. One factor lands per step, and inside a step nothing overlaps: the
- * line from the hub reaches the card, the card finishes lighting, and only then
- * does the line leaving that card start to draw. The loop holds on the completed
- * circle, fades it out and starts over.
+ * card lights, it sends its line in to the decision, and only then does the
+ * circle carry on to the next factor. The loop holds on the closed circle, fades
+ * it out and starts over.
  *
- * The overlap is what this replaced. The outbound line used to start 0.1s before
- * the card's fill had finished, and below 640px it was worse than an overlap: the
- * connector under a card was the step's FIRST leg, so the line went green before
- * the card it belongs to had begun to light at all.
+ * The direction is the point. The hub used to push a line out to each card and
+ * sat green from the first frame, which read as the decision handing out its
+ * reasons. It is the other way round: the hub rests grey and inert, each factor
+ * feeds it in turn, and only once the circle closes does the decision light up
+ * and get pressed.
  */
 const MOTION = {
-  pulse: 1.2,
-  pulseStagger: 0.2,
-  // The hub answers, then the line leaves it.
-  lead: 0.1,
-  inbound: 0.5,
-  card: 0.4,
-  outbound: 0.8,
+  // A beat before the step's first card starts to light.
+  lead: BEAT_TICK,
+  card: BEAT,
+  inbound: BEAT,
+  outbound: BEAT_LONG,
   // A beat of stillness on the finished factor before the next one starts.
-  breath: 0.1,
-  hold: 0.9,
-  reset: 0.7,
-  press: 0.16,
-  pressBack: 0.4,
-  completePulse: 1.4,
-  completePulseStagger: 0.18,
+  breath: BEAT_TICK,
+  hubFill: BEAT_SHORT,
+  press: BEAT_TICK,
+  pressBack: BEAT,
+  // 1/phi + 1/phi^2 is exactly 1, which is the rung the radar wants: long
+  // enough to read as a sweep, short enough not to hold the cycle open.
+  radar: BEAT_LONG + BEAT,
+  radarStagger: BEAT_TICK,
+  // Held on the closed circle after the radar has finished, before the reset.
+  hold: BEAT_SHORT,
+  reset: BEAT,
 } as const;
 
 /*
  * Where each leg of a step begins, relative to the step's own start -- derived
  * rather than typed, because "derived" is the property under discussion: each
  * one starts exactly where the previous one ends, and STEP is long enough that
- * the next factor's line cannot start while this one's is still drawing.
+ * the next factor's card cannot light while this one's line is still drawing.
  */
-const CARD_AT = MOTION.lead + MOTION.inbound;
-const OUTBOUND_AT = CARD_AT + MOTION.card;
+const CARD_AT = MOTION.lead;
+const INBOUND_AT = CARD_AT + MOTION.card;
+const OUTBOUND_AT = INBOUND_AT + MOTION.inbound;
 const STEP = OUTBOUND_AT + MOTION.outbound + MOTION.breath;
 
 export default function ProblemSection() {
@@ -198,6 +234,7 @@ export default function ProblemSection() {
       const rings = gsap.utils.toArray<HTMLElement>("[data-card-active]", root.current);
       const pulses = gsap.utils.toArray<HTMLElement>("[data-pulse]", root.current);
       const hubButton = gsap.utils.toArray<HTMLElement>("[data-hub-button]", root.current);
+      const hubFill = gsap.utils.toArray<HTMLElement>("[data-hub-fill]", root.current);
 
       if (fills.length === 0 || rings.length !== FACTORS.length) return;
 
@@ -232,12 +269,32 @@ export default function ProblemSection() {
        * repeat. Without it the second cycle would start with the arcs from the
        * first still drawn: each step resets only its own line, and steps 2 and 3
        * do not reach their reset until seconds into the cycle.
+       *
+       * The dash goes on as an ATTRIBUTE, not as a style, and that is the whole
+       * fix for two things at once. Written as a style, GSAP picks up the `px`
+       * unit from the computed value and rounds every frame to a whole pixel:
+       * the resting offset came out at 87 against a dash of 87.18, which left
+       * that 0.18 painted -- a green dot at the end of an arc from the first
+       * frame of the cycle -- and the draw itself advanced in 1-unit steps,
+       * which on a 9.5-unit spoke is ten of them. The attribute takes the number
+       * it is given.
        */
       loop
-        .set(fills, { strokeDasharray: (_index, path) => lengthOf(path) }, 0)
-        .set(fills, { strokeDashoffset: (_index, path) => lengthOf(path) }, 0)
+        .set(
+          fills,
+          {
+            attr: {
+              "stroke-dasharray": (_index: number, path: SVGPathElement) =>
+                `${lengthOf(path)} ${lengthOf(path) + DASH_SLACK}`,
+              "stroke-dashoffset": (_index: number, path: SVGPathElement) =>
+                lengthOf(path),
+            },
+          },
+          0,
+        )
         .set(layers, { opacity: 1 }, 0)
         .set(rings, { opacity: 0 }, 0)
+        .set(hubFill, { opacity: 0 }, 0)
         .set(hubButton, { scale: 1 }, 0);
 
       FACTORS.forEach((_factor, index) => {
@@ -245,58 +302,63 @@ export default function ProblemSection() {
         const inbound = fillsFor(index, "in");
         const outbound = fillsFor(index, "out");
 
-        // The hub answers first, then the line leaves it.
-        loop.fromTo(
-          pulses,
-          { scale: 1, opacity: 0.34 },
-          {
-            scale: 1.75,
-            opacity: 0,
-            duration: MOTION.pulse,
-            ease: "power2.out",
-            stagger: MOTION.pulseStagger,
-          },
-          at,
-        );
-
-        /*
-         * Both legs are tweened at every viewport, because both exist in the DOM
-         * at every viewport -- one layout's paths are the ones inside the subtree
-         * that is `display: none`. What differs is which leg is visible: the
-         * circle shows the hub reaching the card and then the arc leaving it; the
-         * stacked column has no inbound line, so its step opens on the card and
-         * the connector underneath follows.
-         */
-        loop.to(
-          inbound,
-          { strokeDashoffset: 0, duration: MOTION.inbound, ease: "power2.out" },
-          at + MOTION.lead,
-        );
-
+        // The card first, always: it is what the line that follows comes from.
         loop.to(
           rings[index],
           { opacity: 1, duration: MOTION.card, ease: "none" },
           at + CARD_AT,
         );
 
+        /*
+         * Both legs are tweened at every viewport, because both exist in the DOM
+         * at every viewport -- one layout's paths are the ones inside the subtree
+         * that is `display: none`. What differs is which leg is visible: the
+         * circle shows the lit card feeding the hub and then the arc carrying on
+         * to the next factor; the stacked column has no line to the hub in the
+         * middle, so what it shows is the card and the connector under it.
+         */
+        loop.to(
+          inbound,
+          {
+            attr: { "stroke-dashoffset": 0 },
+            duration: MOTION.inbound,
+            // Both legs travel at a constant rate. A line that eases is a line
+            // that lurches and then crawls; a signal on its way somewhere reads
+            // smoother at one speed, and the two legs then read as one journey.
+            ease: "none",
+          },
+          at + INBOUND_AT,
+        );
+
         loop.to(
           outbound,
-          { strokeDashoffset: 0, duration: MOTION.outbound, ease: "none" },
+          {
+            attr: { "stroke-dashoffset": 0 },
+            duration: MOTION.outbound,
+            ease: "none",
+          },
           at + OUTBOUND_AT,
         );
       });
 
       /*
-       * The instant the last arc's stroke finishes drawing -- the circle
-       * closes -- the hub gets tapped: a quick press-down that springs back
-       * with an overshoot, echoing someone confirming the decision, and the
-       * same radar rings that ping each factor's step fire once more, bigger,
-       * to mark the moment the circle is whole.
+       * The instant the last arc closes the circle, the decision is made: the
+       * grey hub takes its green, gets tapped -- a quick press-down that springs
+       * back with an overshoot -- and the radar goes out from under it.
+       *
+       * This is the only moment the radar fires. It used to ping on every step
+       * as well, which is what made it read as faint: three quiet pings and then
+       * a fourth barely louder one. One ring, once, at full strength.
        */
       const completeAt =
         (FACTORS.length - 1) * STEP + OUTBOUND_AT + MOTION.outbound;
 
       loop
+        .to(
+          hubFill,
+          { opacity: 1, duration: MOTION.hubFill, ease: "power2.out" },
+          completeAt,
+        )
         .to(
           hubButton,
           { scale: 0.92, duration: MOTION.press, ease: "power1.out" },
@@ -309,22 +371,35 @@ export default function ProblemSection() {
         )
         .fromTo(
           pulses,
-          { scale: 1, opacity: 0.5 },
+          { scale: 1, opacity: 0.9 },
           {
-            scale: 2.2,
+            scale: 2.4,
             opacity: 0,
-            duration: MOTION.completePulse,
+            duration: MOTION.radar,
             ease: "power2.out",
-            stagger: MOTION.completePulseStagger,
+            stagger: MOTION.radarStagger,
           },
           completeAt + MOTION.press,
         );
 
-      const settled = FACTORS.length * STEP + MOTION.hold;
+      /*
+       * When the cycle is allowed to end, derived from the finale rather than
+       * typed: the last ring has to finish expanding before anything fades, or
+       * the beat the whole sequence builds to is the one that gets cut off. The
+       * ring count comes from the DOM so adding a ring cannot leave this stale.
+       */
+      const radarEnd =
+        completeAt +
+        MOTION.press +
+        MOTION.radar +
+        MOTION.radarStagger * Math.max(0, pulses.length - 1);
+
+      const settled = Math.max(FACTORS.length * STEP, radarEnd) + MOTION.hold;
 
       loop
         .to(layers, { opacity: 0, duration: MOTION.reset, ease: "none" }, settled)
-        .to(rings, { opacity: 0, duration: MOTION.reset, ease: "none" }, settled);
+        .to(rings, { opacity: 0, duration: MOTION.reset, ease: "none" }, settled)
+        .to(hubFill, { opacity: 0, duration: MOTION.reset, ease: "none" }, settled);
 
       /*
        * Off-screen the loop is paused. A timeline that never stops costs battery
@@ -546,23 +621,45 @@ export default function ProblemSection() {
               data-hub
               className="relative mx-auto size-space-32 sm:size-full sm:aspect-square"
             >
+              {/* The radar, as rings rather than discs. A filled circle
+                * expanding out of the hub washed over the hub's own label and
+                * still read as faint, because a 10%-alpha green on a near-white
+                * canvas has almost nothing to be faint against. A 2px ring in the
+                * solid brand green has the contrast, and passes over the label
+                * instead of covering it. */}
               <span
                 data-pulse
                 aria-hidden="true"
-                className="absolute inset-0 rounded-full bg-highlight-soft opacity-0"
+                className="absolute inset-0 rounded-full border-2 border-highlight opacity-0"
               />
 
               <span
                 data-pulse
                 aria-hidden="true"
-                className="absolute inset-0 rounded-full bg-highlight-soft opacity-0"
+                className="absolute inset-0 rounded-full border-2 border-highlight opacity-0"
               />
 
+              {/*
+                * Grey until the circle closes. The green is an overlay at
+                * opacity 0 rather than a colour this hook swaps, for the same
+                * reason the cards' ring and the SVG's green layer are: the
+                * resting markup is the design's own state, so a reduced-motion
+                * visitor and a visitor whose JS never runs both get the diagram
+                * before the decision is made, not a frame of one that stopped.
+                */}
               <div
                 data-hub-button
-                className="absolute inset-0 flex items-center justify-center rounded-full bg-highlight px-space-3 text-center"
+                className="absolute inset-0 overflow-hidden rounded-full bg-control-disabled"
               >
-                <p className="text-body-bold text-ink">Decisão de compra</p>
+                <span
+                  data-hub-fill
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-full bg-highlight opacity-0"
+                />
+
+                <div className="relative flex size-full items-center justify-center px-space-3 text-center">
+                  <p className="text-body-bold text-ink">Decisão de compra</p>
+                </div>
               </div>
             </div>
           </div>

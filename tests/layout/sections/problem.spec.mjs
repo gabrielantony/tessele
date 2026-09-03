@@ -141,12 +141,18 @@ const DIAGRAM_STATE = () => {
     return { opacity: Number(style.opacity), scale };
   });
 
+  // The green over the hub's grey. 0 is the resting state -- the decision has
+  // not been made -- and it is the attribute on the element, not something the
+  // hook writes, so this reads 0 before any JS has run too.
+  const fill = document.querySelector("[data-hub-fill]");
+
   return {
     lines: Array.from(steps.keys())
       .sort((a, b) => a - b)
       .map((index) => steps.get(index)),
     rings,
     pulses,
+    hub: fill ? Number(getComputedStyle(fill).opacity) : 0,
   };
 };
 
@@ -252,9 +258,9 @@ test.describe("problem", () => {
       await gotoLanding(page, width, { motion: true });
       await showDiagram(page);
 
-      // 16.5s covers two full cycles (7.3s each), so the sequence is measured
+      // 15s covers two full cycles (6.8s each), so the sequence is measured
       // whole no matter where in the loop the trace happened to start.
-      const readings = await trace(page, { samples: 110, everyMs: 150 });
+      const readings = await trace(page, { samples: 100, everyMs: 150 });
 
       const count = readings[0].lines.length;
       expect(count, "no drawable lines on screen in this layout").toBe(3);
@@ -299,6 +305,35 @@ test.describe("problem", () => {
         reading.pulses.some((pulse) => pulse.opacity > 0.05 && pulse.scale > 1.05),
       );
       expect(pulsed, "the hub never pulses").toBe(true);
+
+      /*
+       * The decision is the last thing to happen, and the reason the hub rests
+       * grey: it lights only once every factor has fed it. Stated as the
+       * invariant rather than as a timestamp, so it holds wherever in the cycle
+       * the trace began -- there must be no reading where the hub is green and
+       * some line is not yet drawn.
+       */
+      const lit = readings.filter((reading) => reading.hub >= 0.9);
+      expect(
+        lit.length,
+        "the hub never turns green, so the sequence never resolves",
+      ).toBeGreaterThan(0);
+
+      /*
+       * "Not yet drawn" is measured at 0.5, not at 0.9, and the reset is why:
+       * there the hub's green and the lines' layer fade together, on the same
+       * duration and the same linear ease, so at 0.9 this would be comparing two
+       * floats that are meant to be equal. Half-drawn is unambiguous, and the
+       * failure this guards against -- the hub lighting on step one or two --
+       * leaves the later lines at 0.
+       */
+      const early = lit.filter((reading) =>
+        reading.lines.some((value) => value < 0.5),
+      );
+      expect(
+        early.length,
+        `the hub was green in ${early.length} readings where the circle was not yet closed`,
+      ).toBe(0);
     });
 
     test(`the diagram stays at rest under reduced motion at ${width}px`, async ({ page }) => {
@@ -312,7 +347,8 @@ test.describe("problem", () => {
         (reading) =>
           reading.lines.some((value) => value > 0.02) ||
           reading.rings.some((value) => value > 0.02) ||
-          reading.pulses.some((pulse) => pulse.opacity > 0.02),
+          reading.pulses.some((pulse) => pulse.opacity > 0.02) ||
+          reading.hub > 0.02,
       );
 
       expect(
