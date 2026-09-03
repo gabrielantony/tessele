@@ -19,6 +19,13 @@
   --color-on-accent: #faf9f5;
   --color-on-accent-muted: #999e99;
   --color-on-accent-border: #4d594d;
+  /* The off state of the billing toggle's track, on the accent panel. It used
+     to be --color-muted, which is the secondary TEXT colour: darkening that for
+     the copy dragged the track down with it, to 2.3:1 against #112118 -- under
+     the 3:1 WCAG 1.4.11 asks of a control whose shape carries its state. A
+     track is a surface, not a sentence, so it gets its own token and stops
+     following type decisions. */
+  --color-on-accent-track: #666a66;
   --color-highlight: #85d02d;
   /* Same hue and saturation as --color-highlight, dropped to 35% lightness.
      The bright green is a fill colour -- as a 2px stroke on a white card it
