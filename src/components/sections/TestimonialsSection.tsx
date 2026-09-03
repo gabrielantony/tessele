@@ -583,6 +583,8 @@ export default function CasesSection() {
       });
 
       timeline
+        // The shared section-heading entrance: one `space-6` of rise, which is
+        // what `headingDistance` already resolves to. See ProblemSection.
         .from("[data-heading]", {
           opacity: 0,
           y: headingDistance,

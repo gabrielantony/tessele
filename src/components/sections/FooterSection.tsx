@@ -21,8 +21,7 @@ const PHI_SQUARED = PHI * PHI;
 
 const DURATION_PRIMARY = PHI_INVERSE;
 const DURATION_SECONDARY = PHI_INVERSE * PHI_INVERSE;
-const STAGGER = DURATION_SECONDARY * PHI_INVERSE;
-const OVERLAP = STAGGER;
+const OVERLAP = DURATION_SECONDARY * PHI_INVERSE;
 
 function fibonacciEaseOut(progress: number) {
   return 1 - Math.pow(1 - progress, PHI_SQUARED);
@@ -114,26 +113,24 @@ export default function Footer() {
       });
 
       timeline
+        // The shared section-heading entrance: one `space-6` of rise and nothing
+        // else. The blur that used to ride along came off so this heading
+        // arrives the way the other eight do. See ProblemSection.
         .from(selector("[data-footer-heading]"), {
-          autoAlpha: 0,
-          y: "var(--spacing-space-4)",
-          filter: "blur(var(--spacing-space-2))",
+          opacity: 0,
+          y: "var(--spacing-space-6)",
           duration: DURATION_PRIMARY,
         })
+        // The three columns arrive as one beat, not one at a time. A stagger
+        // asserts an order the eye should follow, and these are peers sitting
+        // side by side on a single row -- there is no first or third to read.
+        // Staggering them invented a sequence and put three separate moves on
+        // screen where the footer only ever had one band of content.
         .from(
           selector("[data-footer-column]"),
           {
             autoAlpha: 0,
             y: "var(--spacing-space-3)",
-            duration: DURATION_SECONDARY,
-            stagger: STAGGER,
-          },
-          `-=${OVERLAP}`,
-        )
-        .from(
-          selector("[data-footer-wordmark]"),
-          {
-            autoAlpha: 0,
             duration: DURATION_SECONDARY,
           },
           `-=${OVERLAP}`,
@@ -144,6 +141,26 @@ export default function Footer() {
             autoAlpha: 0,
             y: "var(--spacing-space-2)",
             duration: DURATION_SECONDARY,
+          },
+          `-=${OVERLAP}`,
+        )
+        // Last beat, and a masked reveal rather than a fade. The card already
+        // clips (`overflow-hidden`) and the mark is pinned to its bottom edge,
+        // so one height of downward offset parks it entirely behind that edge
+        // and it rises into place through the mask -- the mark reads as having
+        // been there all along, uncovered, instead of materialising out of
+        // nothing. Rising is the only direction its own anchor allows: coming
+        // down from above would mean crossing the copy it sits under.
+        //
+        // `DURATION_PRIMARY`, not `_SECONDARY`: the travel here is the mark's
+        // full height, an order of magnitude past the `space-2`/`space-3`
+        // nudges above, and the same duration over that distance reads as a
+        // flick.
+        .from(
+          selector("[data-footer-wordmark]"),
+          {
+            yPercent: 100,
+            duration: DURATION_PRIMARY,
           },
           `-=${OVERLAP}`,
         );

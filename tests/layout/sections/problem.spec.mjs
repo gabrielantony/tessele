@@ -98,6 +98,12 @@ const ESCAPE = () => {
  * invisible, and reporting it as drawn would let a stuck layer pass. The paths
  * of the layout that is not on screen are skipped by their zero-sized box.
  *
+ * Every line the step owns counts, and the step is worth its LEAST drawn one:
+ * the circle has two (`in`, from the hub to the card, and `out`, from that card
+ * to the next), the stacked column has only the `out` connector. Taking the
+ * minimum is what makes "the step is drawn" mean all of it -- a max would let a
+ * dead arc hide behind a healthy spoke.
+ *
  * Before the hook runs there is no inline dash offset at all, which computes to
  * 0 and would read as fully drawn; the layer's opacity attribute is 0 there, so
  * the product is still 0. That is the resting state, and it is what the
@@ -110,7 +116,7 @@ const DIAGRAM_STATE = () => {
   };
 
   const steps = new Map();
-  for (const path of document.querySelectorAll('[data-fill][data-fill-kind="spoke"]')) {
+  for (const path of document.querySelectorAll("[data-fill]")) {
     if (!shown(path)) continue;
 
     const length = Number(path.dataset.fillLength);
@@ -122,7 +128,7 @@ const DIAGRAM_STATE = () => {
     const opacity = layer ? Number(getComputedStyle(layer).opacity) : 0;
 
     const index = Number(path.dataset.fill);
-    steps.set(index, Math.max(steps.get(index) ?? 0, drawn * opacity));
+    steps.set(index, Math.min(steps.get(index) ?? 1, drawn * opacity));
   }
 
   const rings = Array.from(document.querySelectorAll("[data-card-active]"), (ring) =>
@@ -135,12 +141,18 @@ const DIAGRAM_STATE = () => {
     return { opacity: Number(style.opacity), scale };
   });
 
+  // The green over the hub's grey. 0 is the resting state -- the decision has
+  // not been made -- and it is the attribute on the element, not something the
+  // hook writes, so this reads 0 before any JS has run too.
+  const fill = document.querySelector("[data-hub-fill]");
+
   return {
     lines: Array.from(steps.keys())
       .sort((a, b) => a - b)
       .map((index) => steps.get(index)),
     rings,
     pulses,
+    hub: fill ? Number(getComputedStyle(fill).opacity) : 0,
   };
 };
 
@@ -246,7 +258,7 @@ test.describe("problem", () => {
       await gotoLanding(page, width, { motion: true });
       await showDiagram(page);
 
-      // 15s covers two full cycles (6.65s each), so the sequence is measured
+      // 15s covers two full cycles (5.6s each), so the sequence is measured
       // whole no matter where in the loop the trace happened to start.
       const readings = await trace(page, { samples: 100, everyMs: 150 });
 
@@ -293,6 +305,35 @@ test.describe("problem", () => {
         reading.pulses.some((pulse) => pulse.opacity > 0.05 && pulse.scale > 1.05),
       );
       expect(pulsed, "the hub never pulses").toBe(true);
+
+      /*
+       * The decision is the last thing to happen, and the reason the hub rests
+       * grey: it lights only once every factor has fed it. Stated as the
+       * invariant rather than as a timestamp, so it holds wherever in the cycle
+       * the trace began -- there must be no reading where the hub is green and
+       * some line is not yet drawn.
+       */
+      const lit = readings.filter((reading) => reading.hub >= 0.9);
+      expect(
+        lit.length,
+        "the hub never turns green, so the sequence never resolves",
+      ).toBeGreaterThan(0);
+
+      /*
+       * "Not yet drawn" is measured at 0.5, not at 0.9, and the reset is why:
+       * there the hub's green and the lines' layer fade together, on the same
+       * duration and the same linear ease, so at 0.9 this would be comparing two
+       * floats that are meant to be equal. Half-drawn is unambiguous, and the
+       * failure this guards against -- the hub lighting on step one or two --
+       * leaves the later lines at 0.
+       */
+      const early = lit.filter((reading) =>
+        reading.lines.some((value) => value < 0.5),
+      );
+      expect(
+        early.length,
+        `the hub was green in ${early.length} readings where the circle was not yet closed`,
+      ).toBe(0);
     });
 
     test(`the diagram stays at rest under reduced motion at ${width}px`, async ({ page }) => {
@@ -306,7 +347,8 @@ test.describe("problem", () => {
         (reading) =>
           reading.lines.some((value) => value > 0.02) ||
           reading.rings.some((value) => value > 0.02) ||
-          reading.pulses.some((pulse) => pulse.opacity > 0.02),
+          reading.pulses.some((pulse) => pulse.opacity > 0.02) ||
+          reading.hub > 0.02,
       );
 
       expect(

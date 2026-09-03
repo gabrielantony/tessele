@@ -61,11 +61,17 @@ const pointAt = (angle: number, radius: number) => ({
 
 const trim = (value: number) => Math.round(value * 100) / 100;
 
+/*
+ * Written from the card end inward, which is the direction it draws: a line
+ * revealed by `stroke-dashoffset` uncovers itself from the path's first point,
+ * so the point order IS the direction of travel. The factor sends its answer to
+ * the decision, not the other way round.
+ */
 const spokePath = (angle: number) => {
-  const from = pointAt(angle, SPOKE_START);
-  const to = pointAt(angle, SPOKE_END);
+  const fromCard = pointAt(angle, SPOKE_END);
+  const toHub = pointAt(angle, SPOKE_START);
 
-  return `M ${trim(from.x)} ${trim(from.y)} L ${trim(to.x)} ${trim(to.y)}`;
+  return `M ${trim(fromCard.x)} ${trim(fromCard.y)} L ${trim(toHub.x)} ${trim(toHub.y)}`;
 };
 
 // How far the sequence travels around the circle to get from one card to the
@@ -97,6 +103,19 @@ const SPOKE_LENGTH = SPOKE_END - SPOKE_START;
 const arcLength = (from: number, to: number) =>
   trim(ORBIT_RADIUS * radians(sweep(from, to)));
 
+/*
+ * How much longer than the line the hiding gap is, in the same 0-100 units.
+ *
+ * A gap exactly as long as the line is not enough, for two reasons that both
+ * showed up as a green stub sitting at the end of an arc before its step had
+ * run. The closed forms above are a hair off what the renderer measures -- 9.5
+ * against 9.5035 for a spoke -- and a `round` linecap paints a dash of any
+ * length at all, however small, as a full-width dot. One unit of slack is ~300x
+ * the error and costs nothing: the gap only has to be long enough to hide the
+ * line, and the dash only long enough to cover it.
+ */
+const DASH_SLACK = 1;
+
 // The stacked layout below 640px: viewBox units of one connector, which is also
 // the length of the line inside it.
 const CONNECTOR = { width: 32, length: 40 } as const;
@@ -127,22 +146,104 @@ const FACTORS = [
   },
 ] as const;
 
-/* Seconds. One factor lands every `step`; the loop holds on the completed
-   circle, fades it out and starts over. */
+/*
+ * The entrance the rest of the page already uses -- the same golden-ratio
+ * durations and ease as OurProcessSection and ServicesSection carry, so this
+ * section arrives the way its neighbours do instead of being the one block that
+ * is simply already there when the page loads.
+ */
+const PHI = (1 + Math.sqrt(5)) / 2;
+const PHI_INVERSE = 1 / PHI;
+const PHI_SQUARED = PHI * PHI;
+
+/*
+ * One ladder of durations, each rung 1/phi of the one above it. The entrance and
+ * the diagram's own sequence both step on it, so there is a single set of numbers
+ * behind everything that moves here rather than a golden-ratio entrance next to a
+ * handful of typed-in tenths -- which is what the sequence used to be, and why it
+ * ran a second and a half longer than it needed to.
+ */
+const BEAT_LONG = PHI_INVERSE;
+const BEAT = BEAT_LONG * PHI_INVERSE;
+const BEAT_SHORT = BEAT * PHI_INVERSE;
+const BEAT_TICK = BEAT_SHORT * PHI_INVERSE;
+
+// The entrance's rungs, under the names the other sections give them.
+const DURATION_PRIMARY = BEAT_LONG;
+const DURATION_SECONDARY = BEAT;
+const OVERLAP = BEAT_SHORT;
+
+const ENTER_Y_PERCENT = PHI * 10;
+
+function fibonacciEaseOut(progress: number) {
+  return 1 - Math.pow(1 - progress, PHI_SQUARED);
+}
+
+/*
+ * Seconds. One factor lands per step, and inside a step nothing overlaps: the
+ * card lights, it sends its line in to the decision, and only then does the
+ * circle carry on to the next factor. The loop holds on the closed circle, fades
+ * it out and starts over.
+ *
+ * The direction is the point. The hub used to push a line out to each card and
+ * sat green from the first frame, which read as the decision handing out its
+ * reasons. It is the other way round: the hub rests grey and inert, each factor
+ * feeds it in turn, and only once the circle closes does the decision light up
+ * and get pressed.
+ */
 const MOTION = {
-  step: 1.6,
-  pulse: 1.2,
-  pulseStagger: 0.2,
-  spoke: 0.5,
-  card: 0.35,
-  arc: 0.95,
-  hold: 1.2,
-  reset: 0.7,
-  press: 0.16,
-  pressBack: 0.4,
-  completePulse: 1.4,
-  completePulseStagger: 0.18,
+  // A beat before the step's first card starts to light.
+  lead: BEAT_TICK,
+  card: BEAT,
+  // What the LONGEST line takes. Every other line takes its own length's share
+  // of the same rate -- see DRAW_RATE below.
+  draw: BEAT_LONG,
+  // A beat of stillness on the finished factor before the next one starts.
+  breath: BEAT_TICK,
+  hubFill: BEAT_SHORT,
+  press: BEAT_TICK,
+  pressBack: BEAT,
+  // 1/phi + 1/phi^2 is exactly 1, which is the rung the radar wants: long
+  // enough to read as a sweep, short enough not to hold the cycle open.
+  radar: BEAT_LONG + BEAT,
+  radarStagger: BEAT_TICK,
+  // Held on the closed circle after the radar has finished, before the reset.
+  hold: BEAT_SHORT,
+  reset: BEAT,
 } as const;
+
+const nextOf = (index: number) => FACTORS[(index + 1) % FACTORS.length];
+const arcFor = (index: number) =>
+  arcLength(FACTORS[index].angle, nextOf(index).angle);
+
+/*
+ * Every green line travels at the same rate, and its duration falls out of its
+ * own length. A fixed duration per leg is what made the spokes drag: 9.5 units
+ * in the same time an arc covers 87 is a fifth of the speed, on two lines the
+ * eye reads as one signal continuing, and the slow one spent a third of a second
+ * crossing a tenth of the diagram.
+ *
+ * The longest arc is the anchor -- it keeps the duration it had -- so nothing
+ * got faster than what was already right, the short legs just stopped waiting.
+ */
+const LONGEST_ARC = Math.max(...FACTORS.map((_factor, index) => arcFor(index)));
+const DRAW_RATE = LONGEST_ARC / MOTION.draw;
+const drawTime = (length: number) => length / DRAW_RATE;
+
+/*
+ * Where each leg of a step begins, relative to the step's own start -- derived
+ * rather than typed, because "derived" is the property under discussion: each
+ * one starts exactly where the previous one ends, and STEP is long enough that
+ * the next factor's card cannot light while this one's line is still drawing.
+ *
+ * STEP is sized on `draw` because the longest arc is the longest thing drawn in
+ * any step -- the stacked column's connector is 40 units of its own 32x40
+ * viewBox and comes in well under it.
+ */
+const CARD_AT = MOTION.lead;
+const INBOUND_AT = CARD_AT + MOTION.card;
+const OUTBOUND_AT = INBOUND_AT + drawTime(SPOKE_LENGTH);
+const STEP = OUTBOUND_AT + MOTION.draw + MOTION.breath;
 
 export default function ProblemSection() {
   const root = useRef<HTMLElement>(null);
@@ -156,6 +257,7 @@ export default function ProblemSection() {
       const rings = gsap.utils.toArray<HTMLElement>("[data-card-active]", root.current);
       const pulses = gsap.utils.toArray<HTMLElement>("[data-pulse]", root.current);
       const hubButton = gsap.utils.toArray<HTMLElement>("[data-hub-button]", root.current);
+      const hubFill = gsap.utils.toArray<HTMLElement>("[data-hub-fill]", root.current);
 
       if (fills.length === 0 || rings.length !== FACTORS.length) return;
 
@@ -175,7 +277,9 @@ export default function ProblemSection() {
 
       const lengthOf = (path: SVGPathElement) => Number(path.dataset.fillLength);
 
-      const fillsFor = (index: number, kind: "spoke" | "arc") =>
+      // `in` is the line the hub sends to a card, `out` the one that leaves it
+      // -- the circle's arc, or the stacked column's connector.
+      const fillsFor = (index: number, kind: "in" | "out") =>
         fills.filter(
           (path) =>
             path.dataset.fill === String(index) && path.dataset.fillKind === kind,
@@ -188,66 +292,105 @@ export default function ProblemSection() {
        * repeat. Without it the second cycle would start with the arcs from the
        * first still drawn: each step resets only its own line, and steps 2 and 3
        * do not reach their reset until seconds into the cycle.
+       *
+       * The dash goes on as an ATTRIBUTE, not as a style, and that is the whole
+       * fix for two things at once. Written as a style, GSAP picks up the `px`
+       * unit from the computed value and rounds every frame to a whole pixel:
+       * the resting offset came out at 87 against a dash of 87.18, which left
+       * that 0.18 painted -- a green dot at the end of an arc from the first
+       * frame of the cycle -- and the draw itself advanced in 1-unit steps,
+       * which on a 9.5-unit spoke is ten of them. The attribute takes the number
+       * it is given.
        */
       loop
-        .set(fills, { strokeDasharray: (_index, path) => lengthOf(path) }, 0)
-        .set(fills, { strokeDashoffset: (_index, path) => lengthOf(path) }, 0)
+        .set(
+          fills,
+          {
+            attr: {
+              "stroke-dasharray": (_index: number, path: SVGPathElement) =>
+                `${lengthOf(path)} ${lengthOf(path) + DASH_SLACK}`,
+              "stroke-dashoffset": (_index: number, path: SVGPathElement) =>
+                lengthOf(path),
+            },
+          },
+          0,
+        )
         .set(layers, { opacity: 1 }, 0)
         .set(rings, { opacity: 0 }, 0)
+        .set(hubFill, { opacity: 0 }, 0)
         .set(hubButton, { scale: 1 }, 0);
 
       FACTORS.forEach((_factor, index) => {
-        const at = index * MOTION.step;
-        const spokes = fillsFor(index, "spoke");
-        const arcs = fillsFor(index, "arc");
+        const at = index * STEP;
+        const inbound = fillsFor(index, "in");
+        const outbound = fillsFor(index, "out");
 
-        // The hub answers first, then the line leaves it.
-        loop.fromTo(
-          pulses,
-          { scale: 1, opacity: 0.34 },
-          {
-            scale: 1.75,
-            opacity: 0,
-            duration: MOTION.pulse,
-            ease: "power2.out",
-            stagger: MOTION.pulseStagger,
-          },
-          at,
-        );
-
-        loop.to(
-          spokes,
-          { strokeDashoffset: 0, duration: MOTION.spoke, ease: "power2.out" },
-          at + 0.1,
-        );
-
+        // The card first, always: it is what the line that follows comes from.
         loop.to(
           rings[index],
           { opacity: 1, duration: MOTION.card, ease: "none" },
-          at + 0.45,
+          at + CARD_AT,
         );
 
-        // Only the circle layout has arcs; the stacked one has a single line per
-        // step, so this leg is simply absent below 640px.
-        if (arcs.length > 0) {
+        /*
+         * Both legs are tweened at every viewport, because both exist in the DOM
+         * at every viewport -- one layout's paths are the ones inside the subtree
+         * that is `display: none`. What differs is which leg is visible: the
+         * circle shows the lit card feeding the hub and then the arc carrying on
+         * to the next factor; the stacked column has no line to the hub in the
+         * middle, so what it shows is the card and the connector under it.
+         */
+        /*
+         * One tween per path rather than one per leg, because a tween carries a
+         * single duration and each line's duration is now its own length's. The
+         * ease stays linear: a line that eases lurches and then crawls, and at a
+         * shared rate the legs read as one signal continuing through the diagram.
+         */
+        inbound.forEach((path) => {
           loop.to(
-            arcs,
-            { strokeDashoffset: 0, duration: MOTION.arc, ease: "none" },
-            at + 0.55,
+            path,
+            {
+              attr: { "stroke-dashoffset": 0 },
+              duration: drawTime(lengthOf(path)),
+              ease: "none",
+            },
+            at + INBOUND_AT,
           );
-        }
+        });
+
+        outbound.forEach((path) => {
+          loop.to(
+            path,
+            {
+              attr: { "stroke-dashoffset": 0 },
+              duration: drawTime(lengthOf(path)),
+              ease: "none",
+            },
+            at + OUTBOUND_AT,
+          );
+        });
       });
 
       /*
-       * The instant the last arc's stroke finishes drawing -- the circle
-       * closes -- the hub gets tapped: a quick press-down that springs back
-       * with an overshoot, echoing someone confirming the decision, and the
-       * same radar rings that ping each factor's step fire once more, bigger,
-       * to mark the moment the circle is whole.
+       * The instant the last arc closes the circle, the decision is made: the
+       * grey hub takes its green, gets tapped -- a quick press-down that springs
+       * back with an overshoot -- and the radar goes out from under it.
+       *
+       * This is the only moment the radar fires. It used to ping on every step
+       * as well, which is what made it read as faint: three quiet pings and then
+       * a fourth barely louder one. One ring, once, at full strength.
        */
-      const completeAt = (FACTORS.length - 1) * MOTION.step + 0.55 + MOTION.arc;
+      const completeAt =
+        (FACTORS.length - 1) * STEP +
+        OUTBOUND_AT +
+        drawTime(arcFor(FACTORS.length - 1));
 
       loop
+        .to(
+          hubFill,
+          { opacity: 1, duration: MOTION.hubFill, ease: "power2.out" },
+          completeAt,
+        )
         .to(
           hubButton,
           { scale: 0.92, duration: MOTION.press, ease: "power1.out" },
@@ -260,40 +403,130 @@ export default function ProblemSection() {
         )
         .fromTo(
           pulses,
-          { scale: 1, opacity: 0.5 },
+          // 0.5 was the wash that read as absent; 0.8 is the same wash, more of
+          // it. Scale stays at 2.2: below 640px the hub is a fixed 8rem in a
+          // column that can be 280px wide, and a wider sweep than this reaches
+          // the clip at the section's edge.
+          { scale: 1, opacity: 0.8 },
           {
             scale: 2.2,
             opacity: 0,
-            duration: MOTION.completePulse,
+            duration: MOTION.radar,
             ease: "power2.out",
-            stagger: MOTION.completePulseStagger,
+            stagger: MOTION.radarStagger,
           },
           completeAt + MOTION.press,
         );
 
-      const settled = FACTORS.length * MOTION.step + MOTION.hold;
+      /*
+       * When the cycle is allowed to end, derived from the finale rather than
+       * typed: the last ring has to finish expanding before anything fades, or
+       * the beat the whole sequence builds to is the one that gets cut off. The
+       * ring count comes from the DOM so adding a ring cannot leave this stale.
+       */
+      const radarEnd =
+        completeAt +
+        MOTION.press +
+        MOTION.radar +
+        MOTION.radarStagger * Math.max(0, pulses.length - 1);
+
+      const settled = Math.max(FACTORS.length * STEP, radarEnd) + MOTION.hold;
 
       loop
         .to(layers, { opacity: 0, duration: MOTION.reset, ease: "none" }, settled)
-        .to(rings, { opacity: 0, duration: MOTION.reset, ease: "none" }, settled);
+        .to(rings, { opacity: 0, duration: MOTION.reset, ease: "none" }, settled)
+        .to(hubFill, { opacity: 0, duration: MOTION.reset, ease: "none" }, settled);
 
       /*
        * Off-screen the loop is paused. A timeline that never stops costs battery
        * and CPU where nobody is looking, and this one runs for as long as the
        * page is open.
+       *
+       * It also waits for the entrance below: `arrived` is what keeps the
+       * sequence from being already two steps deep by the time the diagram has
+       * finished fading in. The gate starts where the entrance does -- `top 75%`
+       * rather than `top bottom` -- for the same reason: the section is read
+       * from there, and a cycle spent below the fold is one nobody sees.
        */
+      let arrived = false;
+
       const gate = ScrollTrigger.create({
         trigger: root.current,
-        start: "top bottom",
+        start: "top 75%",
         end: "bottom top",
         onToggle: (self) => {
-          if (self.isActive) loop.play();
+          if (self.isActive && arrived) loop.play();
           else loop.pause();
         },
       });
 
-      // onToggle does not fire for a state that was already true at creation.
-      if (gate.isActive) loop.play();
+      /*
+       * The entrance. Every other section on the page fades and lifts into place
+       * on the way in, and this one did not -- it was simply there, which is the
+       * seam a visitor notices on a refresh that lands mid-page.
+       *
+       * `from` tweens on purpose: the resting markup is the finished state, so a
+       * reduced-motion visitor (who returns above, before any of this is built)
+       * and a visitor whose JS never runs both get the section as designed rather
+       * than an opacity 0 they need a timeline to undo.
+       *
+       * The diagram travels as one box -- `y` on the container, not on the cards.
+       * The cards' own `left`/`top` centring lives in a transform on their
+       * wrappers, and a second transform written there would overwrite it.
+       */
+      const entrance = gsap.timeline({
+        defaults: { ease: fibonacciEaseOut },
+        scrollTrigger: {
+          trigger: root.current,
+          start: "top 75%",
+          toggleActions: "play none none reverse",
+        },
+        onComplete: () => {
+          arrived = true;
+          if (gate.isActive) loop.play();
+        },
+      });
+
+      entrance
+        .from("[data-eyebrow]", {
+          opacity: 0,
+          yPercent: ENTER_Y_PERCENT,
+          duration: DURATION_SECONDARY,
+        })
+        .from(
+          "[data-heading]",
+          {
+            opacity: 0,
+            // The section-heading entrance, shared by every section on the page:
+            // one `space-6` of rise. A FIXED distance, not a share of the
+            // heading's own height -- as a percentage this heading travelled
+            // 38px while the one-line heading in the footer travelled 2.5px,
+            // which is the spread this replaced. Change it here and you have
+            // changed one section, not the page: the value is repeated in each,
+            // because a section in this codebase is self-contained.
+            y: "var(--spacing-space-6)",
+            duration: DURATION_PRIMARY,
+          },
+          `-=${OVERLAP}`,
+        )
+        .from(
+          "[data-intro]",
+          {
+            opacity: 0,
+            yPercent: ENTER_Y_PERCENT,
+            duration: DURATION_SECONDARY,
+          },
+          `-=${OVERLAP}`,
+        )
+        .from(
+          "[data-diagram]",
+          {
+            opacity: 0,
+            y: "var(--spacing-space-6)",
+            duration: DURATION_PRIMARY,
+          },
+          `-=${OVERLAP}`,
+        );
     },
     { scope: root },
   );
@@ -305,7 +538,10 @@ export default function ProblemSection() {
     >
       <div className="mx-auto grid w-full max-w-wide grid-cols-1 items-center gap-space-10 xl:grid-cols-2 xl:gap-space-16">
         <div>
-          <p className="inline-block rounded-base bg-highlight px-space-3 py-space-1-5 text-label text-ink uppercase">
+          <p
+            data-eyebrow
+            className="inline-block rounded-base bg-highlight px-space-3 py-space-1-5 text-label text-ink uppercase"
+          >
             Quando tudo vira prioridade
           </p>
 
@@ -314,7 +550,10 @@ export default function ProblemSection() {
             * "avançar." -- which is what it did at the width this column has from
             * lg up. `text-balance` evens the rag on top of that, where it is
             * supported; the tie does not depend on it. */}
-          <h2 className="mt-space-4 max-w-copy text-heading-2 text-balance text-ink">
+          <h2
+            data-heading
+            className="mt-space-4 max-w-copy text-heading-2 text-balance text-ink"
+          >
             Você testa, muda, publica, investe. Mas ainda fica difícil saber o
             que realmente faz a empresa&nbsp;
             <span className="text-highlight">avançar</span>.
@@ -325,7 +564,7 @@ export default function ProblemSection() {
             * split from the "tempo, equipe" they belong with. Gluing the whole
             * closing run moves the wrap earlier instead, so the last line reads
             * as a full phrase at every width this column takes. */}
-          <p className="mt-space-4 max-w-copy text-subtitle text-muted">
+          <p data-intro className="mt-space-4 max-w-copy text-subtitle text-muted">
             Uma campanha funciona por um tempo. O site recebe ajustes. O
             conteúdo continua saindo. Surge uma nova ideia e ela também entra
             na fila. Quando cada decisão nasce isolada, fica difícil separar o
@@ -377,27 +616,23 @@ export default function ProblemSection() {
               strokeWidth="0.55"
               strokeLinecap="round"
             >
-              {FACTORS.map((factor, index) => {
-                const next = FACTORS[(index + 1) % FACTORS.length];
-
-                return (
+              {FACTORS.map((factor, index) => ((
                   <Fragment key={factor.title}>
                     <path
                       data-fill={index}
-                      data-fill-kind="spoke"
+                      data-fill-kind="in"
                       data-fill-length={SPOKE_LENGTH}
                       d={spokePath(factor.angle)}
                     />
 
                     <path
                       data-fill={index}
-                      data-fill-kind="arc"
-                      data-fill-length={arcLength(factor.angle, next.angle)}
-                      d={arcPath(factor.angle, next.angle)}
+                      data-fill-kind="out"
+                      data-fill-length={arcFor(index)}
+                      d={arcPath(factor.angle, nextOf(index).angle)}
                     />
                   </Fragment>
-                );
-              })}
+                )))}
             </g>
           </svg>
 
@@ -425,6 +660,12 @@ export default function ProblemSection() {
               data-hub
               className="relative mx-auto size-space-32 sm:size-full sm:aspect-square"
             >
+              {/* The radar: a soft wash expanding out of the hub, not a hard
+                * ring. A 2px stroke in the solid green had the presence and none
+                * of the softness -- what carries this is the tint, and it only
+                * ever needed a little more of it. The strength now lives in the
+                * `fromTo` below, which is where a value can be nudged without
+                * changing what the thing is. */}
               <span
                 data-pulse
                 aria-hidden="true"
@@ -437,11 +678,27 @@ export default function ProblemSection() {
                 className="absolute inset-0 rounded-full bg-highlight-soft opacity-0"
               />
 
+              {/*
+                * Grey until the circle closes. The green is an overlay at
+                * opacity 0 rather than a colour this hook swaps, for the same
+                * reason the cards' ring and the SVG's green layer are: the
+                * resting markup is the design's own state, so a reduced-motion
+                * visitor and a visitor whose JS never runs both get the diagram
+                * before the decision is made, not a frame of one that stopped.
+                */}
               <div
                 data-hub-button
-                className="absolute inset-0 flex items-center justify-center rounded-full bg-highlight px-space-3 text-center"
+                className="absolute inset-0 overflow-hidden rounded-full bg-control-disabled"
               >
-                <p className="text-body-bold text-ink">Decisão de compra</p>
+                <span
+                  data-hub-fill
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-full bg-highlight opacity-0"
+                />
+
+                <div className="relative flex size-full items-center justify-center px-space-3 text-center">
+                  <p className="text-body-bold text-ink">Decisão de compra</p>
+                </div>
               </div>
             </div>
           </div>
@@ -489,10 +746,11 @@ export default function ProblemSection() {
                   </div>
                 </div>
 
-                {/* The stacked layout's line, one per step, same fill as a
-                  * spoke -- it lights with this factor's own card, so trailing
-                  * it here reads as that light continuing on toward whatever
-                  * comes next. */}
+                {/* The stacked layout's line, one per step. It is the outbound
+                  * leg -- the same role the circle's arc plays -- so it carries
+                  * the same `out` kind and the same slot in the step: it draws
+                  * only once this factor's card has finished lighting, and reads
+                  * as that light continuing on toward whatever comes next. */}
                 <div
                   aria-hidden="true"
                   className="h-space-10 w-space-8 shrink-0 sm:hidden"
@@ -511,7 +769,7 @@ export default function ProblemSection() {
                     <g data-fill-layer opacity="0" className="text-highlight">
                       <path
                         data-fill={index}
-                        data-fill-kind="spoke"
+                        data-fill-kind="out"
                         data-fill-length={CONNECTOR.length}
                         d={`M ${CONNECTOR.width / 2} 0 L ${CONNECTOR.width / 2} ${CONNECTOR.length}`}
                         fill="none"

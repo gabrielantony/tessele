@@ -478,7 +478,12 @@ function PlanCard({
               "-translate-x-1/2 -translate-y-1/2",
               "flex items-center gap-space-1",
               "whitespace-nowrap rounded-base",
-              "bg-highlight px-space-3 py-space-1",
+              // Assimétrico de propósito: o ícone é um contorno de 1.4 num box
+              // de 16px, leve ao lado do label 600 em caixa alta, então o
+              // centro de massa do conjunto cai à direita do centro
+              // geométrico. Tirar um passo da esquerda puxa o conteúdo de
+              // volta -- a caixa continua centrada, o que anda é o que se lê.
+              "bg-highlight pl-space-2-5 pr-space-3 py-space-1",
               "text-label uppercase text-accent",
               "shadow-control",
             ].join(" ")}
@@ -679,7 +684,9 @@ export default function PlanosEPrecos() {
       timeline
         .from("[data-motion-heading]", {
           opacity: 0,
-          yPercent: 16,
+          // The shared section-heading entrance: one `space-6` of rise, fixed
+          // rather than a share of the heading's own height. See ProblemSection.
+          y: "var(--spacing-space-6)",
           duration: DURATION_PRIMARY,
         })
         .from(
