@@ -98,6 +98,12 @@ const ESCAPE = () => {
  * invisible, and reporting it as drawn would let a stuck layer pass. The paths
  * of the layout that is not on screen are skipped by their zero-sized box.
  *
+ * Every line the step owns counts, and the step is worth its LEAST drawn one:
+ * the circle has two (`in`, from the hub to the card, and `out`, from that card
+ * to the next), the stacked column has only the `out` connector. Taking the
+ * minimum is what makes "the step is drawn" mean all of it -- a max would let a
+ * dead arc hide behind a healthy spoke.
+ *
  * Before the hook runs there is no inline dash offset at all, which computes to
  * 0 and would read as fully drawn; the layer's opacity attribute is 0 there, so
  * the product is still 0. That is the resting state, and it is what the
@@ -110,7 +116,7 @@ const DIAGRAM_STATE = () => {
   };
 
   const steps = new Map();
-  for (const path of document.querySelectorAll('[data-fill][data-fill-kind="spoke"]')) {
+  for (const path of document.querySelectorAll("[data-fill]")) {
     if (!shown(path)) continue;
 
     const length = Number(path.dataset.fillLength);
@@ -122,7 +128,7 @@ const DIAGRAM_STATE = () => {
     const opacity = layer ? Number(getComputedStyle(layer).opacity) : 0;
 
     const index = Number(path.dataset.fill);
-    steps.set(index, Math.max(steps.get(index) ?? 0, drawn * opacity));
+    steps.set(index, Math.min(steps.get(index) ?? 1, drawn * opacity));
   }
 
   const rings = Array.from(document.querySelectorAll("[data-card-active]"), (ring) =>
@@ -246,9 +252,9 @@ test.describe("problem", () => {
       await gotoLanding(page, width, { motion: true });
       await showDiagram(page);
 
-      // 15s covers two full cycles (6.65s each), so the sequence is measured
+      // 16.5s covers two full cycles (7.3s each), so the sequence is measured
       // whole no matter where in the loop the trace happened to start.
-      const readings = await trace(page, { samples: 100, everyMs: 150 });
+      const readings = await trace(page, { samples: 110, everyMs: 150 });
 
       const count = readings[0].lines.length;
       expect(count, "no drawable lines on screen in this layout").toBe(3);
