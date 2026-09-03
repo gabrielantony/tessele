@@ -111,7 +111,9 @@ export default function OurProcessSection() {
       timeline
         .from(title, {
           opacity: 0,
-          yPercent: ENTER_Y_PERCENT,
+          // The shared section-heading entrance: one `space-6` of rise, fixed
+          // rather than a share of the heading's own height. See ProblemSection.
+          y: "var(--spacing-space-6)",
           duration: FIBONACCI_DURATION,
         })
         .from(

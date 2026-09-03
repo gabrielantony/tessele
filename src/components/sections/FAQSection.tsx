@@ -212,8 +212,10 @@ export default function FAQSection() {
 
       timeline
         .from("[data-faq-heading]", {
-          autoAlpha: 0,
-          yPercent: 12,
+          opacity: 0,
+          // The shared section-heading entrance: one `space-6` of rise, fixed
+          // rather than a share of the heading's own height. See ProblemSection.
+          y: "var(--spacing-space-6)",
           duration: DURATION_PRIMARY,
         })
         .from(

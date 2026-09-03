@@ -520,7 +520,10 @@ export default function ServicosEEntregas() {
         .from("[data-heading]", {
           opacity: 0,
 
-          yPercent: PHI_SQUARED,
+          // The shared section-heading entrance: one `space-6` of rise, fixed
+          // rather than a share of the heading's own height. See ProblemSection.
+          // This one read `yPercent: PHI_SQUARED`, which moved it 2.5px.
+          y: "var(--spacing-space-6)",
 
           duration: DURATION_PRIMARY,
         })

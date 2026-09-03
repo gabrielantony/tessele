@@ -684,7 +684,9 @@ export default function PlanosEPrecos() {
       timeline
         .from("[data-motion-heading]", {
           opacity: 0,
-          yPercent: 16,
+          // The shared section-heading entrance: one `space-6` of rise, fixed
+          // rather than a share of the heading's own height. See ProblemSection.
+          y: "var(--spacing-space-6)",
           duration: DURATION_PRIMARY,
         })
         .from(

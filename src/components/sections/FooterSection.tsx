@@ -114,10 +114,12 @@ export default function Footer() {
       });
 
       timeline
+        // The shared section-heading entrance: one `space-6` of rise and nothing
+        // else. The blur that used to ride along came off so this heading
+        // arrives the way the other eight do. See ProblemSection.
         .from(selector("[data-footer-heading]"), {
-          autoAlpha: 0,
-          y: "var(--spacing-space-4)",
-          filter: "blur(var(--spacing-space-2))",
+          opacity: 0,
+          y: "var(--spacing-space-6)",
           duration: DURATION_PRIMARY,
         })
         .from(

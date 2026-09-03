@@ -736,6 +736,23 @@ export default function FormularioDeContato() {
         return;
       }
 
+      /*
+       * One timeline per group, each triggered off its own first element, and
+       * `top bottom` -- deliberately NOT the `top 75%` off the section root that
+       * the other eight sections use.
+       *
+       * This section is taller than a phone screen. A single trigger high up
+       * would run the CTA's entrance while the CTA is still most of a screen
+       * below the fold, so the reader arrives to a button that finished arriving
+       * without them -- which is what `each group still has its entrance left
+       * when it comes into view` in tests/layout/sections/contact.spec.mjs
+       * measures, and what it caught when this was rewritten as one timeline.
+       *
+       * So the heading here takes the shared entrance's distance and duration
+       * but keeps this section's own trigger. It is the one heading on the page
+       * that starts a quarter of a viewport earlier than the rest, and that is
+       * the trade the test above forces.
+       */
       const reveal = (
         targets: HTMLElement[],
         from: gsap.TweenVars,
@@ -751,6 +768,7 @@ export default function FormularioDeContato() {
         timeline.fromTo(targets, from, {
           autoAlpha: 1,
           yPercent: 0,
+          y: 0,
           scale: 1,
           duration,
         });
@@ -763,7 +781,13 @@ export default function FormularioDeContato() {
         });
       };
 
-      reveal(heading, { autoAlpha: 0, yPercent: 10 }, DURATION_PRIMARY);
+      // The shared section-heading entrance: one `space-6` of rise, fixed rather
+      // than a share of the heading's own height. See ProblemSection.
+      reveal(
+        heading,
+        { autoAlpha: 0, y: "var(--spacing-space-6)" },
+        DURATION_PRIMARY,
+      );
       reveal(fields, { autoAlpha: 0, yPercent: 8 }, DURATION_SECONDARY);
       reveal(relationship, { autoAlpha: 0, yPercent: 6 }, DURATION_SECONDARY);
       reveal(message, { autoAlpha: 0, yPercent: 6 }, DURATION_SECONDARY);

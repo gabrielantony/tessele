@@ -497,7 +497,14 @@ export default function ProblemSection() {
           "[data-heading]",
           {
             opacity: 0,
-            yPercent: ENTER_Y_PERCENT,
+            // The section-heading entrance, shared by every section on the page:
+            // one `space-6` of rise. A FIXED distance, not a share of the
+            // heading's own height -- as a percentage this heading travelled
+            // 38px while the one-line heading in the footer travelled 2.5px,
+            // which is the spread this replaced. Change it here and you have
+            // changed one section, not the page: the value is repeated in each,
+            // because a section in this codebase is self-contained.
+            y: "var(--spacing-space-6)",
             duration: DURATION_PRIMARY,
           },
           `-=${OVERLAP}`,
