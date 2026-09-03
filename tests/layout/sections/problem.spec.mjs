@@ -258,7 +258,7 @@ test.describe("problem", () => {
       await gotoLanding(page, width, { motion: true });
       await showDiagram(page);
 
-      // 15s covers two full cycles (6.8s each), so the sequence is measured
+      // 15s covers two full cycles (5.6s each), so the sequence is measured
       // whole no matter where in the loop the trace happened to start.
       const readings = await trace(page, { samples: 100, everyMs: 150 });
 

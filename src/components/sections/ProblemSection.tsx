@@ -195,8 +195,9 @@ const MOTION = {
   // A beat before the step's first card starts to light.
   lead: BEAT_TICK,
   card: BEAT,
-  inbound: BEAT,
-  outbound: BEAT_LONG,
+  // What the LONGEST line takes. Every other line takes its own length's share
+  // of the same rate -- see DRAW_RATE below.
+  draw: BEAT_LONG,
   // A beat of stillness on the finished factor before the next one starts.
   breath: BEAT_TICK,
   hubFill: BEAT_SHORT,
@@ -211,16 +212,38 @@ const MOTION = {
   reset: BEAT,
 } as const;
 
+const nextOf = (index: number) => FACTORS[(index + 1) % FACTORS.length];
+const arcFor = (index: number) =>
+  arcLength(FACTORS[index].angle, nextOf(index).angle);
+
+/*
+ * Every green line travels at the same rate, and its duration falls out of its
+ * own length. A fixed duration per leg is what made the spokes drag: 9.5 units
+ * in the same time an arc covers 87 is a fifth of the speed, on two lines the
+ * eye reads as one signal continuing, and the slow one spent a third of a second
+ * crossing a tenth of the diagram.
+ *
+ * The longest arc is the anchor -- it keeps the duration it had -- so nothing
+ * got faster than what was already right, the short legs just stopped waiting.
+ */
+const LONGEST_ARC = Math.max(...FACTORS.map((_factor, index) => arcFor(index)));
+const DRAW_RATE = LONGEST_ARC / MOTION.draw;
+const drawTime = (length: number) => length / DRAW_RATE;
+
 /*
  * Where each leg of a step begins, relative to the step's own start -- derived
  * rather than typed, because "derived" is the property under discussion: each
  * one starts exactly where the previous one ends, and STEP is long enough that
  * the next factor's card cannot light while this one's line is still drawing.
+ *
+ * STEP is sized on `draw` because the longest arc is the longest thing drawn in
+ * any step -- the stacked column's connector is 40 units of its own 32x40
+ * viewBox and comes in well under it.
  */
 const CARD_AT = MOTION.lead;
 const INBOUND_AT = CARD_AT + MOTION.card;
-const OUTBOUND_AT = INBOUND_AT + MOTION.inbound;
-const STEP = OUTBOUND_AT + MOTION.outbound + MOTION.breath;
+const OUTBOUND_AT = INBOUND_AT + drawTime(SPOKE_LENGTH);
+const STEP = OUTBOUND_AT + MOTION.draw + MOTION.breath;
 
 export default function ProblemSection() {
   const root = useRef<HTMLElement>(null);
@@ -317,28 +340,35 @@ export default function ProblemSection() {
          * to the next factor; the stacked column has no line to the hub in the
          * middle, so what it shows is the card and the connector under it.
          */
-        loop.to(
-          inbound,
-          {
-            attr: { "stroke-dashoffset": 0 },
-            duration: MOTION.inbound,
-            // Both legs travel at a constant rate. A line that eases is a line
-            // that lurches and then crawls; a signal on its way somewhere reads
-            // smoother at one speed, and the two legs then read as one journey.
-            ease: "none",
-          },
-          at + INBOUND_AT,
-        );
+        /*
+         * One tween per path rather than one per leg, because a tween carries a
+         * single duration and each line's duration is now its own length's. The
+         * ease stays linear: a line that eases lurches and then crawls, and at a
+         * shared rate the legs read as one signal continuing through the diagram.
+         */
+        inbound.forEach((path) => {
+          loop.to(
+            path,
+            {
+              attr: { "stroke-dashoffset": 0 },
+              duration: drawTime(lengthOf(path)),
+              ease: "none",
+            },
+            at + INBOUND_AT,
+          );
+        });
 
-        loop.to(
-          outbound,
-          {
-            attr: { "stroke-dashoffset": 0 },
-            duration: MOTION.outbound,
-            ease: "none",
-          },
-          at + OUTBOUND_AT,
-        );
+        outbound.forEach((path) => {
+          loop.to(
+            path,
+            {
+              attr: { "stroke-dashoffset": 0 },
+              duration: drawTime(lengthOf(path)),
+              ease: "none",
+            },
+            at + OUTBOUND_AT,
+          );
+        });
       });
 
       /*
@@ -351,7 +381,9 @@ export default function ProblemSection() {
        * a fourth barely louder one. One ring, once, at full strength.
        */
       const completeAt =
-        (FACTORS.length - 1) * STEP + OUTBOUND_AT + MOTION.outbound;
+        (FACTORS.length - 1) * STEP +
+        OUTBOUND_AT +
+        drawTime(arcFor(FACTORS.length - 1));
 
       loop
         .to(
@@ -371,9 +403,13 @@ export default function ProblemSection() {
         )
         .fromTo(
           pulses,
-          { scale: 1, opacity: 0.9 },
+          // 0.5 was the wash that read as absent; 0.8 is the same wash, more of
+          // it. Scale stays at 2.2: below 640px the hub is a fixed 8rem in a
+          // column that can be 280px wide, and a wider sweep than this reaches
+          // the clip at the section's edge.
+          { scale: 1, opacity: 0.8 },
           {
-            scale: 2.4,
+            scale: 2.2,
             opacity: 0,
             duration: MOTION.radar,
             ease: "power2.out",
@@ -573,10 +609,7 @@ export default function ProblemSection() {
               strokeWidth="0.55"
               strokeLinecap="round"
             >
-              {FACTORS.map((factor, index) => {
-                const next = FACTORS[(index + 1) % FACTORS.length];
-
-                return (
+              {FACTORS.map((factor, index) => ((
                   <Fragment key={factor.title}>
                     <path
                       data-fill={index}
@@ -588,12 +621,11 @@ export default function ProblemSection() {
                     <path
                       data-fill={index}
                       data-fill-kind="out"
-                      data-fill-length={arcLength(factor.angle, next.angle)}
-                      d={arcPath(factor.angle, next.angle)}
+                      data-fill-length={arcFor(index)}
+                      d={arcPath(factor.angle, nextOf(index).angle)}
                     />
                   </Fragment>
-                );
-              })}
+                )))}
             </g>
           </svg>
 
@@ -621,22 +653,22 @@ export default function ProblemSection() {
               data-hub
               className="relative mx-auto size-space-32 sm:size-full sm:aspect-square"
             >
-              {/* The radar, as rings rather than discs. A filled circle
-                * expanding out of the hub washed over the hub's own label and
-                * still read as faint, because a 10%-alpha green on a near-white
-                * canvas has almost nothing to be faint against. A 2px ring in the
-                * solid brand green has the contrast, and passes over the label
-                * instead of covering it. */}
+              {/* The radar: a soft wash expanding out of the hub, not a hard
+                * ring. A 2px stroke in the solid green had the presence and none
+                * of the softness -- what carries this is the tint, and it only
+                * ever needed a little more of it. The strength now lives in the
+                * `fromTo` below, which is where a value can be nudged without
+                * changing what the thing is. */}
               <span
                 data-pulse
                 aria-hidden="true"
-                className="absolute inset-0 rounded-full border-2 border-highlight opacity-0"
+                className="absolute inset-0 rounded-full bg-highlight-soft opacity-0"
               />
 
               <span
                 data-pulse
                 aria-hidden="true"
-                className="absolute inset-0 rounded-full border-2 border-highlight opacity-0"
+                className="absolute inset-0 rounded-full bg-highlight-soft opacity-0"
               />
 
               {/*
