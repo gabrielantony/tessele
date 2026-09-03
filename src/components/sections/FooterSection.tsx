@@ -154,7 +154,7 @@ export default function Footer() {
   return (
     <footer
       ref={root}
-      className="bg-canvas p-space-5"
+      className="bg-canvas p-space-1 md:p-space-5"
       aria-label="Rodapé"
     >
       <div className="relative w-full overflow-hidden rounded-xl bg-accent px-page py-section">
