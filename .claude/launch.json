@@ -3,7 +3,9 @@
   "configurations": [
     {
       "name": "tessele-dev",
-      "url": "http://localhost:3000"
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "-p", "3010"],
+      "port": 3010
     }
   ]
 }
