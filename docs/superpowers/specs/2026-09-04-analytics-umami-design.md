@@ -233,6 +233,39 @@ contém a tag com o `data-website-id` e o `data-domains`.
 - **O painel não soma segundos, ele conta eventos.** Comparação entre seções é
   válida; "a seção X retém 43 segundos em média" não é uma frase que este dado
   sustenta.
+- **A última seção da página não é medida em viewport alta, e isso é aceito.**
+  Uma seção só é contada enquanto cruza o centro da viewport, e o rodapé tem
+  692px fixos. No scroll máximo o topo dele fica em `altura da viewport − 692`,
+  então dominar o centro exige que ele seja mais alto que meia viewport. Medido
+  em 2026-09-04:
+
+  | Viewport | Topo no scroll máximo | Centro | Domina o centro? |
+  |---|---|---|---|
+  | 800 | 108 | 400 | sim |
+  | 900 | 208 | 450 | sim |
+  | 1080 | 388 | 540 | sim |
+  | 1440 | 748 | 720 | **não** |
+  | 1600 | 908 | 800 | **não** |
+
+  Ou seja: a partir de ~1400px de altura, `secao-rodape` é sempre zero. Decisão
+  do Gabriel em 2026-09-04, aceitar e documentar, pelas razões que a
+  descartaram as alternativas: o rodapé é lista de links e wordmark, não
+  conteúdo cuja retenção interesse, então a resposta para "onde passaram mais
+  tempo" nunca seria ele. Tirar a chave dele custaria a atribuição do clique do
+  CTA do rodapé, que vira `fora-de-secao`; excluí-lo só do timing seria caso
+  especial no componente, o que a regra de altitude do projeto manda evitar; e
+  mudar a linha de propriedade creditaria atenção a algo que genuinamente não
+  está no centro do olhar — em viewport alta e página no fim, o centro cai
+  mesmo na seção acima do rodapé.
+
+  **O desenho está sendo consistente aqui, não quebrado.** O que se perde é a
+  comparabilidade do número de uma seção entre visitantes de telas diferentes,
+  e só dessa seção.
+- **A leitura em cima de um limite entre seções pode não acumular nada.** Cada
+  troca reinicia o intervalo, então quem oscila num limite nunca completa um
+  ciclo. É o preço de o número ser um piso em vez de uma superestimativa, e
+  enviesa a métrica contra exatamente os limites onde alguém comparando planos
+  ficaria.
 - **Retenção de 6 meses** no plano gratuito. Comparação ano contra ano não
   existe.
 
