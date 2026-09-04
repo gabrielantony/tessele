@@ -208,3 +208,118 @@ test.describe("configuration", () => {
     ).toBe(true);
   });
 });
+
+/*
+ * Installs the collector in place of the vendor, before any application script
+ * runs. Necessary rather than convenient: `data-domains` pins the real tracker
+ * to tessele.com.br, so it never loads against localhost and there would be
+ * nothing to observe without this.
+ */
+const gotoWithSpy = async (page, width) => {
+  await page.addInitScript(() => {
+    window.__events = [];
+    window.umami = {
+      track: (name, data) => window.__events.push({ name, data }),
+    };
+  });
+  await gotoLanding(page, width);
+};
+
+const eventsOn = (page) => page.evaluate(() => window.__events);
+
+const ctaIn = (page, section) =>
+  page.locator(`[data-analytics-section="${section}"] a[href^="https://wa.me/"]`).first();
+
+test.describe("whatsapp click", () => {
+  /*
+   * Two sections rather than one, and specifically the first and the last: the
+   * section key is read by walking up from the clicked link, so a bug that
+   * resolves to the nearest keyed ancestor incorrectly would still look right
+   * on whichever section happens to be tested alone.
+   */
+  for (const [section, label] of [
+    ["hero", "the hero"],
+    ["rodape", "the footer"],
+  ]) {
+    test(`a CTA click in ${label} reports its own section`, async ({ page }) => {
+      await gotoWithSpy(page, 1280);
+
+      const cta = ctaIn(page, section);
+      await cta.scrollIntoViewIfNeeded();
+
+      /*
+       * The CTAs open in a new tab -- a guarantee tests/layout/ctas.spec.mjs
+       * already holds for every wa.me link, so it is relied on here rather than
+       * re-asserted. Aborting the request at the context level keeps the run
+       * from actually reaching WhatsApp while still letting the navigation be
+       * attempted, which is what the next assertion measures.
+       */
+      let attempted = 0;
+      await page.context().route("https://wa.me/**", (route) => {
+        attempted += 1;
+        return route.abort();
+      });
+
+      const popup = page.waitForEvent("popup", { timeout: 3_000 }).catch(() => null);
+      await cta.click();
+      const opened = await popup;
+      if (opened) await opened.close();
+
+      const events = await eventsOn(page);
+
+      expect(
+        events,
+        `clicking ${label}'s CTA reported the wrong thing`,
+      ).toEqual([{ name: "whatsapp-click", data: { section } }]);
+
+      /*
+       * And the click still navigates. A tracker that took the event -- a
+       * preventDefault, a stopPropagation, an await before the default action --
+       * would leave the visitor on the page with nothing happening, and the
+       * event above would still be recorded. This is the assertion that tells
+       * those two apart.
+       */
+      expect(
+        attempted,
+        "the click was recorded but never reached WhatsApp",
+      ).toBe(1);
+    });
+  }
+
+  test("a click that is not a WhatsApp CTA reports nothing", async ({ page }) => {
+    await gotoWithSpy(page, 1280);
+
+    // Top-left corner: inside the document, outside every CTA on the page.
+    await page.mouse.click(5, 5);
+
+    expect(
+      await eventsOn(page),
+      "a click on empty page area was reported as a CTA click",
+    ).toEqual([]);
+  });
+
+  test("the page survives a blocked vendor", async ({ page }) => {
+    /*
+     * Deliberately no spy: `window.umami` is absent, which is what an ad
+     * blocker produces and what src/lib/analytics.ts documents as returning
+     * silently. Every other test in this file installs the collector, so this
+     * is the only place that sentence is checked -- and a throw here would come
+     * from inside a click handler, breaking the CTA rather than the metric.
+     */
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+
+    await gotoLanding(page, 1280);
+
+    const cta = ctaIn(page, "hero");
+    await cta.scrollIntoViewIfNeeded();
+
+    await page.context().route("https://wa.me/**", (route) => route.abort());
+    const popup = page.waitForEvent("popup", { timeout: 3_000 }).catch(() => null);
+    await cta.click();
+    const opened = await popup;
+    if (opened) await opened.close();
+
+    expect(errors, "the page threw with no measurement vendor present").toEqual([]);
+  });
+});

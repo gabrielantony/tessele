@@ -658,9 +658,20 @@ localhost — então sem o espião não haveria nada para observar.
 3. Clicar no CTA do Hero emite um `whatsapp-click` com `section: "hero"`.
 4. Clicar no CTA do rodapé emite `section: "rodape"`.
 5. Um clique em algo que não é link `wa.me` não emite nada.
-6. Todo link `wa.me` abre em nova aba (`target="_blank"`). Não é decoração: em
-   navegação na mesma aba o envio do evento pode ser cancelado no unload, então
-   esta asserção é o que sustenta a entrega dos eventos acima.
+6. **O clique continua navegando.** A rota `https://wa.me/**` é interceptada no
+   nível do contexto e abortada, e o teste conta as tentativas: um tracker que
+   tomasse o evento — `preventDefault`, `stopPropagation`, um `await` antes da
+   ação default — deixaria o visitante parado na página **e o evento do caso 3
+   ainda seria registrado**. Esta é a asserção que separa os dois.
+
+   Substitui o caso que eu tinha planejado aqui, "todo link `wa.me` abre em nova
+   aba": `tests/layout/ctas.spec.mjs:64` já afirma `target="_blank"` e `rel`
+   com `noopener` em todos os sete links. Reescrevê-lo aqui seria duplicata; o
+   arquivo de analytics referencia essa garantia em comentário e depende dela.
+
+   Mecanismo verificado isolado em 2026-09-04, nos três engines, antes de o
+   teste real depender dele: `attempted === 1` em chromium, webkit e
+   mobile-safari.
 
 **Grupo `whatsapp click`, caso adicional** (fase 2)
 6b. Carregar a página **sem** instalar o espião e percorrê-la inteira, afirmando
