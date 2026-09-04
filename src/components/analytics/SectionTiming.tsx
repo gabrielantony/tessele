@@ -11,6 +11,16 @@ gsap.registerPlugin(ScrollTrigger);
 /*
  * How long each section held the reader, measured by sampling.
  *
+ * This measures rather than animates, so there is no animation for useGSAP to
+ * revert and no reduced-motion end state to restore. `prefers-reduced-motion`
+ * must not gate it: the timing tests run under reduced motion precisely to pin
+ * that a reader who asks for less motion is still counted.
+ *
+ * The cleanup is explicit for the same reason. This is one of the global,
+ * null-rendering components, like FocusRings and SmoothScroll, so useEffect
+ * with a hand-written teardown is the lifecycle that fits rather than useGSAP
+ * with a scope the component does not have.
+ *
  * A section is *active* while it crosses the viewport centre -- start "top
  * center", end "bottom center" -- and not while it is merely on screen. The
  * difference decides whether the number means anything: with "on screen", two
@@ -31,9 +41,25 @@ gsap.registerPlugin(ScrollTrigger);
  * interval restarts on every handover, so a section held briefly contributes
  * nothing rather than inheriting a tick from its neighbour.
  *
+ * That floor has a cost: someone oscillating across a boundary never completes
+ * a cycle and can accrue nothing, even while genuinely comparing the adjacent
+ * sections. Restarting is still the honest trade-off here, because inheriting
+ * the previous section's phase would turn that missed attention into an
+ * overcount.
+ *
+ * Geometry is measured when the triggers are created, before webfonts may have
+ * settled, and this component relies on ScrollTrigger's own refresh on load and
+ * resize rather than calling refresh itself. A boundary off by tens of pixels
+ * costs at most one five-second sample, tolerable for this coarse metric but
+ * not for an animation that has to land on an exact scroll position.
+ *
  * Nothing is accumulated, which is the point: there is no running total to lose
  * on the way out, so this needs no `pagehide` flush and no state carried across
- * `visibilitychange`.
+ * `visibilitychange`. The interval keeps its phase while a tab is hidden and
+ * its callback returns early, so the first tick after a return can land almost
+ * immediately and credit a full sample for under a second. That error is
+ * bounded to one sample per return, which is why the visibility check stays in
+ * the tick instead of adding a visibilitychange listener.
  */
 
 // Fine enough to rank ten sections, coarse enough that a two-minute visit costs
@@ -41,8 +67,6 @@ gsap.registerPlugin(ScrollTrigger);
 const SAMPLE_MS = 5_000;
 
 const EVENT_PREFIX = "secao-";
-
-const FALLBACK_NAME = "sem-nome";
 
 export default function SectionTiming() {
   useEffect(() => {
@@ -90,8 +114,10 @@ export default function SectionTiming() {
       stop();
     };
 
-    const nameOf = (element: Element) =>
-      element.getAttribute(SECTION_ATTRIBUTE) ?? FALLBACK_NAME;
+    const nameOf = (element: Element) => {
+      // Safe: every element reaches here through the keyed sections selector.
+      return element.getAttribute(SECTION_ATTRIBUTE)!;
+    };
 
     const triggers = sections.map((section) => {
       const name = nameOf(section);
