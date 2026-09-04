@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import FocusRings from "@/components/FocusRings";
 import SmoothScroll from "@/components/SmoothScroll";
+import SectionTiming from "@/components/analytics/SectionTiming";
 import WhatsappClickTracker from "@/components/analytics/WhatsappClickTracker";
 import {
   UMAMI_ALLOWED_DOMAIN,
@@ -25,6 +26,7 @@ export default function RootLayout({
         <FocusRings />
         <SmoothScroll />
         <WhatsappClickTracker />
+        <SectionTiming />
         {/*
           No id, no script, no measurement -- see the comment on UMAMI_WEBSITE_ID.
           `data-do-not-track` honours the browser preference, and `data-domains` is
