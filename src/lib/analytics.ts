@@ -16,9 +16,10 @@
  *
  * Empty is the off switch, and it is load-bearing: with no id, layout.tsx
  * renders no script, window.umami never exists, and `track` below returns
- * silently. The privacy policy's claim that this site uses no audience
- * measurement is true exactly while this string is empty, and
- * tests/layout/analytics.spec.mjs is what holds those two files together.
+ * silently. The privacy policy describes this measurement exactly while this
+ * string is non-empty; it denied any measurement while this string was empty.
+ * tests/layout/analytics.spec.mjs holds the pair together in both directions,
+ * so neither can go live without the other.
  */
 export const UMAMI_WEBSITE_ID: string = "f38cf6d2-cbbc-48e2-b712-a349c60c9848";
 

@@ -135,11 +135,13 @@ export default function PrivacyPolicy() {
 
             <p>
               Usamos uma ferramenta de medição de audiência chamada Umami, que
-              conta os acessos à página e registra em quais partes dela as
-              pessoas passam mais tempo. Ela funciona sem cookie e sem
-              identificador que te acompanhe entre sites: o que fica registrado
-              é a visita, não você. Não montamos perfil individual, não sabemos
-              quem você é e não temos como ligar um acesso a uma pessoa.
+              conta os acessos à página, registra em quais partes dela as
+              pessoas passam mais tempo e marca quando alguém clica para falar
+              com a gente no WhatsApp, junto de qual parte da página o clique
+              partiu. Ela funciona sem cookie e sem identificador que te
+              acompanhe entre sites: o que fica registrado é a visita, não
+              você. Não montamos perfil individual, não sabemos quem você é e
+              não temos como ligar um acesso a uma pessoa.
             </p>
 
             <p>
@@ -258,6 +260,7 @@ export default function PrivacyPolicy() {
               items={[
                 "Contatos que não viraram projeto: enquanto a conversa for útil ao relacionamento comercial, e apagamos assim que você pedir;",
                 "Clientes: pelo prazo do contrato e pelos prazos legais de guarda que vêm depois dele — em regra, cinco anos para documentos fiscais e contábeis;",
+                "Dados de audiência do site: pelo prazo de retenção do plano que usamos no Umami;",
                 "Registros técnicos de acesso: pelo prazo definido pelo provedor de hospedagem.",
               ]}
             />
