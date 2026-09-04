@@ -20,10 +20,9 @@
  * measurement is true exactly while this string is empty, and
  * tests/layout/analytics.spec.mjs is what holds those two files together.
  */
-export const UMAMI_WEBSITE_ID: string = "";
+export const UMAMI_WEBSITE_ID: string = "f38cf6d2-cbbc-48e2-b712-a349c60c9848";
 
-// Umami Cloud's documented default. Phase 4 confirms the dashboard snippet:
-// a wrong script path fails silently instead of surfacing a configuration error.
+// Verbatim from the Umami Cloud dashboard snippet for this site.
 export const UMAMI_SCRIPT_SRC = "https://cloud.umami.is/script.js";
 
 /*
