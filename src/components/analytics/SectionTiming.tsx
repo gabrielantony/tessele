@@ -47,6 +47,17 @@ gsap.registerPlugin(ScrollTrigger);
  * the previous section's phase would turn that missed attention into an
  * overcount.
  *
+ * The last section on the page is only measurable while it is taller than half
+ * the viewport, and the footer is 692px whatever the window: at maximum scroll
+ * its top sits at viewport height minus 692, so it stops reaching the centre at
+ * around 1400px of viewport height and `secao-rodape` is then always zero.
+ * Measured, and accepted rather than fixed -- the footer is a link list, never
+ * the answer to which section held a reader, and every alternative was worse:
+ * dropping its key costs the attribution of its CTA click, excluding it from
+ * timing alone is a special case, and moving the ownership line would credit
+ * attention to something that genuinely is not at the centre of the view.
+ * `docs/superpowers/specs/2026-09-04-analytics-umami-design.md` has the table.
+ *
  * Geometry is measured when the triggers are created, before webfonts may have
  * settled, and this component relies on ScrollTrigger's own refresh on load and
  * resize rather than calling refresh itself. A boundary off by tens of pixels

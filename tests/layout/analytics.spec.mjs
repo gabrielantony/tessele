@@ -498,6 +498,44 @@ test.describe("section timing", () => {
     ).toContain(`${SECTION_EVENT_PREFIX}hero`);
   });
 
+  test("leaving the landing route stops the sampler", async ({ page }) => {
+    /*
+     * The only place in this component where a bug produces WRONG numbers
+     * instead of missing ones. The footer's privacy link is a next/link, so
+     * following it is a client-side route change: the document survives, which
+     * is exactly what makes a leaked interval both possible and observable. If
+     * the teardown ever stopped clearing it, the sampler would keep crediting
+     * `secao-rodape` for as long as the visitor read the privacy policy, and
+     * the dashboard would report the footer as the page's most engaging
+     * section with nothing looking broken.
+     */
+    await gotoWithSpy(page, 1280);
+    await parkOn(page, "rodape");
+    await clearEvents(page);
+    await page.waitForTimeout(SAMPLE_MS + 2_000);
+
+    // Proof the sampler was running, so the absence asserted below means
+    // something. Without this the test would pass against a dead component.
+    expect(
+      await sectionNamesOn(page),
+      "the sampler was not running before the route change, so this test proves nothing",
+    ).toContain(`${SECTION_EVENT_PREFIX}rodape`);
+
+    await page
+      .getByRole("link", { name: "Política de Privacidade" })
+      .first()
+      .click();
+    await page.waitForURL(/privacidade/);
+    await clearEvents(page);
+
+    await page.waitForTimeout(SAMPLE_MS + 2_000);
+
+    expect(
+      await sectionNamesOn(page),
+      "the sampler survived the route change and is attributing policy reading to a landing section",
+    ).toEqual([]);
+  });
+
   test("the last section on the page is sampled too", async ({ page }) => {
     /*
      * The footer rather than another middle section: it is the one whose
