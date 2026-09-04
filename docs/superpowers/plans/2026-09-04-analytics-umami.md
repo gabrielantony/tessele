@@ -662,6 +662,17 @@ localhost — então sem o espião não haveria nada para observar.
    navegação na mesma aba o envio do evento pode ser cancelado no unload, então
    esta asserção é o que sustenta a entrega dos eventos acima.
 
+**Grupo `whatsapp click`, caso adicional** (fase 2)
+6b. Carregar a página **sem** instalar o espião e percorrê-la inteira, afirmando
+    que nenhum erro não-tratado chegou ao `page.on("pageerror")`. É o caminho do
+    bloqueador de anúncio, que é o caso comum em visitante real e o único que
+    todos os outros testes escondem, porque todos eles instalam `window.umami`.
+    Sai da revisão da fase 1: `track()` documenta que o fornecedor ausente
+    "returns silently", e até aqui nada verificava essa frase. O teste só tem
+    sentido a partir da fase 2, quando existe um chamador — escrevê-lo na fase 1
+    passaria verde sobre coleção vazia, que é exatamente o que os arquétipos de
+    presença-em-vez-de-efeito proíbem.
+
 **Grupo `section timing`** (fase 3)
 7. Uma passada controlada pela página, com uma parada de ~1,5s no centro de cada
    seção, produz um `section-view` por seção, todos com `seconds > 0`.
@@ -680,6 +691,21 @@ localhost — então sem o espião não haveria nada para observar.
     nega a medição, e **contém** o nome do fornecedor. Se não tem a tag, a
     negação é permitida. É o teste que impede os dois arquivos de divergirem, e
     a razão de a fase 4 ser um commit só.
+
+### Cobertura conhecidamente ausente
+
+Duas lacunas, registradas em vez de fingidas, ambas vindas da revisão da fase 1:
+
+1. **O estado "ligado" do tracker não tem teste automatizado até a fase 4.** Com
+   `UMAMI_WEBSITE_ID` vazio, o branch do `<Script>` em `layout.tsx` é
+   inalcançável, então o caso 1 só exercita a metade desligada. A metade ligada
+   foi verificada **à mão** em 2026-09-04, com um UUID falso temporário: o teste
+   alcançou o ramo certo, passou nas asserções de `data-website-id`,
+   `data-domains` e `data-do-not-track`, e falhou nas negações da política,
+   provando o portão de duas vias. Essa evidência não está no repositório. O
+   risco concreto é uma fase 2 ou 3 quebrar as props do `<Script>` sem nenhum
+   teste notar até a fase 4 — que é justamente o commit que publica a política.
+2. **O caminho do fornecedor ausente** — fechado pelo caso 6b acima, na fase 2.
 
 ### Arquétipos que decidiram estes testes
 
