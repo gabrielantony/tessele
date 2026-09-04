@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { gotoLanding } from "./sections/helpers.mjs";
+import { canHover, gotoLanding } from "./sections/helpers.mjs";
 
 /*
  * The arrow's idle hop -- the small recurring nudge that asks for the click.
@@ -98,14 +98,45 @@ test.describe("cta arrow idle hop", () => {
     expect(trough, "the hop overshoots backwards").toBeGreaterThan(-0.05);
   });
 
-  test("hovering hands the axis over: the hop stops at rest and the nudge still travels", async ({
+  test("the pointer arriving leaves exactly one animation on the arrow", async ({
     page,
   }) => {
     await gotoLanding(page, 1280, { motion: true });
 
+    /*
+     * Which animation that is depends on the profile, because the button
+     * refuses hover where a pointer cannot rest on it: `pointerenter` fires on
+     * a tap and the matching `pointerleave` frequently never does, so anything
+     * hover took there would stick. Both branches assert the same property from
+     * opposite sides -- one owner of `x`, and no offset left behind by the other.
+     */
+    const hoverable = await canHover(page);
+
     await page.locator(HERO_CTA).first().hover();
     // Long enough for the hop to scrub back (phi^-2) and the nudge to arrive.
     await page.waitForTimeout(700);
+
+    if (!hoverable) {
+      /*
+       * A whole cycle, not the 1200ms the cursor branch samples: the hop rests
+       * for phi^2 of every phi^2 + 2(phi^-3 + phi^-2) seconds, so a short window
+       * lands inside the rest beat and reads a running hop as a stopped one.
+       * That is not hypothetical -- 1200ms here reported max|x| = 0 on the
+       * iPhone profile while the same page measured 2.47px across a full cycle.
+       */
+      const idle = await translateXSeries(page, HOP, CYCLE_MS + 600);
+      const parked = await translateXSeries(page, ARROW, 300);
+
+      expect(
+        Math.max(...idle),
+        "the hop stopped for a pointer that cannot hover, and no pointerleave is coming to restart it",
+      ).toBeGreaterThan(1.4);
+      expect(
+        Math.max(...parked.map((x) => Math.abs(x))),
+        "the arrow took the hover nudge on a touch profile, where it would stick at 4px",
+      ).toBeLessThan(0.05);
+      return;
+    }
 
     const hop = await translateXSeries(page, HOP, 1200);
     const arrow = await translateXSeries(page, ARROW, 300);

@@ -12,6 +12,16 @@ export const gotoLanding = async (page, width, { motion = false } = {}) => {
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
 };
 
+/*
+ * The single media query that decides whether hover exists on a profile, read
+ * from the page so the spec and `CTAButton` agree on it. Repeating the string
+ * in a spec is how the two get to drift apart.
+ */
+export const canHover = (page) =>
+  page.evaluate(
+    () => window.matchMedia("(hover: hover) and (pointer: fine)").matches,
+  );
+
 const scaleOf = (page, selector) =>
   page.evaluate((sel) => {
     const el = document.querySelector(sel);
@@ -95,9 +105,7 @@ export const assertCtaMechanics = async (page, selector) => {
   const cta = page.locator(selector).first();
   await cta.scrollIntoViewIfNeeded();
 
-  const canHover = await page.evaluate(
-    () => window.matchMedia("(hover: hover) and (pointer: fine)").matches,
-  );
+  const hoverable = await canHover(page);
 
   await expectScale(page, selector, {
     ...AT_REST,
@@ -105,7 +113,7 @@ export const assertCtaMechanics = async (page, selector) => {
   });
 
   await cta.hover();
-  if (canHover) {
+  if (hoverable) {
     await expectScale(page, selector, { ...RAISED, expected: "does not raise on hover" });
   } else {
     await expectScaleStays(page, selector, {
@@ -124,7 +132,7 @@ export const assertCtaMechanics = async (page, selector) => {
   await expectScale(
     page,
     selector,
-    canHover
+    hoverable
       ? { ...RAISED, expected: "does not return to raised after release under a cursor" }
       : { ...AT_REST, expected: "does not settle to rest after a tap" },
   );
