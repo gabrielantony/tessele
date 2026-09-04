@@ -20,9 +20,10 @@
  * measurement is true exactly while this string is empty, and
  * tests/layout/analytics.spec.mjs is what holds those two files together.
  */
-export const UMAMI_WEBSITE_ID = "";
+export const UMAMI_WEBSITE_ID: string = "";
 
-// Verbatim from the snippet the Umami Cloud dashboard shows for the site.
+// Umami Cloud's documented default. Phase 4 confirms the dashboard snippet:
+// a wrong script path fails silently instead of surfacing a configuration error.
 export const UMAMI_SCRIPT_SRC = "https://cloud.umami.is/script.js";
 
 /*
@@ -47,5 +48,9 @@ declare global {
  * callback, where an exception would break the thing being measured.
  */
 export function track(event: string, data?: EventData): void {
+  // A prerender has no window at all, and this is the one "vendor absent" case
+  // that would throw rather than pass quietly -- layout.tsx imports this module
+  // from the server, so the guard belongs here and not at the call sites.
+  if (typeof window === "undefined") return;
   window.umami?.track(event, data);
 }

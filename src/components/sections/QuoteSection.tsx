@@ -309,7 +309,11 @@ export default function QuoteSection() {
      * No `overflow-hidden` here: it would make this section its own scrollport,
      * and the sticky child would have nothing to stick against.
      */
-    <section ref={root} data-analytics-section="citacao" className="relative h-[66rem] w-full bg-accent">
+    <section
+      ref={root}
+      data-analytics-section="citacao"
+      className="relative h-[66rem] w-full bg-accent"
+    >
       {/*
        * The blooms, and the box that clips them.
        *
