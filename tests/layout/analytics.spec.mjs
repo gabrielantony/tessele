@@ -57,6 +57,15 @@ const ALLOWED_DOMAIN = "tessele.com.br";
  * was found in the plan's self-review, and it is the more dangerous of the two
  * because nothing about the word "analytics" appears in it.
  */
+/*
+ * The revision date the policy carried while measurement was off. Once the
+ * tracker is live the page describes different processing, so continuing to
+ * claim this date would date new content to an old revision -- the kind of
+ * silent inaccuracy nobody notices, in the one document on the site where
+ * accuracy is a legal matter rather than a courtesy.
+ */
+const PRE_ANALYTICS_DATE = "1º de setembro de 2026";
+
 const DENIALS = [
   "Não usamos ferramentas de análise de audiência",
   "não registra o que você faz enquanto navega",
@@ -210,6 +219,11 @@ test.describe("configuration", () => {
       policy.includes("Umami"),
       "the tracker is live and the privacy policy never names the vendor",
     ).toBe(true);
+
+    expect(
+      policy.includes(PRE_ANALYTICS_DATE),
+      "the policy describes measurement but still claims the revision date from before it",
+    ).toBe(false);
   });
 });
 
