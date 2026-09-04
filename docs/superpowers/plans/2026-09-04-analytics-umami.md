@@ -345,12 +345,27 @@ git commit -m "feat(analytics): record which section a WhatsApp CTA click came f
 
 ---
 
-## Fase 3 — tempo por seção
+## Fase 3 — tempo por seção, por amostragem
 
 **Files:**
 - Create: `src/components/analytics/SectionTiming.tsx`
 - Modify: `src/app/layout.tsx`
 - Test: `tests/layout/analytics.spec.mjs`, grupo `section timing`. **Não alterar.**
+
+**Interfaces consumidas:** `track` e `SECTION_ATTRIBUTE` de `@/lib/analytics`;
+as dez chaves nas seções (fase 1).
+
+### Por que o nome da seção é o nome do evento
+
+Imposto pelo fornecedor, não escolhido. O painel do Umami renderiza event data
+como breakdown de valor e contagem e **não faz média de propriedade numérica** —
+o pedido foi fechado como *not planned* (issue #3317). Um `{ seconds: 12.4 }`
+chegaria como cauda de floats quase únicos, cada um com contagem 1, e a pergunta
+que motivou o trabalho precisaria de export via API. Contar eventos por nome é a
+única agregação que o Umami faz nativamente.
+
+Então: `secao-<nome>` a cada 5 segundos enquanto a seção segura o centro da
+viewport, e `contagem × 5s` é um **piso** do tempo gasto ali.
 
 - [ ] **Passo 1 — criar o componente**
 
@@ -361,74 +376,97 @@ import { useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-import { track } from "@/lib/analytics";
+import { SECTION_ATTRIBUTE, track } from "@/lib/analytics";
 
 gsap.registerPlugin(ScrollTrigger);
 
 /*
- * How long each section held the reader.
+ * How long each section held the reader, measured by sampling.
  *
  * A section is *active* while it crosses the viewport centre -- start "top
  * center", end "bottom center" -- and not while it is merely on screen. The
  * difference decides whether the number means anything: with "on screen", two
- * sections accrue time simultaneously at every boundary and the total exceeds
- * the visit, which makes the ranking useless. At the centre, exactly one
- * section is active at any instant and the intervals partition the visit. A
- * test asserts that sum, because it is the property that would rot silently.
+ * sections accrue at every boundary and the totals exceed the visit, which
+ * makes the ranking meaningless. At the centre, exactly one section is active
+ * at any instant.
  *
- * Emitted on leave, not at the end of the visit: a flush in `pagehide` is
- * unreliable and would lose the data. Only the section active at departure
- * needs the flush.
+ * The section's name is the EVENT name rather than a property, and the vendor
+ * forces that: Umami renders event data as a value-and-count breakdown and does
+ * not average numeric properties -- the request to add it was closed as not
+ * planned. A `seconds` property would arrive as a long tail of near-unique
+ * floats, each with a count of one, and the question this component exists to
+ * answer would need an API export to read. Counting events by name is the one
+ * aggregation Umami does natively, so this uses it.
+ *
+ * One event every SAMPLE_MS while a section holds the centre, so the
+ * dashboard's count times SAMPLE_MS is a floor on the time spent there. The
+ * interval restarts on every handover, so a section held briefly contributes
+ * nothing rather than inheriting a tick from its neighbour.
+ *
+ * Nothing is accumulated, which is the point: there is no running total to lose
+ * on the way out, so this needs no `pagehide` flush and no state carried across
+ * `visibilitychange`.
  */
 
-// Below this, a section was scrolled past rather than read. Keeps the quota for
-// signal instead of noise.
-const MINIMUM_SECONDS = 1;
+// Fine enough to rank ten sections, coarse enough that a two-minute visit costs
+// about two dozen events against the plan's quota.
+const SAMPLE_MS = 5_000;
+
+const EVENT_PREFIX = "secao-";
+
+const FALLBACK_NAME = "sem-nome";
 
 export default function SectionTiming() {
   useEffect(() => {
-    const sections = gsap.utils.toArray<HTMLElement>("[data-analytics-section]");
+    const sections = gsap.utils.toArray<HTMLElement>(`[${SECTION_ATTRIBUTE}]`);
     if (sections.length === 0) return;
 
     let active: string | null = null;
-    let since = 0;
+    let timer: ReturnType<typeof setInterval> | undefined;
 
-    const emit = () => {
-      if (active === null) return;
-      const seconds = (performance.now() - since) / 1000;
-      if (seconds >= MINIMUM_SECONDS) {
-        // Umami stores numbers with a max precision of 4, so one decimal is
-        // safely inside what the vendor keeps.
-        track("section-view", {
-          section: active,
-          seconds: Math.round(seconds * 10) / 10,
-        });
-      }
-      active = null;
+    const stop = () => {
+      if (timer !== undefined) clearInterval(timer);
+      timer = undefined;
+    };
+
+    const start = (name: string) => {
+      stop();
+      timer = setInterval(() => {
+        /*
+         * A backgrounded tab is not being read. Browsers already throttle
+         * timers there, and throttled is not stopped, so this check is what
+         * keeps time away from the desk out of the numbers.
+         */
+        if (document.visibilityState !== "visible") return;
+        track(`${EVENT_PREFIX}${name}`);
+      }, SAMPLE_MS);
     };
 
     /*
      * Adjacent sections hand off at the same scroll position, so onEnter of the
      * new one and onLeave of the old one fire in an order this component does
      * not control. Keying the leave by name makes both orderings correct: enter
-     * closes whatever was active, and a late leave for a section that is no
-     * longer active is a no-op. Without the key, the late leave would cancel the
-     * section that just started and its time would vanish.
+     * takes ownership, and a late leave for a section that is no longer active
+     * is a no-op. Without the key, that late leave would stop the interval that
+     * had just started, and the section being read would measure nothing.
      */
     const enter = (name: string) => {
       if (active === name) return;
-      emit();
       active = name;
-      since = performance.now();
+      start(name);
     };
 
     const leave = (name: string) => {
       if (active !== name) return;
-      emit();
+      active = null;
+      stop();
     };
 
+    const nameOf = (element: Element) =>
+      element.getAttribute(SECTION_ATTRIBUTE) ?? FALLBACK_NAME;
+
     const triggers = sections.map((section) => {
-      const name = section.dataset.analyticsSection ?? "sem-nome";
+      const name = nameOf(section);
       return ScrollTrigger.create({
         trigger: section,
         start: "top center",
@@ -441,39 +479,17 @@ export default function SectionTiming() {
     });
 
     /*
-     * The section already crossing the centre at mount never gets an onEnter --
-     * the trigger is created past its own start. On a fresh load that is the
-     * Hero, and on a reload mid-page it is whatever the reader left off at, so
-     * without this the most-read section of the visit is the one that goes
-     * unmeasured. Same scan is reused when the tab comes back to the front.
+     * The section already crossing the centre at mount never receives an
+     * onEnter -- its trigger is created past its own start. On a fresh load
+     * that is the Hero, and on a reload mid-page it is wherever the reader left
+     * off, so without this the section most likely to be read is the one that
+     * goes unmeasured.
      */
-    const startFromLayout = () => {
-      const current = triggers.find((trigger) => trigger.isActive);
-      if (current) {
-        enter(
-          (current.trigger as HTMLElement).dataset.analyticsSection ?? "sem-nome",
-        );
-      }
-    };
-
-    startFromLayout();
-
-    // A backgrounded tab is not reading. Close the interval on the way out and
-    // open a fresh one on the way back, instead of counting the time away.
-    const onVisibility = () => {
-      if (document.visibilityState === "hidden") emit();
-      else startFromLayout();
-    };
-
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("pagehide", emit);
+    const atMount = triggers.find((trigger) => trigger.isActive);
+    if (atMount?.trigger) enter(nameOf(atMount.trigger));
 
     return () => {
-      // Leaving the page is a leave. Flush before tearing anything down, or the
-      // interval that was running is the one interval always lost.
-      emit();
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("pagehide", emit);
+      stop();
       for (const trigger of triggers) trigger.kill();
     };
   }, []);
@@ -484,38 +500,57 @@ export default function SectionTiming() {
 
 - [ ] **Passo 2 — montar em `src/app/layout.tsx`**
 
-Sempre montado, pelo mesmo motivo da fase 2.
+Ao lado de `<FocusRings />`, `<SmoothScroll />` e `<WhatsappClickTracker />`.
+Sempre montado, pelo mesmo motivo da fase 2: sem `window.umami` o `track` já não
+faz nada, e montar condicionalmente faria o teste exercitar um caminho que não é
+o de produção.
 
 **`prefers-reduced-motion` não desliga este componente.** Ele não anima nada,
 mede. A regra do `AGENTS.md` sobre caminho de movimento reduzido vale para seção
 animada e não se aplica aqui. Isso está escrito porque uma revisão futura
-tenderia a "corrigir" a ausência do guard — e um teste roda sob movimento
+tenderia a "corrigir" a ausência do guard — e os testes rodam sob movimento
 reduzido justamente para travar isso.
 
-- [ ] **Passo 3 — checagens e testes, nos três engines**
+- [ ] **Passo 3 — checagens e testes**
+
+Derrube qualquer preview server antes de um run em que você vá confiar: o
+`reuseExistingServer` serve um export **velho** e reporta verde sobre o código
+que você acabou de mudar.
 
 ```bash
-npm run lint && npm run build && npx playwright test tests/layout/analytics.spec.mjs
+lsof -ti tcp:4610 | xargs -r kill
+npx eslint src/
+npx playwright test tests/layout/analytics.spec.mjs
 ```
 
-Esperado: os quatro grupos passam em `chromium`, `webkit` e `mobile-safari`.
+Use `npx eslint src/` e não `npm run lint`: existe um git worktree em
+`.claude/worktrees/` que o flat config não ignora, então `npm run lint` reporta
+centenas de erros de um checkout que não é seu. **Não** mexa na config do eslint
+para resolver isso — é concern separado e não faz parte desta fase.
+
+Os testes de timing esperam por intervalos de 5 segundos reais, então este
+arquivo leva ~40 segundos por engine. Isso é esperado.
 
 - [ ] **Passo 4 — commitar**
 
 ```bash
 git add src/components/analytics/SectionTiming.tsx src/app/layout.tsx
-git commit -m "feat(analytics): time each section spent crossing the viewport centre"
+git commit -m "feat(analytics): sample which section holds the viewport centre"
 ```
 
 **Acceptance:**
-- Cada uma das dez seções produz um `section-view` com `seconds` positivo numa
-  passada completa pela página.
-- A soma dos `seconds` não passa da duração medida da visita.
-- Uma seção atravessada em menos de 1 segundo não emite nada.
-- A seção ativa no carregamento é contada desde t=0.
+- Parado no centro de uma seção por 12 segundos: pelo menos 2 eventos, **todos**
+  nomeando aquela seção.
+- Seção atravessada em menos de 5 segundos: nenhum evento para ela.
+- A seção ativa no carregamento é contada sem nenhum `onEnter`.
 - Passa sob `prefers-reduced-motion: reduce`, que é o default do helper.
+- `SAMPLE_MS` é 5000 no código commitado.
 
----
+**Fora de escopo nesta fase:** qualquer edição na política de privacidade,
+preencher o `UMAMI_WEBSITE_ID`, event data em qualquer evento (o heartbeat não
+tem nenhuma, de propósito — cota conta propriedade armazenada), e qualquer
+tentativa de reportar segundos exatos.
+
 
 ## Fase 4 — ligar: o id real e a política de privacidade
 
@@ -685,17 +720,19 @@ localhost — então sem o espião não haveria nada para observar.
     presença-em-vez-de-efeito proíbem.
 
 **Grupo `section timing`** (fase 3)
-7. Uma passada controlada pela página, com uma parada de ~1,5s no centro de cada
-   seção, produz um `section-view` por seção, todos com `seconds > 0`.
-8. A soma dos `seconds` não passa da duração de parede da sequência. É o que
-   prova a escolha do centro em vez de "visível na tela", e falharia com
-   sobreposição.
-9. Uma seção atravessada em menos de 1 segundo não emite evento.
-10. A seção ativa no carregamento (o Hero) aparece nos eventos mesmo sem nenhum
-    `onEnter` — cobre o trigger criado depois do próprio `start`.
-11. Voltar a uma seção já visitada emite um segundo evento, em vez de acumular
-    no primeiro.
-12. Tudo acima passa sob `prefers-reduced-motion: reduce`.
+7. Parado no centro de `planos` por 12 segundos: pelo menos 2 eventos, e
+   **todos** eles nomeiam `secao-planos`. Esta é a asserção que prova a escolha
+   do centro em vez de "visível na tela" — com "visível", a seção vizinha
+   apareceria dentro da janela. Substitui o antigo caso da soma dos `seconds`,
+   que deixou de existir com o redesenho.
+8. Uma seção atravessada em menos de 5 segundos não emite evento para ela.
+9. A seção ativa no carregamento (o Hero) aparece nos eventos sem nenhum scroll
+   e sem nenhum `onEnter` — cobre o trigger criado depois do próprio `start`.
+10. A última seção da página (`rodape`) também é medida, o que mostra que o
+    mecanismo é genérico sobre `[data-analytics-section]` e não acidental na
+    primeira seção.
+11. Tudo acima passa sob `prefers-reduced-motion: reduce`.
+
 
 **Grupo `policy agrees with the tracker`** (fase 4)
 13. Se o export tem a tag do Umami, `/privacidade/` **não** contém a frase que

@@ -100,21 +100,33 @@ viewport. A escolha do centro em vez de "visível na tela" é deliberada — com
 duração da visita, o que torna o ranking sem sentido. Pelo centro, exatamente
 uma seção está ativa a cada instante e os intervalos particionam a visita.
 
-Ao sair, acumula `performance.now()` e emite `section-view` com
-`{ section, seconds }`. Emite **na saída**, não no fim da visita: flush em
-`pagehide` é frágil e perderia o dado. Só a seção ativa no momento da saída
-precisa do flush em `pagehide` e em `visibilitychange` → `hidden` (trocar de aba
-não é leitura).
+**O nome da seção é o nome do EVENTO, e o tempo é medido por amostragem:**
+enquanto uma seção segura o centro, um evento `secao-<nome>` é emitido a cada
+5 segundos. A contagem que o painel mostra, vezes 5 segundos, é um **piso** do
+tempo gasto ali. O intervalo reinicia em cada troca, então uma seção segurada
+por pouco tempo não herda um tick da vizinha.
 
-Regras de qualidade do dado:
+**Isso é imposto pelo fornecedor, não escolhido.** O desenho original mandava
+`section-view` com `{ section, seconds }`. O painel do Umami renderiza event
+data como um breakdown de valor e contagem e **não faz média de propriedade
+numérica** — o pedido para adicionar isso foi fechado como *not planned*
+(issue #3317). `seconds` chegaria como uma cauda de floats quase todos únicos,
+cada um com contagem 1, e a pergunta que motivou este trabalho exigiria export
+via API para ser lida. Contar eventos por nome é a única agregação que o Umami
+faz nativamente, e é o que o desenho passou a usar.
 
-- Abaixo de 1 segundo não emite. Scroll rápido não queima cota com ruído.
-- `seconds` arredondado a uma decimal. A doc do Umami dá precisão máxima de 4
-  para número em event data, então uma decimal é seguro.
-- Cada saída emite o seu próprio intervalo; voltar para uma seção emite um
-  segundo evento em vez de acumular no primeiro. O painel soma, o componente
-  não carrega estado entre visitas à mesma seção, e reler uma seção é de fato
-  mais tempo gasto nela.
+Consequências, boas e ruins:
+
+- **Resolução de 5 segundos.** Uma seção olhada por 4 segundos não registra
+  nada — correto para "onde passou tempo", mas significa que visita de scroll
+  rápido produz só o pageview.
+- **Nenhum valor acumulado para perder.** Some o flush em `pagehide` e o estado
+  guardado no `visibilitychange` — a parte mais frágil do desenho anterior. O
+  tick só pergunta "qual seção está ativa e a aba está visível?" e emite.
+- **Nenhuma event data.** A cota conta propriedade armazenada além do evento, e
+  o heartbeat não precisa de nenhuma.
+- **É amostragem, não cronômetro.** O número defensável é o piso, e é assim que
+  ele deve ser lido e apresentado.
 
 Dois pontos que vêm direto do `docs/failure-archetypes.md`:
 
@@ -122,8 +134,8 @@ Dois pontos que vêm direto do `docs/failure-archetypes.md`:
   *"Altura independente da viewport alimentando o start de um scroll trigger"*:
   na carga, o Hero já está cruzando o centro, então o trigger nasce depois do
   próprio `start`. A criação tem de consultar `isActive` de cada trigger e
-  começar a contar a seção já ativa em t=0, em vez de esperar um `onEnter` que
-  não vai vir. Vale também para recarregar a página no meio do scroll.
+  iniciar o intervalo da seção já ativa, em vez de esperar um `onEnter` que não
+  vai vir. Vale também para recarregar a página no meio do scroll.
 - *"Preferência de acessibilidade colapsa um parâmetro para um valor
   degenerado"*: `prefers-reduced-motion` **não** desliga este componente. Ele
   não anima nada, mede. O `AGENTS.md` exige caminho de movimento reduzido para
@@ -143,10 +155,15 @@ posição ou reaproveitar `id`.
 
 ## Orçamento de eventos
 
-Por visita completa: 1 pageview + até 10 `section-view` + 0 a 2
-`whatsapp-click` ≈ 11 a 13 eventos. Com ~100 mil eventos/mês, isso comporta
-cerca de 7.700 visitas/mês. Folga confortável para uma landing institucional
-nova.
+Uma visita de dois minutos gasta ~120 segundos de atenção, amostrada a cada 5
+segundos: ~24 eventos `secao-*`, mais 1 pageview e 0 a 2 `whatsapp-click`, ou
+seja ~26 eventos. Com ~100 mil eventos/mês, isso comporta cerca de **3.800
+visitas/mês**.
+
+Metade da folga do desenho anterior, e vale dizer de onde veio: o desenho
+anterior era mais barato em cota e não respondia a pergunta. Para o volume
+plausível desta página — dezenas a poucas centenas de visitas por mês — 3.800
+continua sendo uma ordem de magnitude de margem.
 
 ## Política de privacidade — o que muda
 
@@ -190,14 +207,15 @@ tag do script no HTML passa verde enquanto nada é medido.
 
 Os testes ficam no nível do efeito, em `tests/layout/analytics.spec.mjs`:
 
-1. Substituir `window.umami` por um espião antes da carga, rolar a página de
-   ponta a ponta e afirmar que cada uma das dez seções produziu um
-   `section-view` com `seconds` positivo.
-2. Afirmar que a soma dos `seconds` não passa da duração medida da visita — é o
-   que prova a escolha do centro em vez de "visível", e falharia com sobreposição.
-3. Clicar num CTA do WhatsApp com a navegação interceptada e afirmar um
-   `whatsapp-click` com a seção de origem correta.
-4. Afirmar que uma seção atravessada em menos de 1 segundo não emite evento.
+1. Substituir `window.umami` por um espião antes da carga, parar no centro de
+   uma seção por 12 segundos e afirmar pelo menos 2 eventos, **todos** nomeando
+   aquela seção. É o que prova a escolha do centro em vez de "visível na tela":
+   com "visível", a vizinha apareceria na janela.
+2. Afirmar que uma seção atravessada em menos de 5 segundos não emite evento.
+3. Afirmar que a seção ativa no carregamento é contada sem nenhum `onEnter`.
+4. Clicar num CTA do WhatsApp com a navegação interceptada e afirmar um
+   `whatsapp-click` com a seção de origem correta, **e** que o clique continua
+   navegando.
 
 Nível de presença, aceitável porque é configuração e não comportamento: o export
 contém a tag com o `data-website-id` e o `data-domains`.
@@ -208,9 +226,13 @@ contém a tag com o `data-website-id` e o `data-domains`.
   Pages não existe proxy para contornar. A contagem fica subestimada, na faixa de
   10% a 30% dependendo do público. Serve para tendência e comparação relativa,
   não como número absoluto.
-- **`seconds` mede tempo com a seção no centro da viewport**, não tempo de
-  leitura. Uma pessoa que deixa a aba aberta e sai do computador não é
-  distinguível durante o intervalo anterior ao `visibilitychange`.
+- **A contagem mede tempo com a seção no centro da viewport**, não tempo de
+  leitura, e em passos de 5 segundos. É um piso: `contagem × 5s`. Aba em
+  segundo plano não conta, porque o tick checa `visibilityState` — mas uma
+  pessoa que deixa a aba na frente e sai do computador continua contando.
+- **O painel não soma segundos, ele conta eventos.** Comparação entre seções é
+  válida; "a seção X retém 43 segundos em média" não é uma frase que este dado
+  sustenta.
 - **Retenção de 6 meses** no plano gratuito. Comparação ano contra ano não
   existe.
 
