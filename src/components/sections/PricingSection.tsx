@@ -742,6 +742,7 @@ export default function PlanosEPrecos() {
   return (
     <section
       ref={root}
+      data-analytics-section="planos"
       id="planos"
       data-name="planos-e-precos"
       className={[

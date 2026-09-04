@@ -534,6 +534,7 @@ export default function ProblemSection() {
   return (
     <section
       ref={root}
+      data-analytics-section="problema"
       className="overflow-x-clip bg-canvas px-page py-section"
     >
       <div className="mx-auto grid w-full max-w-wide grid-cols-1 items-center gap-space-10 xl:grid-cols-2 xl:gap-space-16">

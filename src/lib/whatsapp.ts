@@ -12,6 +12,12 @@
 // spaces, no punctuation -- anything else and it opens on a blank chat.
 const WHATSAPP_NUMBER = "5547991994214";
 
+// The prefix every CTA's href starts with, exported because
+// WhatsappClickTracker matches on it: the module that builds the URL is the
+// one that gets edited if WhatsApp ever changes the format, so the matcher has
+// to be edited in the same place or it silently stops matching.
+export const WHATSAPP_URL_PREFIX = "https://wa.me/";
+
 export function whatsappHref(message: string) {
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+  return `${WHATSAPP_URL_PREFIX}${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }

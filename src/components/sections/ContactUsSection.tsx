@@ -809,6 +809,7 @@ export default function FormularioDeContato() {
   return (
     <section
       ref={root}
+      data-analytics-section="contato"
       data-name="formulario-de-contato"
       className="
         bg-canvas

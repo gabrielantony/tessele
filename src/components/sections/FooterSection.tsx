@@ -171,6 +171,7 @@ export default function Footer() {
   return (
     <footer
       ref={root}
+      data-analytics-section="rodape"
       className="bg-canvas p-space-1 md:p-space-5"
       aria-label="Rodapé"
     >

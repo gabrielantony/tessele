@@ -19,7 +19,7 @@ import { whatsappHref } from "@/lib/whatsapp";
  * it, and so does the date below.
  */
 
-const LAST_UPDATED = "1º de setembro de 2026";
+const LAST_UPDATED = "4 de setembro de 2026";
 
 export const metadata: Metadata = {
   title: "Política de Privacidade — Tessele",
@@ -129,14 +129,29 @@ export default function PrivacyPolicy() {
 
           <Section title="O que este site coleta — e o que ele não coleta">
             <p>
-              Este site é uma página estática. Ele não tem banco de dados, não
-              tem cadastro e não registra o que você faz enquanto navega.
+              Este site é uma página estática. Ele não tem banco de dados e não
+              tem cadastro.
             </p>
 
             <p>
-              Não usamos ferramentas de análise de audiência, pixels de
-              rastreamento ou cookies de publicidade. Nenhum cookie é gravado no
-              seu navegador por nós.
+              Usamos uma ferramenta de medição de audiência chamada Umami, que
+              conta os acessos à página, registra em quais partes dela as
+              pessoas passam mais tempo e marca quando alguém clica para falar
+              com a gente no WhatsApp, junto de qual parte da página o clique
+              partiu. Ela funciona sem cookie e sem identificador que te
+              acompanhe entre sites: o que fica registrado é a visita, não
+              você. Não montamos perfil individual, não sabemos quem você é e
+              não temos como ligar um acesso a uma pessoa.
+            </p>
+
+            <p>
+              Se o seu navegador estiver configurado para pedir que não seja
+              rastreado — a opção conhecida como &quot;Do Not Track&quot; —, essa
+              medição não roda para você.
+            </p>
+
+            <p>
+              Não usamos pixels de rastreamento nem cookies de publicidade.
             </p>
 
             <p>
@@ -195,7 +210,7 @@ export default function PrivacyPolicy() {
                 "Procedimentos preliminares a um contrato, para responder a um pedido de proposta;",
                 "Execução de contrato, quando o projeto começa;",
                 "Cumprimento de obrigação legal ou regulatória, para a guarda fiscal e contábil;",
-                "Legítimo interesse, para manter o registro dos contatos recebidos e proteger o serviço contra abuso.",
+                "Legítimo interesse, para medir a audiência do site de forma agregada, manter o registro dos contatos recebidos e proteger o serviço contra abuso.",
               ]}
             />
           </Section>
@@ -212,6 +227,7 @@ export default function PrivacyPolicy() {
                 "WhatsApp (Meta Platforms), que é o canal onde a conversa acontece;",
                 "O serviço de hospedagem que entrega esta página;",
                 "As ferramentas que usamos para trabalhar — e-mail, armazenamento em nuvem, gestão de projetos e contabilidade;",
+                "Umami, a ferramenta que mede a audiência deste site;",
                 "Autoridades públicas, quando a lei ou uma ordem judicial exigir.",
               ]}
             />
@@ -227,14 +243,15 @@ export default function PrivacyPolicy() {
 
           <Section title="Cookies">
             <p>
-              Este site não grava cookies. Não existe banner de cookies aqui
-              porque não há cookie a consentir.
+              Este site não grava cookies. A medição de audiência descrita acima
+              foi escolhida justamente por funcionar sem eles, e é por isso que
+              não existe banner de cookies aqui: não há cookie a consentir.
             </p>
 
             <p>
-              Se isso mudar — se um dia passarmos a usar medição de audiência ou
-              pixels de campanha — esta política será atualizada antes, e a data
-              no topo da página mudará junto.
+              Se isso mudar — se um dia passarmos a usar cookies ou pixels de
+              campanha —, esta política será atualizada antes, e a data no topo
+              da página mudará junto.
             </p>
           </Section>
 
@@ -243,6 +260,7 @@ export default function PrivacyPolicy() {
               items={[
                 "Contatos que não viraram projeto: enquanto a conversa for útil ao relacionamento comercial, e apagamos assim que você pedir;",
                 "Clientes: pelo prazo do contrato e pelos prazos legais de guarda que vêm depois dele — em regra, cinco anos para documentos fiscais e contábeis;",
+                "Dados de audiência do site: pelo prazo de retenção do plano que usamos no Umami;",
                 "Registros técnicos de acesso: pelo prazo definido pelo provedor de hospedagem.",
               ]}
             />

@@ -251,6 +251,7 @@ export default function FAQSection() {
   return (
     <section
       ref={root}
+      data-analytics-section="faq"
       id="faq"
       aria-labelledby="faq-heading"
       className="bg-canvas px-page py-section"
