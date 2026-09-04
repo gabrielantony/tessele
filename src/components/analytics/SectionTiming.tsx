@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { usePathname } from "next/navigation";
 
 import { SECTION_ATTRIBUTE, track } from "@/lib/analytics";
 
@@ -80,6 +81,8 @@ const SAMPLE_MS = 5_000;
 const EVENT_PREFIX = "secao-";
 
 export default function SectionTiming() {
+  const pathname = usePathname();
+
   useEffect(() => {
     const sections = gsap.utils.toArray<HTMLElement>(`[${SECTION_ATTRIBUTE}]`);
     if (sections.length === 0) return;
@@ -157,7 +160,14 @@ export default function SectionTiming() {
       stop();
       for (const trigger of triggers) trigger.kill();
     };
-  }, []);
+    /*
+     * The root layout outlives a route change, while these triggers describe
+     * only the route whose sections they found. Depending on pathname makes
+     * React run this cleanup before the next route renders, so an interval and
+     * its stale element references cannot credit policy reading to the landing
+     * page. An empty array here would quietly reintroduce that wrong data.
+     */
+  }, [pathname]);
 
   return null;
 }
