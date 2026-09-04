@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { gotoLanding } from "./sections/helpers.mjs";
+import { HEIGHT, gotoLanding } from "./sections/helpers.mjs";
 
 /*
  * The audience measurement, observed in the browser rather than in the source.
@@ -42,6 +42,10 @@ const SECTIONS = [
 ];
 
 const KEY = "[data-analytics-section]";
+
+// Must match WHATSAPP_URL_PREFIX in src/lib/whatsapp.ts. Duplicated for the
+// reason already written at tests/layout/ctas.spec.mjs:22.
+const WA_PREFIX = "https://wa.me/";
 
 // Must match UMAMI_SCRIPT_SRC and UMAMI_ALLOWED_DOMAIN in src/lib/analytics.ts.
 const UMAMI_HOST = "cloud.umami.is";
@@ -215,20 +219,63 @@ test.describe("configuration", () => {
  * to tessele.com.br, so it never loads against localhost and there would be
  * nothing to observe without this.
  */
-const gotoWithSpy = async (page, width) => {
-  await page.addInitScript(() => {
+const installSpy = (page) =>
+  page.addInitScript(() => {
     window.__events = [];
     window.umami = {
       track: (name, data) => window.__events.push({ name, data }),
     };
   });
+
+const gotoWithSpy = async (page, width) => {
+  await installSpy(page);
   await gotoLanding(page, width);
+};
+
+/*
+ * The privacy policy is a route, not a section, so it needs its own navigation.
+ * Mirrors gotoLanding: same viewport, same reduced motion, same wait for the
+ * webfont, because a box that resizes under the pointer moves the link.
+ */
+const gotoPolicyWithSpy = async (page, width) => {
+  await installSpy(page);
+  await page.setViewportSize({ width, height: HEIGHT });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("./privacidade/", { waitUntil: "load" });
+  await page.evaluate(() => document.fonts.ready.then(() => true));
 };
 
 const eventsOn = (page) => page.evaluate(() => window.__events);
 
 const ctaIn = (page, section) =>
-  page.locator(`[data-analytics-section="${section}"] a[href^="https://wa.me/"]`).first();
+  page.locator(`[data-analytics-section="${section}"] a[href^="${WA_PREFIX}"]`).first();
+
+/*
+ * Clicks a CTA without leaving for WhatsApp, and reports whether the browser
+ * actually tried to go there.
+ *
+ * The CTAs open in a new tab -- a guarantee tests/layout/ctas.spec.mjs already
+ * holds for every wa.me link, so it is relied on here rather than re-asserted.
+ * Aborting at the context level keeps the run off the network while still
+ * letting the navigation be attempted, which is the thing worth measuring:
+ * recording the event and swallowing the click look identical in the event log.
+ */
+const clickCtaWithoutLeaving = async (page, cta) => {
+  await cta.scrollIntoViewIfNeeded();
+
+  let attempted = 0;
+  await page.context().route(`${WA_PREFIX}**`, (route) => {
+    attempted += 1;
+    return route.abort();
+  });
+
+  const popup = page.waitForEvent("popup", { timeout: 3_000 }).catch(() => null);
+  await cta.click();
+  const opened = await popup;
+  if (opened) await opened.close();
+
+  return () => attempted;
+};
 
 test.describe("whatsapp click", () => {
   /*
@@ -244,31 +291,10 @@ test.describe("whatsapp click", () => {
     test(`a CTA click in ${label} reports its own section`, async ({ page }) => {
       await gotoWithSpy(page, 1280);
 
-      const cta = ctaIn(page, section);
-      await cta.scrollIntoViewIfNeeded();
-
-      /*
-       * The CTAs open in a new tab -- a guarantee tests/layout/ctas.spec.mjs
-       * already holds for every wa.me link, so it is relied on here rather than
-       * re-asserted. Aborting the request at the context level keeps the run
-       * from actually reaching WhatsApp while still letting the navigation be
-       * attempted, which is what the next assertion measures.
-       */
-      let attempted = 0;
-      await page.context().route("https://wa.me/**", (route) => {
-        attempted += 1;
-        return route.abort();
-      });
-
-      const popup = page.waitForEvent("popup", { timeout: 3_000 }).catch(() => null);
-      await cta.click();
-      const opened = await popup;
-      if (opened) await opened.close();
-
-      const events = await eventsOn(page);
+      const attempts = await clickCtaWithoutLeaving(page, ctaIn(page, section));
 
       expect(
-        events,
+        await eventsOn(page),
         `clicking ${label}'s CTA reported the wrong thing`,
       ).toEqual([{ name: "whatsapp-click", data: { section } }]);
 
@@ -279,12 +305,30 @@ test.describe("whatsapp click", () => {
        * event above would still be recorded. This is the assertion that tells
        * those two apart.
        */
-      expect(
-        attempted,
-        "the click was recorded but never reached WhatsApp",
-      ).toBe(1);
+      expect(attempts(), "the click was recorded but never reached WhatsApp").toBe(1);
     });
   }
+
+  test("a CTA outside every section reports the fallback key", async ({ page }) => {
+    /*
+     * The privacy policy's WhatsApp link is the real case the fallback exists
+     * for, and it is the only branch of the tracker no other test reaches. It
+     * matters more than its size suggests: that page is where a visitor goes to
+     * exercise an LGPD right, so a handler that threw there would break the
+     * contact link on exactly the page that must not be broken.
+     */
+    await gotoPolicyWithSpy(page, 1280);
+
+    const cta = page.locator(`a[href^="${WA_PREFIX}"]`).first();
+    const attempts = await clickCtaWithoutLeaving(page, cta);
+
+    expect(
+      await eventsOn(page),
+      "a CTA with no keyed ancestor did not fall back to the documented key",
+    ).toEqual([{ name: "whatsapp-click", data: { section: "fora-de-secao" } }]);
+
+    expect(attempts(), "the policy's contact link no longer navigates").toBe(1);
+  });
 
   test("a click that is not a WhatsApp CTA reports nothing", async ({ page }) => {
     await gotoWithSpy(page, 1280);
@@ -310,15 +354,7 @@ test.describe("whatsapp click", () => {
     page.on("pageerror", (error) => errors.push(error.message));
 
     await gotoLanding(page, 1280);
-
-    const cta = ctaIn(page, "hero");
-    await cta.scrollIntoViewIfNeeded();
-
-    await page.context().route("https://wa.me/**", (route) => route.abort());
-    const popup = page.waitForEvent("popup", { timeout: 3_000 }).catch(() => null);
-    await cta.click();
-    const opened = await popup;
-    if (opened) await opened.close();
+    await clickCtaWithoutLeaving(page, ctaIn(page, "hero"));
 
     expect(errors, "the page threw with no measurement vendor present").toEqual([]);
   });
