@@ -275,6 +275,7 @@ export default function OurProcessSection() {
   return (
     <section
       ref={root}
+      data-analytics-section="como-trabalhamos"
       id="como-trabalhamos"
       className="bg-canvas px-page py-section text-ink"
     >

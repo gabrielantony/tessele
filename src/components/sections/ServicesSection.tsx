@@ -908,6 +908,7 @@ export default function ServicosEEntregas() {
   return (
     <section
       ref={root}
+      data-analytics-section="servicos"
       id="servicos"
       data-name="servicos-e-entregas"
       className="bg-canvas px-page py-section"

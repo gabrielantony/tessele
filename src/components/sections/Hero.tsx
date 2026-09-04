@@ -50,6 +50,7 @@ export default function Hero() {
   return (
     <section
       ref={root}
+      data-analytics-section="hero"
       /*
        * Two different jobs used to share this one min-height, and they want
        * different numbers.

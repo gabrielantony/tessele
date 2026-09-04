@@ -392,6 +392,7 @@ export default function AboutUs() {
   return (
     <section
       ref={root}
+      data-analytics-section="sobre-nos"
       aria-labelledby="about-us-heading"
       className="overflow-hidden bg-canvas px-page py-section"
     >
