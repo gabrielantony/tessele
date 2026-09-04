@@ -11,6 +11,7 @@ to write a section; this file is the map and the rules.
 | `src/app/page.tsx` | Stacks the sections in order — the whole page |
 | `src/app/globals.css` | The design tokens (`@theme`) every utility is built from |
 | `src/components/sections/` | One section per file, self-contained |
+| `src/components/analytics/` | Global measurement components that render nothing |
 | `src/fonts/` | The two `.woff2` files (Raleway, Fraunces) |
 | `scripts/generate-tokens-doc.mjs` | Generates `docs/TOKENS.md` |
 | `scripts/serve-export.mjs` | Serves `out/` for the test suite |

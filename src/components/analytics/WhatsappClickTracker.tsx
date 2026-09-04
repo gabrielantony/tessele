@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 
-import { track } from "@/lib/analytics";
+import { SECTION_ATTRIBUTE, track } from "@/lib/analytics";
+import { WHATSAPP_URL_PREFIX } from "@/lib/whatsapp";
 
 /*
  * Records a click on any WhatsApp CTA, and which section it came from.
@@ -11,7 +12,12 @@ import { track } from "@/lib/analytics";
  * point: there are seven of them today (Hero, Como trabalhamos, three plan
  * cards, por demanda, footer) and an eighth added next month is measured
  * without anyone remembering to wire it up. Every one of them is built by
- * whatsappHref(), so `https://wa.me/` is a reliable shape to match.
+ * whatsappHref(), so WHATSAPP_URL_PREFIX is a reliable shape to match.
+ *
+ * `track` sends synchronously just before the browser follows the link, so its
+ * delivery depends on the page staying alive. That holds because every wa.me
+ * link opens in a new tab, a guarantee tests/layout/ctas.spec.mjs:64 keeps;
+ * changing a CTA to same-tab navigation would make this event unreliable.
  *
  * This listener must never claim the event. Capture phase so it sees the click
  * before any handler can stopPropagation, but no preventDefault, no
@@ -24,7 +30,7 @@ export default function WhatsappClickTracker() {
     const onClick = (event: MouseEvent) => {
       if (!(event.target instanceof Element)) return;
 
-      const link = event.target.closest('a[href^="https://wa.me/"]');
+      const link = event.target.closest(`a[href^="${WHATSAPP_URL_PREFIX}"]`);
       if (!link) return;
 
       /*
@@ -34,14 +40,26 @@ export default function WhatsappClickTracker() {
        */
       const section =
         link
-          .closest("[data-analytics-section]")
-          ?.getAttribute("data-analytics-section") ?? "fora-de-secao";
+          .closest(`[${SECTION_ATTRIBUTE}]`)
+          ?.getAttribute(SECTION_ATTRIBUTE) ?? "fora-de-secao";
 
       track("whatsapp-click", { section });
     };
 
+    const onAuxClick = (event: MouseEvent) => {
+      // auxclick covers every non-primary button, so right-click lands here too.
+      // Only the middle button is an activation; button 2 opens a context menu the
+      // visitor may just dismiss.
+      if (event.button !== 1) return;
+      onClick(event);
+    };
+
     document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
+    document.addEventListener("auxclick", onAuxClick, true);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("auxclick", onAuxClick, true);
+    };
   }, []);
 
   return null;

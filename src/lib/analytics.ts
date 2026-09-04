@@ -33,6 +33,13 @@ export const UMAMI_SCRIPT_SRC = "https://cloud.umami.is/script.js";
  */
 export const UMAMI_ALLOWED_DOMAIN = "tessele.com.br";
 
+/*
+ * The attribute that carries a section's key. Exported because two components
+ * read it and a rename has to be one edit -- a missed literal does not fail the
+ * build, it just stops measuring that section.
+ */
+export const SECTION_ATTRIBUTE = "data-analytics-section";
+
 type EventData = Record<string, string | number>;
 
 declare global {
