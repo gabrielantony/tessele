@@ -583,3 +583,67 @@ test.describe("section timing", () => {
     ).toContain(`${SECTION_EVENT_PREFIX}rodape`);
   });
 });
+
+/*
+ * The key Umami documents for keeping your own visits out of your own data.
+ * Duplicated rather than imported, for the reason at
+ * tests/layout/ctas.spec.mjs:22.
+ */
+const OPT_OUT_KEY = "umami.disabled";
+
+test.describe("self exclusion", () => {
+  test("a visitor who opted out produces nothing, and clearing it restores measurement", async ({
+    page,
+  }) => {
+    await installSpy(page);
+    await page.addInitScript((key) => {
+      try {
+        localStorage.setItem(key, "1");
+      } catch {
+        // A browser that refuses storage cannot opt out; the assertions below
+        // would then fail loudly rather than pass for the wrong reason.
+      }
+    }, OPT_OUT_KEY);
+
+    await gotoLanding(page, 1280);
+    await parkOn(page, "planos");
+    await page.waitForTimeout(SAMPLE_MS + 2_000);
+    await clickCtaWithoutLeaving(page, ctaIn(page, "hero"));
+
+    /*
+     * Both paths at once, because the vendor's own handling of this flag is
+     * exactly what makes it necessary: umami-software/umami#3031 reports the
+     * script honours it for the automatic pageview but not for events sent
+     * through `umami.track()`, which is every event this page produces. A test
+     * that only checked one path would pass while the other kept reporting.
+     */
+    expect(
+      await eventsOn(page),
+      "an opted-out visitor was still measured",
+    ).toEqual([]);
+
+    /*
+     * And the control. Without this the test would pass just as happily against
+     * a page that had stopped measuring for some entirely different reason, and
+     * the opt-out would be credited with a silence it did not cause.
+     *
+     * No reload: the same page keeps running, which additionally proves the
+     * check is made per call rather than once at load. Reloading would in fact
+     * break this, because `addInitScript` runs again on every navigation and
+     * would put the flag straight back.
+     */
+    await page.evaluate((key) => localStorage.removeItem(key), OPT_OUT_KEY);
+    await clearEvents(page);
+    await page.waitForTimeout(SAMPLE_MS + 2_000);
+
+    /*
+     * Any section, not a named one. Which section is active here depends on
+     * where clicking the hero's CTA left the scroll, which is incidental --
+     * the claim being controlled for is that sampling resumed at all.
+     */
+    expect(
+      await sectionNamesOn(page),
+      "clearing the opt-out did not bring measurement back, so the silence above proves nothing",
+    ).not.toEqual([]);
+  });
+});
