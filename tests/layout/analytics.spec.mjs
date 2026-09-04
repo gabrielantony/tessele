@@ -359,3 +359,161 @@ test.describe("whatsapp click", () => {
     expect(errors, "the page threw with no measurement vendor present").toEqual([]);
   });
 });
+
+/*
+ * Must match SAMPLE_MS in src/components/analytics/SectionTiming.tsx, and the
+ * prefix its event names carry. Duplicated for the reason at
+ * tests/layout/ctas.spec.mjs:22 -- importing the value under test would make
+ * these assertions pass at any cadence at all.
+ */
+const SAMPLE_MS = 5_000;
+const SECTION_EVENT_PREFIX = "secao-";
+
+/*
+ * Puts a section's midpoint on the viewport centre, which is the line the
+ * timing component treats as ownership. Waits two frames rather than a
+ * timeout: ScrollTrigger reads the new position from the GSAP ticker that
+ * Lenis drives, so a frame boundary is the real signal and a sleep would just
+ * be a guess at it.
+ */
+const parkOn = async (page, section) => {
+  await page.evaluate((selector) => {
+    const element = document.querySelector(selector);
+    const box = element.getBoundingClientRect();
+    window.scrollTo(
+      0,
+      window.scrollY + box.top + box.height / 2 - window.innerHeight / 2,
+    );
+  }, `[data-analytics-section="${section}"]`);
+
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+  );
+};
+
+/*
+ * Drops whatever was collected before the window under test opened. Without
+ * this, every timing assertion would also depend on how long the run took to
+ * get from load to the first park -- a slow worker would leak a hero tick into
+ * a window about another section, and the failure would read as a bug in the
+ * component.
+ */
+const clearEvents = (page) =>
+  page.evaluate(() => {
+    window.__events.length = 0;
+  });
+
+const namesOn = async (page) => (await eventsOn(page)).map((event) => event.name);
+
+const sectionNamesOn = async (page) =>
+  (await namesOn(page)).filter((name) => name.startsWith(SECTION_EVENT_PREFIX));
+
+test.describe("section timing", () => {
+  test("holding a section samples that section, and only that one", async ({
+    page,
+  }) => {
+    await gotoWithSpy(page, 1280);
+    await parkOn(page, "planos");
+    await clearEvents(page);
+
+    // Two sample intervals plus margin for a loaded worker.
+    await page.waitForTimeout(SAMPLE_MS * 2 + 2_000);
+
+    const sampled = await sectionNamesOn(page);
+
+    expect(
+      sampled.length,
+      `12 seconds on one section produced ${sampled.length} samples, so the cadence is wrong`,
+    ).toBeGreaterThanOrEqual(2);
+
+    /*
+     * The assertion the whole design turns on. The component owns the section
+     * crossing the viewport CENTRE, not every section on screen -- and with
+     * "on screen" the neighbour above or below would appear in this window,
+     * two sections would accrue at once, and the dashboard's ranking would be
+     * meaningless. A single distinct name here is what rules that out.
+     */
+    expect(
+      [...new Set(sampled)],
+      "more than one section accrued time at the same moment",
+    ).toEqual([`${SECTION_EVENT_PREFIX}planos`]);
+  });
+
+  test("a section crossed in under one sample is never counted", async ({
+    page,
+  }) => {
+    await gotoWithSpy(page, 1280);
+    await parkOn(page, "citacao");
+    await clearEvents(page);
+
+    // Comfortably inside one interval, then move on.
+    await page.waitForTimeout(SAMPLE_MS - 2_000);
+    await parkOn(page, "rodape");
+
+    /*
+     * And then hold long enough for the new section to be sampled. That second
+     * half is what makes this test mean anything: asserting only the absence of
+     * `secao-citacao` would pass just as happily against a component that had
+     * died, or never started, and emitted nothing for anything. Requiring the
+     * footer to appear in the same window proves the sampler was alive while
+     * the short dwell was being discarded.
+     */
+    await page.waitForTimeout(SAMPLE_MS + 2_000);
+
+    const sampled = await sectionNamesOn(page);
+
+    expect(
+      sampled,
+      "the sampler was not running during this window, so the absence below proves nothing",
+    ).toContain(`${SECTION_EVENT_PREFIX}rodape`);
+
+    expect(
+      sampled.filter((name) => name === `${SECTION_EVENT_PREFIX}citacao`),
+      "a section passed through in 3 seconds was counted as time spent",
+    ).toEqual([]);
+  });
+
+  test("the section already at the centre on load is counted", async ({
+    page,
+  }) => {
+    /*
+     * No scrolling at all. The trigger for the section under the centre at
+     * mount is created past its own start, so it never receives an onEnter --
+     * `docs/failure-archetypes.md` calls this class "Independent scroll
+     * controllers initialize against transient layout". Without an explicit
+     * scan at creation, the section most likely to be read on a fresh load is
+     * the one that measures nothing, and no error says so.
+     */
+    await gotoWithSpy(page, 1280);
+    await clearEvents(page);
+
+    await page.waitForTimeout(SAMPLE_MS + 2_000);
+
+    expect(
+      await sectionNamesOn(page),
+      "the hero held the centre from load and was never sampled",
+    ).toContain(`${SECTION_EVENT_PREFIX}hero`);
+  });
+
+  test("the last section on the page is sampled too", async ({ page }) => {
+    /*
+     * The footer rather than another middle section: it is the one whose
+     * `bottom center` end line the page may never reach, so a component that
+     * only counted sections it had seen leave would measure everything except
+     * the end of the page.
+     */
+    await gotoWithSpy(page, 1280);
+    await parkOn(page, "rodape");
+    await clearEvents(page);
+
+    await page.waitForTimeout(SAMPLE_MS + 2_000);
+
+    expect(
+      await sectionNamesOn(page),
+      "the footer was never sampled",
+    ).toContain(`${SECTION_EVENT_PREFIX}rodape`);
+  });
+});
