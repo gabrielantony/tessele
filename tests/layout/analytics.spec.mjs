@@ -224,6 +224,20 @@ test.describe("configuration", () => {
       policy.includes(PRE_ANALYTICS_DATE),
       "the policy describes measurement but still claims the revision date from before it",
     ).toBe(false);
+
+    /*
+     * The counterpart of the `data-do-not-track` assertion above. Every other
+     * check in this group guards against a false statement coming BACK; this
+     * one guards a true statement LEAVING, which is the asymmetry the rest of
+     * the group has. It pins a promise about behaviour rather than prose --
+     * the tracker is configured to honour the preference, so the page has to
+     * keep saying so -- and it pins only the phrase a reader would search for,
+     * not the sentence around it.
+     */
+    expect(
+      policy.includes("Do Not Track"),
+      "the tracker honours do-not-track and the policy no longer tells anyone",
+    ).toBe(true);
   });
 });
 
