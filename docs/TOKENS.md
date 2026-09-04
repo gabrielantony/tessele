@@ -24,12 +24,13 @@ Prefix each name with `bg-`, `text-`, `border-` or `ring-`.
 | `surface` | #ffffff |
 | `surface-glass` | rgb(255 255 255 / 78%) |
 | `ink` | #030a06 |
-| `muted` | #666a66 |
+| `muted` | #575651 |
 | `accent` | #112118 |
 | `accent-hover` | #1a3224 |
 | `on-accent` | #faf9f5 |
 | `on-accent-muted` | #999e99 |
 | `on-accent-border` | #4d594d |
+| `on-accent-track` | #666a66 |
 | `highlight` | #85d02d |
 | `highlight-deep` | #5e9320 |
 | `dark-canvas` | #030a06 |

@@ -12,6 +12,11 @@ const ALLOWED = {
   // cell so the card cannot change height when the reader switches tabs. The
   // overlap is the mechanism: only the active copy is visible, the rest are
   // there to reserve the height of the longest one at whatever width this is.
+  //
+  // From 48rem up, that is. Below it the inactive copies are absolutely
+  // positioned so they reserve no height, and the probe already skips children
+  // that are not static or relative -- so this entry buys nothing at 390 and
+  // 430px and is not what keeps those widths green.
   overlappingSiblings: ["[data-tab-copy-stack]"],
   overflowingParent: [],
 };

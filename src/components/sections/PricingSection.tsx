@@ -236,7 +236,7 @@ function BillingToggle({
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight",
           "transition-all duration-(--duration-base) ease-(--ease-out)",
           "active:shadow-control",
-          isSemester ? "bg-highlight" : "bg-muted",
+          isSemester ? "bg-highlight" : "bg-on-accent-track",
         ].join(" ")}
       >
         <span className="size-space-5" aria-hidden="true" />
