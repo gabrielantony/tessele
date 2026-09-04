@@ -156,7 +156,14 @@ fazer, e o comentário no topo do arquivo já prevê este momento. Quatro ediç�
 1. **"O que este site coleta — e o que ele não coleta"**: substituir o parágrafo
    "Não usamos ferramentas de análise de audiência…" por uma descrição honesta —
    medição agregada de audiência, sem cookie, sem identificador persistente,
-   sem perfil individual, com respeito ao Do Not Track do navegador.
+   sem perfil individual, com respeito ao Do Not Track do navegador. **E a frase
+   "não registra o que você faz enquanto navega", no parágrafo anterior**, que a
+   medição de tempo por seção torna falsa — encontrada na auto-revisão do plano,
+   depois desta spec ter sido aprovada.
+
+   Uma quarta edição, também encontrada depois: a seção **"Com base em quê
+   tratamos esses dados"** lista as hipóteses legais, e o legítimo interesse
+   precisa passar a mencionar a medição de audiência.
 2. **"Cookies"**: a frase "este site não grava cookies" **continua verdadeira**,
    e é exatamente por isso que a ferramenta escolhida é cookieless. O ajuste é
    dizer que existe medição e que ela não usa cookie — não inverter a seção.
