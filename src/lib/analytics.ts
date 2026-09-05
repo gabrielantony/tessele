@@ -49,6 +49,36 @@ declare global {
 }
 
 /*
+ * The key Umami documents for keeping your own visits out of your own data:
+ * run `localStorage.setItem('umami.disabled', 1)` in the browser console, once
+ * per browser.
+ *
+ * Checking it here rather than trusting the vendor script is the whole point.
+ * That script honours the flag for the pageview it sends by itself, but
+ * umami-software/umami#3031 reports it does NOT honour it for anything sent
+ * through `umami.track()` -- which is every event this page produces. Without
+ * this, opting out would remove the studio's own pageviews while leaving their
+ * own section samples and CTA clicks in the numbers, which is worse than not
+ * opting out at all: the ranking would be skewed by exactly the person reading
+ * it.
+ */
+const OPT_OUT_KEY = "umami.disabled";
+
+function optedOut(): boolean {
+  try {
+    return Boolean(window.localStorage.getItem(OPT_OUT_KEY));
+  } catch {
+    /*
+     * Reading storage throws outright in a private window and wherever site
+     * data is blocked. That is a browser refusing to answer, not a visitor
+     * asking to be left out, so they are measured -- the same thing that
+     * happens when the key is simply absent.
+     */
+    return false;
+  }
+}
+
+/*
  * Fire and forget. A missing vendor is the normal case, not an error --
  * development, an ad blocker, a measurement that is simply off -- so this
  * returns silently instead of throwing from inside a click handler or a scroll
@@ -59,5 +89,6 @@ export function track(event: string, data?: EventData): void {
   // that would throw rather than pass quietly -- layout.tsx imports this module
   // from the server, so the guard belongs here and not at the call sites.
   if (typeof window === "undefined") return;
+  if (optedOut()) return;
   window.umami?.track(event, data);
 }
